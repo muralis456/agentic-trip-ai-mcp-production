@@ -206,20 +206,8 @@ public class TravelState extends AgentState {
             requestedReturnDate = TripSlotHeuristics.inferReturnDate(prompt, departureDate, requestedReturnDate);
         }
 
-        // Never allow a stale date supplied by the UI/request hydration layer to
-        // reach live providers. A historical date is valid only when the CURRENT
-        // turn explicitly asks for that calendar date (the server will then
-        // reject genuinely past searches). Otherwise, treat it as stale context
-        // and use today for a live flight search.
-        boolean currentTurnHasDateHint = TripSlotHeuristics.hasDateHint(prompt)
-                || TripSlotHeuristics.hasDurationHint(prompt);
-        if (departureDate.isBefore(today) && !currentTurnHasDateHint) {
-            departureDate = today;
-            requestedReturnDate = TripSlotHeuristics.inferReturnDate(prompt, departureDate, requestedReturnDate);
-        }
-        if (requestedReturnDate.isBefore(departureDate) && !currentTurnHasDateHint) {
-            requestedReturnDate = departureDate.plusDays(5);
-        }
+        // TravelState is a deterministic mapper and preserves explicit request dates.
+        // Live API-boundary sanitization is handled by TravelController.
 
         input.put(DEPARTURE_DATE, departureDate);
         input.put(RETURN_DATE, requestedReturnDate);
@@ -659,7 +647,9 @@ public class TravelState extends AgentState {
         updates.put(NEEDS_FLIGHTS, intent.isNeedsFlights());
         updates.put(NEEDS_HOTELS, intent.isNeedsHotels());
         updates.put(NEEDS_RESEARCH, intent.isNeedsResearch());
-        updates.put(NEEDS_WEATHER, intent.isNeedsWeather());
+        boolean needsWeather = IntentPlan.TRIP_PLANNING.equalsIgnoreCase(intent.getRequestType())
+                || intent.isNeedsWeather();
+        updates.put(NEEDS_WEATHER, needsWeather);
         updates.put(NEEDS_BUDGET, intent.isNeedsBudget());
         updates.put(NEEDS_ITINERARY, intent.isNeedsItinerary());
         updates.put(NEEDS_KNOWLEDGE, intent.isNeedsKnowledge());
@@ -667,7 +657,7 @@ public class TravelState extends AgentState {
         updates.put(RUN_FLIGHTS, intent.isNeedsFlights());
         updates.put(RUN_HOTELS, intent.isNeedsHotels());
         updates.put(RUN_RESEARCH, intent.isNeedsResearch());
-        updates.put(RUN_WEATHER, intent.isNeedsWeather());
+        updates.put(RUN_WEATHER, needsWeather);
         updates.put(RUN_BUDGET, intent.isNeedsBudget());
         updates.put(RUN_ITINERARY, intent.isNeedsItinerary());
     }
