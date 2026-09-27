@@ -174,10 +174,8 @@ public class AgentPlan implements Serializable {
     public boolean shouldExecute(String taskId) {
         AgentTask task = task(taskId);
         if (task == null) return false;
-        return selectiveExecution
-                ? task.getStatus() == AgentTask.Status.READY
-                : task.getStatus() == AgentTask.Status.PENDING
-                    || task.getStatus() == AgentTask.Status.READY;
+        return task.getStatus() == AgentTask.Status.PENDING
+                || task.getStatus() == AgentTask.Status.READY;
     }
 
     /** Return the executable pre-supervisor agents for the current pass. */
