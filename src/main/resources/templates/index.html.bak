@@ -1,0 +1,2520 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgenticTripAI</title>
+    <style>
+        :root {
+            --bg-1: #020b18;
+            --bg-2: #0a182d;
+            --panel: rgba(18, 32, 52, 0.9);
+            --panel-soft: rgba(255, 255, 255, 0.04);
+            --border: rgba(255, 255, 255, 0.08);
+            --primary: #2b8cff;
+            --primary-2: #0e4ec4;
+            --text: #edf5ff;
+            --muted: #b3c7df;
+            --chip: rgba(53, 125, 255, 0.16);
+            --pill: rgba(77, 142, 255, 0.16);
+            --shadow: rgba(4, 9, 19, 0.45);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, Helvetica, sans-serif;
+            background: radial-gradient(circle at top, rgba(52, 116, 196, 0.18), transparent 35%),
+                        linear-gradient(120deg, var(--bg-1), var(--bg-2));
+            color: var(--text);
+        }
+
+        body {
+            height: 100%;
+        }
+
+        .layout {
+            display: flex;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            /* Keep the original two-pane application layout. The sidebar is part
+               of the desktop UI; the main conversation fills all remaining space. */
+            display: block;
+            width: 300px;
+            padding: 22px 18px 18px;
+            background: rgba(9, 17, 31, 0.75);
+            border-right: 1px solid var(--border);
+            backdrop-filter: blur(6px);
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 6px 4px 26px;
+            color: #edf4ff;
+        }
+
+        .brand-mark {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3ec1ff, #1d6fff);
+            box-shadow: 0 0 12px rgba(45, 130, 255, 0.7);
+            position: relative;
+        }
+
+        .brand-mark::after {
+            content: "";
+            position: absolute;
+            inset: 4px 4px auto auto;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+        }
+
+        .sidebar-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 12px;
+            margin-bottom: 18px;
+        }
+
+        .sidebar-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .user-field {
+            width: 100%;
+            background: rgba(255,255,255,0.92);
+            border: 1px solid rgba(255,255,255,0.7);
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 15px;
+            color: #1f2d3d;
+        }
+
+        .sidebar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 11px 12px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .tiny-icon {
+            display: inline-flex;
+            width: 18px;
+            height: 18px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 11px;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 0;
+            max-width: none;
+            width: 100%;
+            margin: 0;
+            padding: 24px 28px 0;
+        }
+
+        .messages-pane {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 8px;
+            scroll-behavior: smooth;
+        }
+
+        .hero {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(91, 164, 255, 0.12);
+            border: 1px solid rgba(123, 180, 255, 0.25);
+            border-radius: 999px;
+            padding: 7px 14px;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #dfeeff;
+            margin-bottom: 16px;
+        }
+
+        .title {
+            font-size: clamp(2.3rem, 4vw, 4.2rem);
+            line-height: 1.05;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.05em;
+        }
+
+        .subtitle {
+            max-width: 760px;
+            margin: 18px auto 0;
+            font-size: 20px;
+            line-height: 1.5;
+            color: var(--muted);
+        }
+
+        .hero-visual {
+            width: 100%;
+            max-width: 960px;
+            height: 146px;
+            margin: 20px auto 18px;
+            border-radius: 20px;
+            background:
+                linear-gradient(180deg, rgba(4, 12, 21, 0.18), rgba(7, 18, 30, 0.12)),
+                linear-gradient(135deg, rgba(150, 196, 255, 0.32), rgba(72, 118, 190, 0.1)),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420"><rect width="1200" height="420" fill="transparent"/><path d="M0 300 C160 250, 260 260, 430 220 S760 170, 1200 270 L1200 420 L0 420 Z" fill="rgba(255,255,255,0.08)"/><path d="M0 320 C180 280, 300 260, 500 240 S830 210, 1200 290" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="2"/></svg>') center/cover no-repeat;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: inset 0 0 22px rgba(255,255,255,0.04);
+        }
+
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(160px, 1fr));
+            gap: 14px;
+            margin: 16px auto 18px;
+            max-width: 960px;
+        }
+
+        .city-card {
+            height: 104px;
+            border-radius: 14px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 12px 10px;
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: 0.02em;
+            color: #eef6ff;
+            border: 1px solid rgba(255,255,255,0.07);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+            text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+        }
+
+        .tokyo { background: linear-gradient(135deg, rgba(17,179,255,0.22), rgba(4,39,70,0.18)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250"><rect width="400" height="250" fill="%230d1e32"/><path d="M0 180 L120 120 L190 170 L260 110 L400 180 L400 250 L0 250 Z" fill="%234b8bb8" opacity="0.5"/><circle cx="260" cy="90" r="35" fill="%23f4d58d" opacity="0.9"/><rect x="80" y="120" width="180" height="50" fill="%23fdf9ea" opacity="0.2"/></svg>') center/cover no-repeat; }
+        .paris { background: linear-gradient(135deg, rgba(224,133,87,0.18), rgba(13,41,71,0.2)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250"><rect width="400" height="250" fill="%230d1e32"/><path d="M0 170 L140 120 L200 170 L260 110 L400 170 L400 250 L0 250 Z" fill="%23d37b61" opacity="0.5"/><path d="M180 62 L210 155 L150 155 Z" fill="%23f6d0a8" opacity="0.8"/><rect x="100" y="155" width="190" height="35" fill="%23f4e7d6" opacity="0.25"/></svg>') center/cover no-repeat; }
+        .bangkok { background: linear-gradient(135deg, rgba(255,167,87,0.18), rgba(13,41,71,0.2)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250"><rect width="400" height="250" fill="%230d1e32"/><path d="M0 180 L120 100 L220 150 L400 120 L400 250 L0 250 Z" fill="%23e6ae5b" opacity="0.45"/><rect x="70" y="90" width="270" height="80" fill="%23a5d7ef" opacity="0.12"/><path d="M160 120 L190 90 L220 120" fill="none" stroke="%23f7d493" stroke-width="10" opacity="0.8"/></svg>') center/cover no-repeat; }
+        .dubai { background: linear-gradient(135deg, rgba(86,143,255,0.18), rgba(13,41,71,0.2)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250"><rect width="400" height="250" fill="%230d1e32"/><path d="M0 180 Q150 120 400 150 L400 250 L0 250 Z" fill="%2390c4ff" opacity="0.3"/><path d="M110 120 H290 V160 H110 Z" fill="%23e9f0ff" opacity="0.10"/><path d="M80 210 H320" stroke="%23f5efda" stroke-width="8" opacity="0.28"/></svg>') center/cover no-repeat; }
+
+        .prompt-box {
+            max-width: 1000px;
+            margin: 20px auto 0;
+            background: rgba(15, 24, 39, 0.76);
+            border: 1px solid rgba(140, 182, 255, 0.25);
+            border-radius: 18px;
+            box-shadow: 0 18px 36px rgba(0,0,0,0.22);
+            overflow: hidden;
+        }
+
+        .prompt-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 22px 8px;
+            color: #dfeeff;
+            font-size: 13px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .prompt-header .tag {
+            display: inline-flex;
+            width: 18px;
+            height: 18px;
+            border-radius: 6px;
+            background: rgba(90, 150, 255, 0.18);
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            border: 1px solid rgba(123, 180, 255, 0.2);
+        }
+
+        .prompt-body {
+            padding: 8px 18px 20px;
+        }
+
+        .trip-suggestions {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+            gap: 14px;
+            margin: 10px 0 16px;
+        }
+
+        .suggestion {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 90px;
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, rgba(41, 118, 215, 0.72), rgba(28, 83, 175, 0.82));
+            color: #f4f9ff;
+            font-weight: 700;
+            font-size: 18px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: inset 0 0 18px rgba(255,255,255,0.06);
+        }
+
+        textarea,
+        input,
+        select,
+        button {
+            font: inherit;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 116px;
+            resize: vertical;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 14px;
+            padding: 18px 18px 16px;
+            color: var(--text);
+            font-size: 17px;
+            line-height: 1.55;
+            outline: none;
+            box-shadow: inset 0 0 18px rgba(0,0,0,0.08);
+        }
+
+        textarea:focus {
+            border-color: rgba(126, 182, 255, 0.55);
+            box-shadow: 0 0 0 3px rgba(71, 145, 255, 0.15), inset 0 0 18px rgba(0,0,0,0.06);
+        }
+
+        textarea::placeholder {
+            color: rgba(220, 233, 255, 0.6);
+        }
+
+        .submit-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            margin-top: 14px;
+            border: none;
+            border-radius: 12px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+            color: #f9fbff;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 24px rgba(32, 91, 255, 0.38);
+            transition: transform 0.15s ease, filter 0.15s ease;
+        }
+
+        .submit-button:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+        }
+
+        .submit-button:disabled {
+            opacity: 0.75;
+            cursor: wait;
+            transform: none;
+        }
+
+        .welcome-block {
+            flex-shrink: 0;
+        }
+
+        .layout.has-chat .welcome-block {
+            display: none;
+        }
+
+        .chat-thread {
+            flex: 1 0 auto;
+            padding: 8px 4px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        .chat-empty {
+            margin: auto;
+            text-align: center;
+            color: var(--muted);
+            font-size: 15px;
+            padding: 40px 16px;
+        }
+
+        .layout.has-chat .chat-empty {
+            display: none;
+        }
+
+        .chat-msg {
+            display: flex;
+            gap: 12px;
+            max-width: 100%;
+            animation: msg-in 0.22s ease;
+        }
+
+        @keyframes msg-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: none; }
+        }
+
+        .chat-msg.user {
+            flex-direction: row-reverse;
+        }
+
+        .chat-avatar {
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            background: rgba(43, 140, 255, 0.2);
+            border: 1px solid rgba(123, 180, 255, 0.25);
+            color: #dfeeff;
+        }
+
+        .chat-msg.user .chat-avatar {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .chat-bubble {
+            flex: 1;
+            min-width: 0;
+            background: rgba(9, 17, 31, 0.85);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 14px 16px;
+            line-height: 1.6;
+        }
+
+        .chat-msg.user .chat-bubble {
+            background: rgba(43, 140, 255, 0.16);
+            border-color: rgba(123, 180, 255, 0.28);
+            max-width: 85%;
+            flex: 0 1 auto;
+        }
+
+        .chat-role {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .chat-body {
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .chat-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .chat-actions .submit-button {
+            width: auto;
+            margin-top: 0;
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+
+        .chat-msg.assistant .chat-bubble {
+            background: transparent;
+            border: none;
+            padding: 0;
+            max-width: 100%;
+        }
+
+        .chat-msg.assistant .chat-role {
+            margin-bottom: 10px;
+            padding-left: 4px;
+        }
+
+        .trip-plan-card {
+            background: linear-gradient(180deg, rgba(14, 28, 48, 0.96), rgba(9, 17, 31, 0.98));
+            border: 1px solid rgba(123, 180, 255, 0.22);
+            border-radius: 18px;
+            padding: 22px 22px 18px;
+            box-shadow: 0 18px 40px var(--shadow);
+        }
+
+        .trip-plan-card.error {
+            padding: 18px;
+            border-color: rgba(255, 120, 120, 0.35);
+        }
+
+        .trip-header {
+            margin-bottom: 6px;
+        }
+
+        .trip-title {
+            margin: 0 0 14px;
+            font-size: 1.55rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .trip-rule {
+            height: 1px;
+            background: linear-gradient(90deg, rgba(123, 180, 255, 0.45), rgba(123, 180, 255, 0.08));
+            margin: 14px 0;
+        }
+
+        .trip-meta {
+            display: grid;
+            gap: 8px;
+            font-size: 15px;
+            color: #dce9fb;
+        }
+
+        .trip-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            align-items: center;
+            margin-top: 14px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(46, 204, 113, 0.14);
+            border: 1px solid rgba(46, 204, 113, 0.35);
+            color: #b8f5ce;
+        }
+
+        .status-pill.complete {
+            background: rgba(43, 140, 255, 0.14);
+            border-color: rgba(43, 140, 255, 0.35);
+            color: #cfe4ff;
+        }
+
+        .quality-pill {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .plan-section {
+            margin-top: 8px;
+        }
+
+        .plan-section-head {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9ec0ef;
+            padding: 12px 0 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .plan-section-body {
+            font-size: 15px;
+            line-height: 1.65;
+            color: var(--text);
+        }
+
+        .plan-muted {
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .plan-list {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .plan-list li {
+            margin-bottom: 8px;
+        }
+
+        .budget-table {
+            display: grid;
+            gap: 8px;
+            max-width: 360px;
+        }
+
+        .budget-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            font-size: 15px;
+        }
+
+        .budget-row span:last-child {
+            font-variant-numeric: tabular-nums;
+            color: #e8f2ff;
+        }
+
+        .budget-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.12);
+            margin: 4px 0;
+        }
+
+        .budget-total {
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .budget-remaining {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .review-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 8px;
+        }
+
+        .review-ok {
+            color: #b8f5ce;
+        }
+
+        .review-warn {
+            color: #ffd9a0;
+        }
+
+        .agent-details {
+            margin-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 12px;
+        }
+
+        .agent-details summary {
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted);
+            list-style: none;
+        }
+
+        .agent-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .agent-details[open] summary {
+            color: #cfe4ff;
+            margin-bottom: 10px;
+        }
+
+        .agent-details-body {
+            display: grid;
+            gap: 10px;
+        }
+
+        .agent-pre {
+            margin: 0;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 12px;
+            line-height: 1.5;
+            color: #b8cbe4;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 220px;
+            overflow: auto;
+        }
+
+        .plan-legacy {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .chat-actions.plan-actions {
+            justify-content: center;
+            margin-top: 16px;
+            padding-top: 4px;
+        }
+
+        .chat-actions .ghost-button {
+            background: transparent;
+            border: 1px solid rgba(123, 180, 255, 0.35);
+            box-shadow: none;
+            color: #dfeeff;
+        }
+
+        .chat-actions.plan-actions {
+            justify-content: center;
+            margin-top: 16px;
+            padding-top: 4px;
+        }
+
+        .chat-actions.plan-actions .submit-button {
+            min-width: 120px;
+        }
+
+        .composer-wrap {
+            flex-shrink: 0;
+            padding: 10px 0 max(18px, env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(2, 11, 24, 0.55), var(--bg-1) 55%);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .composer-bar {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            width: 100%;
+            padding: 8px 10px 8px 8px;
+            background: rgba(22, 28, 38, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+        }
+
+        .composer-icon-btn {
+            width: 36px;
+            height: 36px;
+            margin-bottom: 2px;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: #eef4ff;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s ease;
+        }
+
+        .composer-icon-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .composer-input-wrap {
+            flex: 1 1 auto;
+            min-width: 0;
+            padding: 2px 4px;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .composer-bar textarea {
+            display: block;
+            width: 100%;
+            height: 28px;
+            min-height: 28px;
+            max-height: 220px;
+            resize: none;
+            overflow-y: hidden;
+            border: none;
+            background: transparent;
+            padding: 4px 6px;
+            color: var(--text);
+            font-size: 16px;
+            line-height: 1.45;
+            outline: none;
+            box-shadow: none;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        /* Keep the composer clean while typing. The scrollbar appears only
+           when the prompt exceeds the maximum height, and never shows the
+           native up/down arrow buttons. */
+        .composer-bar textarea::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+
+        .composer-bar textarea.has-overflow {
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(170, 190, 220, 0.45) transparent;
+        }
+
+        .composer-bar textarea.has-overflow::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .composer-bar textarea.has-overflow::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .composer-bar textarea.has-overflow::-webkit-scrollbar-thumb {
+            background: rgba(170, 190, 220, 0.45);
+            border-radius: 999px;
+        }
+
+        .composer-bar textarea.has-overflow::-webkit-scrollbar-button {
+            display: none;
+            width: 0;
+            height: 0;
+        }
+
+        .composer-bar textarea:focus {
+            border: none;
+            box-shadow: none;
+        }
+
+        .composer-bar textarea::placeholder {
+            color: rgba(198, 210, 228, 0.62);
+        }
+
+        .composer-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+            margin-bottom: 2px;
+        }
+
+        .composer-chip {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            padding: 7px 12px;
+            color: #dfe8f5;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            max-width: 120px;
+        }
+
+        .composer-chip:focus {
+            border-color: rgba(126, 182, 255, 0.45);
+        }
+
+        .composer-send {
+            width: 38px;
+            height: 38px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b9bff, #1d6fff);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: 0 4px 14px rgba(43, 140, 255, 0.35);
+            transition: transform 0.15s ease, filter 0.15s ease;
+        }
+
+        .composer-send:hover:not(:disabled) {
+            filter: brightness(1.06);
+            transform: scale(1.03);
+        }
+
+        .composer-send:disabled {
+            opacity: 0.55;
+            cursor: wait;
+            transform: none;
+        }
+
+        .composer-send svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .composer-hint {
+            margin: 6px 12px 0;
+            color: rgba(198, 210, 228, 0.42);
+            font-size: 11px;
+            text-align: center;
+            user-select: none;
+        }
+
+        .composer-foot {
+            display: flex;
+            justify-content: center;
+            min-height: 0;
+        }
+
+        .composer-foot .loading-shell {
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+
+        /* ---------- Result-card redesign ---------- */
+        .result-card {
+            background: linear-gradient(180deg, rgba(18, 30, 50, 0.98), rgba(8, 16, 29, 0.99));
+            border: 1px solid rgba(142, 181, 239, 0.18);
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 22px 55px rgba(0,0,0,.28);
+        }
+        .result-hero {
+            padding: 24px 24px 20px;
+            background: radial-gradient(circle at 90% 0%, rgba(69,139,255,.20), transparent 38%), linear-gradient(135deg, rgba(49,104,186,.13), transparent 55%);
+        }
+        .result-eyebrow { color:#8fb9ef; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin-bottom:8px; }
+        .result-title { margin:0; font-size:28px; line-height:1.15; letter-spacing:-.035em; }
+        .result-subtitle { margin:8px 0 0; color:var(--muted); font-size:14px; line-height:1.55; }
+        .result-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+        .result-chip { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:999px; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.09); color:#dceaff; font-size:12px; }
+        .result-chip.success { background:rgba(50,205,120,.11); border-color:rgba(50,205,120,.25); color:#baf3ce; }
+        .result-chip.warn { background:rgba(255,190,90,.10); border-color:rgba(255,190,90,.24); color:#ffe0a8; }
+        .result-body { padding:0 24px 22px; }
+        .result-grid { display:grid; grid-template-columns:1fr; gap:12px; margin-top:16px; }
+        .result-panel { background:rgba(255,255,255,.028); border:1px solid rgba(255,255,255,.075); border-radius:16px; padding:16px; }
+        .result-panel.full { grid-column:1/-1; }
+        .result-panel-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; font-size:13px; font-weight:800; color:#cfe3ff; letter-spacing:.07em; text-transform:uppercase; }
+        .result-panel-title .count { color:#91b6e9; font-size:11px; letter-spacing:0; text-transform:none; font-weight:600; }
+        .result-empty { color:rgba(198,210,228,.48); font-size:13px; margin:0; }
+        .flight-card,.hotel-card { padding:12px 0; border-top:1px solid rgba(255,255,255,.065); }
+        .flight-card:first-child,.hotel-card:first-child { border-top:0; padding-top:0; }
+        .item-title { font-weight:750; color:#eef5ff; font-size:14px; }
+        .item-meta { color:var(--muted); font-size:12px; margin-top:5px; line-height:1.5; }
+        .item-note { color:#a9c2df; font-size:12px; margin-top:6px; line-height:1.5; }
+        .itin-list { display:grid; gap:10px; }
+        .itin-item { display:grid; grid-template-columns:54px 1fr; gap:12px; }
+        .itin-day-badge { align-self:start; text-align:center; padding:7px 4px; border-radius:10px; background:rgba(59,139,255,.12); border:1px solid rgba(91,155,255,.2); color:#bcd8ff; font-size:11px; font-weight:800; }
+        .itin-day-title { font-size:14px; font-weight:750; color:#edf5ff; }
+        .itin-activities { margin:6px 0 0; padding-left:17px; color:#c2d3e9; font-size:13px; line-height:1.55; }
+        .itin-activities li { margin-bottom:3px; }
+        .weather-card { display:flex; align-items:center; gap:14px; }
+        .weather-icon { width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(255,255,255,.055); font-size:24px; }
+        .weather-main { font-size:15px; font-weight:750; color:#eff6ff; }
+        .weather-detail { color:var(--muted); font-size:12px; margin-top:4px; line-height:1.5; }
+        .budget-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+        .budget-card { padding:10px 11px; border-radius:11px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.06); }
+        .budget-card .label { color:var(--muted); font-size:11px; }
+        .budget-card .amount { margin-top:3px; color:#eef5ff; font-size:14px; font-weight:750; }
+        .budget-total-card { margin-top:10px; display:flex; justify-content:space-between; gap:12px; padding:11px 12px; border-radius:12px; background:rgba(43,140,255,.10); border:1px solid rgba(82,153,255,.18); }
+        .knowledge-answer { color:#e7f0fb; font-size:15px; line-height:1.72; }
+        .knowledge-answer p { margin:0 0 12px; }
+        .knowledge-answer ul { margin:0 0 12px; padding-left:20px; }
+        .knowledge-answer li { margin-bottom:7px; }
+        .validation-banner { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:13px; background:rgba(255,190,90,.07); border:1px solid rgba(255,190,90,.18); color:#f6dca9; font-size:13px; line-height:1.5; }
+        .execution-mini { display:flex; flex-wrap:wrap; gap:7px; }
+        .execution-pill { padding:6px 9px; border-radius:9px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.065); color:#b9cce3; font-size:11px; }
+        .result-card .agent-details { margin:16px 0 0; padding:0; border-top:0; }
+        .result-card .agent-details summary { padding:11px 12px; border-radius:11px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.06); }
+        @media (max-width: 680px) { .result-grid { grid-template-columns:1fr; } .result-panel.full { grid-column:auto; } .result-hero,.result-body { padding-left:16px; padding-right:16px; } .budget-grid { grid-template-columns:1fr; } }
+
+        .hidden-fields {
+            display: none;
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(123, 180, 255, 0.3);
+            background: transparent;
+            color: #dfeeff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .new-chat-btn:hover {
+            background: rgba(43, 140, 255, 0.12);
+        }
+
+        .chat-history-list {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .chat-history-empty {
+            color: var(--muted);
+            font-size: 13px;
+            padding: 6px 4px;
+        }
+
+        .chat-history-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: #dfeeff;
+            padding: 10px 10px;
+            cursor: pointer;
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .chat-history-item:hover,
+        .chat-history-item.active {
+            background: rgba(43, 140, 255, 0.12);
+            border-color: rgba(123, 180, 255, 0.25);
+        }
+
+        .chat-history-item .meta {
+            display: block;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .city-card {
+            cursor: pointer;
+        }
+
+        .loading-shell {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            min-height: 28px;
+            margin-top: 8px;
+            color: #dfeeff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .loading-shell.visible {
+            display: flex;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #83b5ff;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 980px) {
+            .layout {
+                flex-direction: column;
+                height: 100vh;
+                height: 100dvh;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                max-height: 38vh;
+            }
+
+            .trip-suggestions,
+            .city-grid {
+                grid-template-columns: repeat(2, minmax(150px, 1fr));
+            }
+        }
+
+        @media (max-width: 560px) {
+            .content {
+                padding: 16px 16px 0;
+            }
+
+            .trip-suggestions,
+            .city-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chat-msg.user .chat-bubble {
+                max-width: 92%;
+            }
+
+            .composer-bar {
+                padding: 8px 8px 8px 6px;
+                border-radius: 24px;
+            }
+
+            .composer-chip {
+                max-width: 92px;
+                padding: 7px 10px;
+                font-size: 12px;
+            }
+        }
+    
+
+        .rag-observability {
+            border: 1px solid rgba(91, 140, 255, 0.22);
+            border-radius: 14px;
+            padding: 14px;
+            background: rgba(50, 75, 125, 0.10);
+        }
+        .rag-answer-preview {
+            margin-top: 8px;
+            line-height: 1.55;
+            color: #e7edf9;
+        }
+        .rag-answer-preview p { margin: 0 0 8px; }
+        .rag-answer-preview ul { margin: 6px 0 8px 20px; }
+        .rag-empty { color: #f0c674; margin-top: 8px; }
+        .rag-query {
+            margin-top: 9px;
+            font-size: 12px;
+            color: #9eabc2;
+            word-break: break-word;
+        }
+        .rag-sources-title { margin-top: 12px; }
+        .rag-evidence-card {
+            border-color: rgba(94, 211, 145, 0.22);
+        }
+        .rag-evidence-meta {
+            color: #9eabc2;
+            font-size: 13px;
+            margin-bottom: 9px;
+        }
+        .rag-source-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        /* ---------- ChatGPT-style shell / scrolling ---------- */
+        html, body {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
+        }
+
+        body::-webkit-scrollbar,
+        .messages-pane::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        body::-webkit-scrollbar-track,
+        .messages-pane::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        body::-webkit-scrollbar-thumb,
+        .messages-pane::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        body:hover::-webkit-scrollbar-thumb,
+        .messages-pane:hover::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.34);
+            background-clip: padding-box;
+        }
+
+        body::-webkit-scrollbar-thumb:hover,
+        .messages-pane::-webkit-scrollbar-thumb:hover {
+            background: rgba(203, 213, 225, 0.52);
+            background-clip: padding-box;
+        }
+
+        body::-webkit-scrollbar-button,
+        .messages-pane::-webkit-scrollbar-button,
+        .sidebar::-webkit-scrollbar-button,
+        .chat-history-list::-webkit-scrollbar-button,
+        .agent-pre::-webkit-scrollbar-button {
+            display: none;
+            width: 0;
+            height: 0;
+        }
+
+        .messages-pane {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.30) transparent;
+            padding-right: 2px;
+            overscroll-behavior: contain;
+        }
+
+        .sidebar,
+        .chat-history-list {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .sidebar::-webkit-scrollbar,
+        .chat-history-list::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+
+        /* =============================================================
+           DESKTOP TWO-PANE LAYOUT
+           Keep the sidebar visible and let the conversation occupy every
+           remaining pixel. Do not introduce a centered/max-width column.
+           ============================================================= */
+        .layout {
+            display: flex !important;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        .layout > .sidebar {
+            display: block !important;
+            flex: 0 0 300px;
+            width: 300px;
+            max-width: 300px;
+        }
+
+        .layout > .main {
+            flex: 1 1 auto;
+            width: calc(100% - 300px);
+            max-width: none;
+            min-width: 0;
+        }
+
+        /* Main conversation must use the complete area to the right of the sidebar. */
+        .content {
+            max-width: none;
+            width: 100%;
+            padding-left: 24px;
+            padding-right: 24px;
+        }
+
+        .messages-pane {
+            padding-bottom: 28px;
+        }
+        .content,
+        .messages-pane,
+        .chat-thread,
+        .chat-msg,
+        .chat-msg.assistant,
+        .chat-msg.assistant .chat-bubble {
+            max-width: none;
+            width: 100%;
+        }
+
+        .composer-wrap {
+            width: 100%;
+            max-width: none;
+        }
+
+
+        .chat-thread {
+            gap: 22px;
+        }
+
+        .chat-msg.user .chat-bubble {
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        }
+
+        .chat-msg.assistant .chat-bubble {
+            width: 100%;
+        }
+
+        /* ---------- Live agent response ---------- */
+        .live-response {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: msg-in .25s ease;
+        }
+
+        .live-response-card {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,.075);
+            border-radius: 18px;
+            background: rgba(255,255,255,.025);
+            box-shadow: 0 10px 32px rgba(0,0,0,.14);
+        }
+
+        .live-head {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .live-title {
+            color: #edf5ff;
+            font-size: 14px;
+            font-weight: 750;
+            letter-spacing: .01em;
+        }
+
+        .live-state {
+            color: #9fb5d1;
+            font-size: 12px;
+        }
+
+        .live-dots {
+            display: inline-flex;
+            gap: 3px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        .live-dots i {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #8fb9ef;
+            animation: live-dot 1.1s infinite ease-in-out;
+        }
+        .live-dots i:nth-child(2) { animation-delay: .14s; }
+        .live-dots i:nth-child(3) { animation-delay: .28s; }
+
+        @keyframes live-dot {
+            0%, 70%, 100% { opacity: .28; transform: translateY(0); }
+            35% { opacity: 1; transform: translateY(-2px); }
+        }
+
+        .live-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 11px;
+        }
+
+        .live-step {
+            padding: 5px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.07);
+            background: rgba(255,255,255,.035);
+            color: #8299b6;
+            font-size: 11px;
+            transition: all .18s ease;
+        }
+
+        .live-step.active {
+            color: #d9e9ff;
+            border-color: rgba(91,155,255,.26);
+            background: rgba(59,139,255,.10);
+        }
+
+        /* ---------- More polished welcome screen ---------- */
+        .welcome-block {
+            padding-bottom: 34px;
+        }
+
+        .hero {
+            min-height: min(72vh, 680px);
+            justify-content: center;
+            padding: 44px 0 24px;
+        }
+
+        .hero .badge {
+            box-shadow: 0 8px 28px rgba(43,140,255,.10);
+        }
+
+        .title {
+            font-size: clamp(2.5rem, 5vw, 4.6rem);
+            text-wrap: balance;
+        }
+
+        .hero-visual {
+            border-radius: 28px;
+            opacity: .72;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 50px rgba(0,0,0,.16);
+        }
+
+        .city-grid {
+            gap: 12px;
+        }
+
+        .city-card {
+            min-height: 116px;
+            border-radius: 18px;
+            transition: transform .18s ease, border-color .18s ease, filter .18s ease;
+        }
+
+        .city-card:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.08);
+        }
+
+        /* ---------- Composer polish ---------- */
+        .composer-wrap {
+            position: sticky;
+            bottom: 0;
+            z-index: 20;
+            padding: 12px 0 max(18px, env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(2,11,24,0), rgba(2,11,24,.82) 28%, var(--bg-1) 72%);
+            border-top: 0;
+        }
+
+        .composer-bar {
+            padding: 9px 10px 9px 8px;
+            background: rgba(20, 24, 32, .92);
+            border-color: rgba(255,255,255,.12);
+            box-shadow: 0 12px 38px rgba(0,0,0,.28), 0 0 0 1px rgba(0,0,0,.10);
+            backdrop-filter: blur(18px);
+        }
+
+        .composer-bar:focus-within {
+            border-color: rgba(126,182,255,.30);
+            box-shadow: 0 12px 38px rgba(0,0,0,.30), 0 0 0 3px rgba(59,139,255,.06);
+        }
+
+        .composer-hint {
+            opacity: .7;
+        }
+
+        @media (max-width: 980px) {
+            .content { max-width: none; }
+            .hero { min-height: 58vh; }
+        }
+
+        @media (max-width: 560px) {
+            .content { padding-left: 14px; padding-right: 14px; }
+            .hero { min-height: 55vh; padding-top: 28px; }
+            .title { font-size: 2.65rem; }
+            .subtitle { font-size: 17px; }
+            .composer-hint { display: none; }
+        }
+
+</style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="brand">
+            <span class="brand-mark"></span>
+            <span>AgenticTripAI</span>
+        </div>
+
+        <div class="sidebar-card">
+            <div class="sidebar-label">
+                <span>User ID</span>
+                <span>◎</span>
+            </div>
+            <input class="user-field" type="text" id="userId" value="aaro_hi_user" />
+            <button type="button" id="newChatBtn" class="new-chat-btn">+ New chat</button>
+        </div>
+
+        <div class="sidebar-card">
+            <div class="sidebar-label"><span>Chat history</span></div>
+            <div id="chatHistoryList" class="sidebar-list chat-history-list">
+                <div class="chat-history-empty">No saved chats yet</div>
+            </div>
+        </div>
+
+        <div class="sidebar-card">
+            <div class="sidebar-label"><span>Powered by</span></div>
+            <div class="sidebar-list">
+                <div class="sidebar-item"><span class="tiny-icon">◌</span> LangGraph4j</div>
+                <div class="sidebar-item"><span class="tiny-icon">◉</span> Ollama · Llama 3.2</div>
+                <div class="sidebar-item"><span class="tiny-icon">◍</span> PostgreSQL</div>
+                <div class="sidebar-item"><span class="tiny-icon">◈</span> Tavily Search</div>
+                <div class="sidebar-item"><span class="tiny-icon">✦</span> AviationStack</div>
+            </div>
+        </div>
+
+        <div class="sidebar-card">
+            <div class="sidebar-label"><span>Agent Pipeline</span></div>
+            <div class="sidebar-list">
+                <div class="sidebar-item"><span class="tiny-icon">✦</span> Planner · Airport</div>
+                <div class="sidebar-item"><span class="tiny-icon">◌</span> Flight · Hotel · Research</div>
+                <div class="sidebar-item"><span class="tiny-icon">✧</span> Budget · Itinerary · Validator</div>
+                <div class="sidebar-item"><span class="tiny-icon">✦</span> Re-plan · Human approve</div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="content">
+            <div id="messagesPane" class="messages-pane">
+            <div class="welcome-block">
+                <div class="hero">
+                    <div class="badge">✈️ AgenticTripAI</div>
+                    <h1 class="title">AgenticTripAI</h1>
+                    <p class="subtitle">AI-Powered Travel Planner</p>
+                    <div class="subtitle">
+                        Describe your trip — agents plan flights, hotels, itinerary, and budget, then you approve.
+                    </div>
+                    <div class="hero-visual"></div>
+                </div>
+
+                <div class="city-grid">
+                    <div class="city-card tokyo" data-prompt="From Bengaluru to Tokyo for 7 days under ₹2 lakh — family-friendly with good food.">Tokyo</div>
+                    <div class="city-card paris" data-prompt="From Bengaluru to Paris for 5 days under ₹1.5 lakh — museums and cafes.">Paris</div>
+                    <div class="city-card bangkok" data-prompt="From Bengaluru to Bangkok for 4 days under ₹80,000 — food and temples.">Bangkok</div>
+                    <div class="city-card dubai" data-prompt="From Bengaluru to Dubai for 5 days under ₹1.2 lakh — family trip.">Dubai</div>
+                </div>
+            </div>
+
+            <div id="chatThread" class="chat-thread" aria-live="polite">
+                <div class="chat-empty">Your trip plans will appear here and stay as you chat.</div>
+            </div>
+            </div>
+
+            <div class="composer-wrap">
+                <form id="travelForm">
+                    <div class="composer-bar">
+                        <button type="button" id="composerNewChat" class="composer-icon-btn" title="New chat" aria-label="New chat">+</button>
+                        <div class="composer-input-wrap">
+                            <textarea id="tripPrompt" name="preferences" rows="1" placeholder="Ask anything — plan a trip, get travel advice, check weather, find hotels, or ask about a destination…"></textarea>
+                        </div>
+                        <div class="composer-actions">
+                            <select name="selectedModel" id="modelPolicy" class="composer-chip" aria-label="Model policy">
+                                <option value="FAST">Fast</option>
+                                <option value="BALANCED" selected>Balanced</option>
+                                <option value="REASONING">Think</option>
+                            </select>
+                            <button type="submit" id="submitButton" class="composer-send" aria-label="Send trip request">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" transform="rotate(-90 12 12)"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="composer-hint">Enter to send · Shift+Enter for a new line</div>
+                    <div class="hidden-fields">
+                        <input type="hidden" name="userId" value="aaro_hi_user" />
+                        <input type="hidden" name="departureCity" value="" />
+                        <input type="hidden" name="departureDate" value="" />
+                        <input type="hidden" name="returnDate" value="" />
+                        <input type="hidden" name="budget" value="" />
+                        <input type="hidden" name="travelStyle" value="" />
+                        <input type="hidden" name="destination" value="" />
+                    </div>
+                    <div class="composer-foot">
+                        <div id="loadingState" class="loading-shell" aria-live="polite">
+                            <span class="spinner"></span>
+                            <span>Agents are planning…</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    const layout = document.querySelector('.layout');
+    const form = document.getElementById('travelForm');
+    const chatThread = document.getElementById('chatThread');
+    const messagesPane = document.getElementById('messagesPane');
+    const chatHistoryList = document.getElementById('chatHistoryList');
+    const userIdField = document.getElementById('userId');
+    const promptInput = document.getElementById('tripPrompt');
+    const submitButton = document.getElementById('submitButton');
+    const loadingState = document.getElementById('loadingState');
+    const newChatBtn = document.getElementById('newChatBtn');
+    const composerNewChat = document.getElementById('composerNewChat');
+
+    const DEFAULT_PROMPT = '';
+
+    const resizePrompt = () => {
+        // Let the browser recalculate the textarea's natural height first.
+        // Using height=0 can be unreliable when the textarea also has a
+        // min-height/flex parent, which is why long prompts were not growing.
+        const minHeight = 28;
+        const maxHeight = 220;
+
+        promptInput.style.height = 'auto';
+        promptInput.style.overflowY = 'hidden';
+
+        const contentHeight = Math.max(promptInput.scrollHeight, minHeight);
+        const nextHeight = Math.min(contentHeight, maxHeight);
+        promptInput.style.height = nextHeight + 'px';
+
+        const overflowing = contentHeight > maxHeight + 1;
+        promptInput.classList.toggle('has-overflow', overflowing);
+        promptInput.style.overflowY = overflowing ? 'auto' : 'hidden';
+        if (overflowing) {
+            promptInput.scrollTop = promptInput.scrollHeight;
+        }
+    };
+
+    const updateComposerState = () => {
+        // The submit handler already ignores blank requests. Keep the send/Enter
+        // control enabled while the composer is idle, including after New Chat.
+        if (!loadingState.classList.contains('visible')) {
+            submitButton.disabled = false;
+        }
+    };
+
+    const storageKey = () => 'agentic-trip-ai-chats:' + (userIdField.value.trim() || 'aaro_hi_user');
+    let currentChatId = null;
+    let startedFreshChat = false;
+
+    const syncUserIdField = () => {
+        form.querySelector('input[name="userId"]').value = userIdField.value.trim() || 'aaro_hi_user';
+    };
+
+    const syncUserId = () => {
+        syncUserIdField();
+        renderHistoryList();
+        loadServerHistoryIntoStore();
+    };
+
+    userIdField.addEventListener('input', syncUserId);
+
+    document.querySelectorAll('.city-card[data-prompt]').forEach(card => {
+        card.addEventListener('click', () => {
+            promptInput.value = card.getAttribute('data-prompt');
+            resizePrompt();
+            promptInput.focus();
+        });
+    });
+
+    const loadStore = () => {
+        try {
+            return JSON.parse(localStorage.getItem(storageKey()) || '{"chats":[]}');
+        } catch (e) {
+            return { chats: [] };
+        }
+    };
+
+    const trimPlanData = (planData) => {
+        if (!planData) {
+            return null;
+        }
+        return {
+            status: planData.status,
+            awaitingApproval: planData.awaitingApproval,
+            threadId: planData.threadId,
+            plan: planData.plan,
+            execution: planData.execution ? {
+                timeline: (planData.execution.timeline || []).slice(-16),
+                sources: (planData.execution.sources || []).slice(0, 12),
+                executionHistory: planData.execution.executionHistory || ''
+            } : null
+        };
+    };
+
+    const saveStore = (store) => {
+        const chats = (store.chats || [])
+            .slice()
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        const kept = [];
+        for (const chat of chats) {
+            if (kept.length >= 20 && chat.id !== currentChatId) {
+                continue;
+            }
+            kept.push({
+                id: chat.id,
+                title: chat.title,
+                updatedAt: chat.updatedAt,
+                messages: (chat.messages || []).slice(-40).map(m => ({
+                    role: m.role,
+                    text: (m.text || '').slice(0, 8000),
+                    planData: trimPlanData(m.planData)
+                }))
+            });
+        }
+        store.chats = kept;
+        try {
+            localStorage.setItem(storageKey(), JSON.stringify(store));
+        } catch (e) {
+            console.warn('Could not save chat history locally', e);
+            try {
+                store.chats = kept.map(chat => ({
+                    ...chat,
+                    messages: (chat.messages || []).map(m => ({ role: m.role, text: m.text, planData: null }))
+                }));
+                localStorage.setItem(storageKey(), JSON.stringify(store));
+            } catch (ignored) {
+                // ignore
+            }
+        }
+    };
+
+    const ensureCurrentChat = (titleHint) => {
+        const store = loadStore();
+        let chat = store.chats.find(c => c.id === currentChatId);
+        if (!chat) {
+            currentChatId = 'chat-' + Date.now();
+            chat = {
+                id: currentChatId,
+                title: (titleHint || 'New trip').slice(0, 60),
+                updatedAt: Date.now(),
+                messages: []
+            };
+            store.chats.unshift(chat);
+            saveStore(store);
+        }
+        return chat;
+    };
+
+    const persistMessage = (role, text, planData) => {
+        try {
+            const store = loadStore();
+            let chat = store.chats.find(c => c.id === currentChatId);
+            if (!chat) {
+                ensureCurrentChat(text);
+                return persistMessage(role, text, planData);
+            }
+            chat.messages.push({ role, text, planData: planData || null });
+            chat.updatedAt = Date.now();
+            if (role === 'user' && chat.messages.filter(m => m.role === 'user').length === 1) {
+                chat.title = text.slice(0, 60);
+            }
+            saveStore(store);
+            renderHistoryList();
+        } catch (e) {
+            console.warn('persistMessage failed', e);
+        }
+    };
+
+    const loadServerHistoryIntoStore = async () => {
+        const userId = userIdField.value.trim() || 'aaro_hi_user';
+        try {
+            const res = await fetch('/api/chat/history?userId=' + encodeURIComponent(userId) + '&limit=40');
+            if (!res.ok) {
+                return;
+            }
+            const items = await res.json();
+            if (!Array.isArray(items) || !items.length) {
+                return;
+            }
+            const store = loadStore();
+            const serverId = 'server-' + userId;
+            const messages = items.map(item => ({
+                role: item.role === 'assistant' ? 'assistant' : 'user',
+                text: item.content || '',
+                planData: item.role === 'assistant' ? {
+                    status: 'COMPLETE',
+                    plan: { tips: item.content || '' },
+                    awaitingApproval: false
+                } : null
+            }));
+            const existing = store.chats.find(c => c.id === serverId);
+            const title = (items.find(i => i.role === 'user') || items[0] || {}).content || 'Previous chats';
+            const chat = {
+                id: serverId,
+                title: String(title).slice(0, 60),
+                updatedAt: Date.now(),
+                messages
+            };
+            if (existing) {
+                chat.updatedAt = existing.updatedAt || chat.updatedAt;
+                store.chats = store.chats.map(c => c.id === serverId ? chat : c);
+            } else {
+                store.chats.push(chat);
+            }
+            saveStore(store);
+            renderHistoryList();
+            const viewingFresh = startedFreshChat || (currentChatId && String(currentChatId).startsWith('chat-'));
+            if (!viewingFresh && !chatThread.querySelector('.chat-msg')) {
+                openChat(serverId);
+            }
+        } catch (e) {
+            console.warn('Could not load server chat history', e);
+        }
+    };
+
+    const renderHistoryList = () => {
+        const store = loadStore();
+        chatHistoryList.innerHTML = '';
+        if (!store.chats.length) {
+            const empty = document.createElement('div');
+            empty.className = 'chat-history-empty';
+            empty.textContent = 'No chats in this browser yet. Send a plan here — Edge history is separate from Chrome.';
+            chatHistoryList.appendChild(empty);
+            return;
+        }
+        store.chats
+            .slice()
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .forEach(chat => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'chat-history-item' + (chat.id === currentChatId ? ' active' : '');
+                const when = new Date(chat.updatedAt).toLocaleString();
+                const title = document.createElement('span');
+                title.textContent = chat.title || 'Untitled chat';
+                const meta = document.createElement('span');
+                meta.className = 'meta';
+                meta.textContent = when + ' · ' + (chat.messages || []).length + ' msgs';
+                btn.appendChild(title);
+                btn.appendChild(meta);
+                btn.onclick = () => openChat(chat.id);
+                chatHistoryList.appendChild(btn);
+            });
+    };
+
+    const clearThreadDom = () => {
+        chatThread.querySelectorAll('.chat-msg').forEach(node => node.remove());
+        layout.classList.remove('has-chat');
+        if (!chatThread.querySelector('.chat-empty')) {
+            const empty = document.createElement('div');
+            empty.className = 'chat-empty';
+            empty.textContent = 'Your trip plans will appear here and stay as you chat.';
+            chatThread.appendChild(empty);
+        }
+    };
+
+    const openChat = (chatId) => {
+        const store = loadStore();
+        const chat = store.chats.find(c => c.id === chatId);
+        if (!chat) {
+            return;
+        }
+        currentChatId = chatId;
+        startedFreshChat = String(chatId).startsWith('chat-');
+        clearThreadDom();
+        let lastUser = '';
+        (chat.messages || []).forEach(msg => {
+            if (msg.role === 'user') {
+                lastUser = msg.text || '';
+                renderUserMessage(msg.text, false);
+            } else {
+                renderAssistantMessage(msg.planData || {
+                    status: '',
+                    finalPlan: msg.text,
+                    awaitingApproval: false,
+                    pipeline: []
+                }, false, lastUser);
+            }
+        });
+        renderHistoryList();
+        scrollChat();
+    };
+
+    newChatBtn.addEventListener('click', () => {
+        startedFreshChat = true;
+        currentChatId = null;
+        ensureCurrentChat('New trip');
+        clearThreadDom();
+        renderHistoryList();
+        promptInput.value = '';
+        resizePrompt();
+        loadingState.classList.remove('visible');
+        submitButton.disabled = false;
+        promptInput.focus();
+    });
+
+    if (composerNewChat) {
+        composerNewChat.addEventListener('click', () => {
+            newChatBtn.click();
+        });
+    }
+
+    promptInput.addEventListener('input', () => {
+        resizePrompt();
+        updateComposerState();
+        requestAnimationFrame(resizePrompt);
+    });
+
+    // Recalculate after fonts/layout settle and when the viewport changes.
+    window.addEventListener('resize', resizePrompt);
+
+    const markChatActive = () => {
+        layout.classList.add('has-chat');
+        const empty = chatThread.querySelector('.chat-empty');
+        if (empty) {
+            empty.remove();
+        }
+    };
+
+    const scrollChat = () => {
+        const pane = messagesPane || chatThread;
+        pane.scrollTop = pane.scrollHeight;
+    };
+
+    const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const formatInr = (amount) => {
+        if (amount == null || amount === '') {
+            return '—';
+        }
+        const num = Number(amount);
+        if (Number.isNaN(num)) {
+            return String(amount);
+        }
+        return '₹' + num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    };
+
+    const formatDateRange = (start, end) => {
+        const fmt = (iso) => {
+            if (!iso) {
+                return '';
+            }
+            const d = new Date(iso + 'T12:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+        if (start && end) {
+            return fmt(start) + ' – ' + fmt(end);
+        }
+        return fmt(start || end) || 'Dates TBD';
+    };
+
+    const tripEmoji = (destination) => {
+        const d = (destination || '').toLowerCase();
+        if (d.includes('japan') || d.includes('tokyo')) return '🇯🇵';
+        if (d.includes('paris') || d.includes('france')) return '🇫🇷';
+        if (d.includes('bangkok') || d.includes('thailand')) return '🇹🇭';
+        if (d.includes('dubai')) return '🇦🇪';
+        return '✈️';
+    };
+
+    const tripTitle = (data) => {
+        const trip = data.plan && data.plan.trip;
+        if (trip && trip.title) {
+            return trip.title;
+        }
+        const dest = (data.destination || (trip && trip.destination) || 'Trip').trim();
+        if (dest.toLowerCase().includes('japan')) {
+            return 'Japan Trip';
+        }
+        return dest + ' Trip';
+    };
+
+    const audienceLabel = (data, userRequest) => {
+        const trip = data.plan && data.plan.trip;
+        if (trip && trip.audienceLabel) {
+            return trip.audienceLabel;
+        }
+        const text = ((userRequest || '') + ' ' + (data.travelStyle || '')).toLowerCase();
+        if (text.includes('family')) {
+            return '👨‍👩‍👧‍👦 Family';
+        }
+        if (text.includes('couple')) {
+            return '💑 Couple';
+        }
+        if (text.includes('solo')) {
+            return '🧳 Solo';
+        }
+        return data.travelers > 1 ? '👤 ' + data.travelers + ' travelers' : '👤 1 traveler';
+    };
+
+    const sectionBlock = (title, bodyHtml, emptyMessage) => {
+        if (!bodyHtml && !emptyMessage) return '';
+        const content = bodyHtml || '<p class="result-empty">' + escapeHtml(emptyMessage || 'Not available.') + '</p>';
+        return '<section class="result-panel"><div class="result-panel-title">' + title + '</div><div>' + content + '</div></section>';
+    };
+
+    const formatKnowledgeText = (text) => {
+        if (!text) return '';
+        const safe = escapeHtml(String(text).trim());
+        const paragraphs = safe.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+        if (!paragraphs.length) return '';
+        return paragraphs.map(p => {
+            if (/^(?:[-*•]\s+)/m.test(p)) {
+                const items = p.split(/\n/).map(x => x.replace(/^(?:[-*•]\s+)/,'').trim()).filter(Boolean);
+                return '<ul>' + items.map(i => '<li>' + i + '</li>').join('') + '</ul>';
+            }
+            return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+        }).join('');
+    };
+
+    const buildBudgetTable = (budget) => {
+        if (!budget || !budget.lineItems || !budget.lineItems.length) return '';
+        const rows = budget.lineItems.map(item =>
+            '<div class="budget-card"><div class="label">' + escapeHtml(item.category || 'Item') + '</div><div class="amount">' + formatInr(item.amountInr) + '</div></div>').join('');
+        let html = '<div class="budget-grid">' + rows + '</div>';
+        if (budget.estimatedCost != null) {
+            html += '<div class="budget-total-card"><span>Total estimated</span><strong>' + formatInr(budget.estimatedCost) + '</strong></div>';
+        }
+        return html;
+    };
+
+    const buildPlanReview = (data, userRequest) => {
+        const validation = data.plan && data.plan.validation;
+        const warnings = (data.semanticNotes || []).concat(data.validationErrors || []);
+        if (validation && validation.reviewItems && validation.reviewItems.length) {
+            const items = validation.reviewItems.map(item => (item.level === 'warn' ? '⚠ ' : '✓ ') + (item.text || '')).join(' · ');
+            return '<div class="validation-banner">' + escapeHtml(items) + '</div>';
+        }
+        if (warnings.length) return '<div class="validation-banner">⚠ ' + escapeHtml(warnings.join(' · ')) + '</div>';
+        if (data.ragJudge && data.ragJudge !== 'PASS') return '<div class="validation-banner">⚠ ' + escapeHtml(String(data.ragJudge)) + '</div>';
+        return '<div class="result-chip success">✓ Validation passed</div>';
+    };
+
+    const activityTags = (activity) => {
+        const tags = [];
+        if (activity.indoorOutdoor && activity.indoorOutdoor !== 'mixed') tags.push(activity.indoorOutdoor);
+        if (activity.familyFriendly) tags.push('family-friendly');
+        if (activity.foodExperience) tags.push('food');
+        if (activity.localExperience) tags.push('local');
+        return tags;
+    };
+
+    const buildFlightsSection = (flights) => {
+        if (!flights || !flights.length) return '';
+        return flights.map(f => {
+            const route = (f.origin && f.destination) ? f.origin + ' → ' + f.destination : '';
+            const meta = [route, f.departureTime, f.arrivalTime, f.price].filter(Boolean).join(' · ');
+            return '<div class="flight-card"><div class="item-title">' + escapeHtml([f.airline, f.flightNumber].filter(Boolean).join(' · ') || 'Flight option') + '</div>'
+                + (meta ? '<div class="item-meta">' + escapeHtml(meta) + '</div>' : '')
+                + (f.notes ? '<div class="item-note">' + escapeHtml(f.notes) + '</div>' : '') + '</div>';
+        }).join('');
+    };
+
+    const buildHotelsSection = (hotels) => {
+        if (!hotels || !hotels.length) return '';
+        return hotels.map(h => {
+            const meta = [h.area, h.priceRange, h.rating ? '★ ' + h.rating : ''].filter(Boolean).join(' · ');
+            return '<div class="hotel-card"><div class="item-title">' + escapeHtml(h.name || 'Hotel') + '</div>'
+                + (meta ? '<div class="item-meta">' + escapeHtml(meta) + '</div>' : '')
+                + (h.notes ? '<div class="item-note">' + escapeHtml(h.notes) + '</div>' : '') + '</div>';
+        }).join('');
+    };
+
+    const buildItinerarySection = (itinerary) => {
+        const days = itinerary && itinerary.days ? itinerary.days : [];
+        if (!days.length) return '';
+        let html = '<div class="itin-list">';
+        days.forEach(day => {
+            const acts = (day.activities || []).filter(a => a && a.name).map(a => {
+                const tags = activityTags(a);
+                return '<li>' + escapeHtml(a.name) + (a.type ? ' · ' + escapeHtml(a.type) : '') + (tags.length ? ' <span class="item-meta">(' + escapeHtml(tags.join(' · ')) + ')</span>' : '') + '</li>';
+            }).join('');
+            html += '<div class="itin-item"><div class="itin-day-badge">DAY ' + escapeHtml(String(day.day || '')) + '</div><div>'
+                + '<div class="itin-day-title">' + escapeHtml(day.title || 'Explore') + '</div>'
+                + (acts ? '<ul class="itin-activities">' + acts + '</ul>' : '') + '</div></div>';
+        });
+        return html + '</div>';
+    };
+
+    const buildWeatherSection = (weather) => {
+        if (!weather || (!weather.summary && !weather.location)) return '';
+        const summary = weather.summary || 'Weather information available';
+        const detail = [weather.location, weather.rainLikely ? 'Rain may be likely' : ''].filter(Boolean).join(' · ');
+        return '<div class="weather-card"><div class="weather-icon">🌤️</div><div><div class="weather-main">' + escapeHtml(summary) + '</div>'
+            + (detail ? '<div class="weather-detail">' + escapeHtml(detail) + '</div>' : '') + '</div></div>';
+    };
+
+    const buildAgentDetails = (data) => {
+        const exec = data.execution || {};
+        const rawSteps = exec.timeline || data.executionTimeline || data.pipeline || [];
+        const stepsArr = dedupeSteps(rawSteps).slice(-16);
+        const sourcesArr = [...new Set(exec.sources || data.sources || [])];
+        const history = exec.executionHistory || data.executionHistory || '';
+        const ragUsed = !!(exec.ragUsed || data.ragUsed);
+        const ragAnswer = exec.ragAnswer || data.ragAnswer || '';
+        const ragSources = exec.ragSources || data.ragSources || [];
+        const ragQuery = exec.ragQuery || data.ragQuery || '';
+        const ragDecision = exec.ragDecision || data.ragDecision || '';
+        const ragMethod = exec.ragRetrievalMethod || data.ragRetrievalMethod || '';
+        const ragScore = exec.ragEvidenceScore ?? data.ragEvidenceScore;
+        const ragCandidates = exec.ragCandidateCount ?? data.ragCandidateCount;
+        const ragReranked = exec.ragRerankedCount ?? data.ragRerankedCount;
+        const ragIterations = exec.ragIterations ?? data.ragIterations;
+        if (!stepsArr.length && !sourcesArr.length && !history && !ragUsed) return '';
+        let body = '<div class="agent-details-body">';
+        if (ragUsed) {
+            body += '<div class="agent-subsection rag-observability"><div class="agent-subtitle">🧠 RAG result</div>';
+            if (ragAnswer) {
+                body += '<div class="rag-answer-preview">' + formatKnowledgeText(ragAnswer) + '</div>';
+            } else {
+                body += '<div class="rag-empty">RAG retrieval completed, but no answer was generated.</div>';
+            }
+            const meta = [];
+            if (ragDecision) meta.push(ragDecision);
+            if (ragMethod) meta.push(ragMethod);
+            if (Number.isFinite(Number(ragScore))) meta.push('evidence ' + Number(ragScore).toFixed(2));
+            if (Number.isFinite(Number(ragCandidates))) meta.push('candidates ' + ragCandidates);
+            if (Number.isFinite(Number(ragReranked))) meta.push('reranked ' + ragReranked);
+            if (Number.isFinite(Number(ragIterations))) meta.push('iteration ' + ragIterations);
+            if (meta.length) body += '<div class="item-meta">' + escapeHtml(meta.join(' · ')) + '</div>';
+            if (ragQuery) body += '<div class="rag-query">Query: ' + escapeHtml(ragQuery) + '</div>';
+            if (ragSources.length) body += '<div class="agent-subtitle rag-sources-title">Sources</div><pre class="agent-pre">' + escapeHtml(ragSources.join('\n')) + '</pre>';
+            body += '</div>';
+        }
+        if (stepsArr.length) {
+            body += '<div class="agent-subsection"><div class="agent-subtitle">Execution</div><div class="execution-mini">'
+                + stepsArr.map(step => '<span class="execution-pill">' + escapeHtml(formatStepLine(step)) + '</span>').join('') + '</div></div>';
+        }
+        if (sourcesArr.length) body += '<div class="agent-subsection"><div class="agent-subtitle">Sources</div><pre class="agent-pre">' + escapeHtml(sourcesArr.join('\n')) + '</pre></div>';
+        if (history) body += '<div class="agent-subsection"><div class="agent-subtitle">History</div><pre class="agent-pre">' + escapeHtml(history) + '</pre></div>';
+        body += '</div>';
+        return '<details class="agent-details"><summary>🔎 Agent execution & sources</summary>' + body + '</details>';
+    };
+
+    const safeUiErrorMessage = () =>
+        "We couldn\'t complete your travel plan. Please try again.";
+
+    const buildPlanCardHtml = (data, userRequest) => {
+        const plan = data.plan || {};
+        const trip = plan.trip || {};
+        const tips = plan.tips || data.finalPlan || '';
+        if (data.status === 'ERROR' || (tips && String(tips).startsWith('Error:'))) {
+            return '<div class="result-card"><div class="result-hero"><div class="result-eyebrow">Agent response</div><h2 class="result-title">Something went wrong</h2></div><div class="result-body"><div class="validation-banner">⚠ ' + escapeHtml(safeUiErrorMessage()) + '</div></div></div>';
+        }
+
+        const hasFlights = Array.isArray(plan.flights) && plan.flights.length;
+        const hasHotels = Array.isArray(plan.hotels) && plan.hotels.length;
+        const hasItinerary = !!(plan.itinerary && Array.isArray(plan.itinerary.days) && plan.itinerary.days.length);
+        const hasBudget = !!(plan.budget && Array.isArray(plan.budget.lineItems) && plan.budget.lineItems.length);
+        const hasWeather = !!(plan.weather && (plan.weather.summary || plan.weather.location));
+        const hasTrip = !!(trip.destination || trip.origin || trip.departureDate || trip.returnDate);
+
+        // Pure knowledge response: do not render synthetic trip defaults
+        // (today+5 days, 1 traveler, medium budget) as if the user requested
+        // a trip. RAG observability is the authoritative signal here.
+        const ragOnlyResponse = !!(tips && data.execution && data.execution.ragUsed
+            && !hasFlights && !hasHotels && !hasItinerary && !hasBudget && !hasWeather
+            && !(data.execution.ragDecision || '').includes('live'));
+        if (ragOnlyResponse) {
+            const dest = data.destination || trip.destination || '';
+            const title = dest ? dest + ' Travel Guidance' : 'Travel Guidance';
+            let html = '<div class="result-card"><div class="result-hero"><div class="result-eyebrow">Travel guidance' + (dest ? ' · ' + escapeHtml(dest) : '') + '</div><h2 class="result-title">' + escapeHtml(title || 'Travel information') + '</h2><div class="result-chips"><span class="result-chip success">✓ Knowledge answer</span></div></div><div class="result-body"><div class="result-panel full"><div class="knowledge-answer">' + formatKnowledgeText(tips) + '</div></div>';
+            const execRag = data.execution && data.execution.ragUsed;
+            if (execRag && data.execution.ragSources && data.execution.ragSources.length) {
+                html += '<section class="result-panel full rag-evidence-card"><div class="result-panel-title">🧠 Knowledge evidence</div><div class="rag-evidence-meta">Retrieved from the travel knowledge base</div><div class="rag-source-chips">' + data.execution.ragSources.map(x => '<span class="result-chip">' + escapeHtml(x) + '</span>').join('') + '</div></section>';
+            }
+            html += buildAgentDetails(data) + '</div></div>';
+            return html;
+        }
+
+        const quality = trip.qualityScore != null ? trip.qualityScore : (plan.validation && plan.validation.quality && plan.validation.quality.overall > 0 ? Math.round(plan.validation.quality.overall * 100) : null);
+        const approved = (trip.awaitingApproval ?? data.awaitingApproval);
+        const complete = (trip.status || data.status) === 'COMPLETE';
+        const title = trip.title || tripTitle(data);
+        const route = trip.origin && trip.destination ? trip.origin + ' → ' + trip.destination : (trip.destination || data.destination || 'Travel plan');
+        const chips = [];
+        if (trip.departureDate || trip.returnDate) chips.push('📅 ' + formatDateRange(trip.departureDate, trip.returnDate));
+        if (trip.nights) chips.push('🌙 ' + trip.nights + ' nights');
+        chips.push(audienceLabel(data, userRequest));
+        if (trip.budgetLabel) chips.push('💰 ' + trip.budgetLabel);
+        if (approved) chips.push('🟢 Ready for approval'); else if (complete) chips.push('✓ Confirmed');
+        if (quality != null) chips.push('Quality ' + quality + '/100');
+
+        let html = '<div class="result-card"><div class="result-hero"><div class="result-eyebrow">AI travel plan</div><h2 class="result-title">' + tripEmoji(trip.destination || data.destination) + ' ' + escapeHtml(title) + '</h2><div class="result-subtitle">' + escapeHtml(route) + '</div><div class="result-chips">' + chips.map((c,i) => '<span class="result-chip ' + ((approved || complete) && i === chips.length-1 ? 'success' : '') + '">' + escapeHtml(c) + '</span>').join('') + '</div></div><div class="result-body"><div class="result-grid">';
+        if (hasFlights) html += sectionBlock('✈️ Flights', buildFlightsSection(plan.flights), null);
+        if (hasHotels) html += sectionBlock('🏨 Stay options', buildHotelsSection(plan.hotels), null);
+        if (hasWeather) html += sectionBlock('🌦️ Weather', buildWeatherSection(plan.weather), null);
+        if (hasItinerary) html += '<section class="result-panel full"><div class="result-panel-title">🗺️ Itinerary <span class="count">' + plan.itinerary.days.length + ' days</span></div>' + buildItinerarySection(plan.itinerary) + '</section>';
+        if (hasBudget) html += sectionBlock('💰 Budget', buildBudgetTable(plan.budget), null);
+        if (tips) html += '<section class="result-panel full"><div class="result-panel-title">💡 Travel notes</div><div class="knowledge-answer">' + formatKnowledgeText(tips) + '</div></section>';
+        if (data.validationErrors?.length || data.semanticNotes?.length || data.ragJudge) html += '<section class="result-panel full"><div class="result-panel-title">✅ Validation</div>' + buildPlanReview(data, userRequest) + '</section>';
+        html += '</div>' + buildAgentDetails(data) + '</div></div>';
+        return html;
+    };
+
+    const findUserRequestForPlan = (beforeNode) => {
+        const users = chatThread.querySelectorAll('.chat-msg.user .chat-body');
+        if (!users.length) {
+            return '';
+        }
+        if (!beforeNode) {
+            return users[users.length - 1].textContent || '';
+        }
+        let last = '';
+        for (const row of chatThread.querySelectorAll('.chat-msg')) {
+            if (row === beforeNode) {
+                break;
+            }
+            if (row.classList.contains('user')) {
+                last = row.querySelector('.chat-body')?.textContent || '';
+            }
+        }
+        return last;
+    };
+
+    const renderUserMessage = (text, persist) => {
+        markChatActive();
+        const row = document.createElement('div');
+        row.className = 'chat-msg user';
+        row.innerHTML =
+            '<div class="chat-avatar">You</div>' +
+            '<div class="chat-bubble"><div class="chat-role">You</div><div class="chat-body"></div></div>';
+        row.querySelector('.chat-body').textContent = text;
+        chatThread.appendChild(row);
+        scrollChat();
+        if (persist) {
+            ensureCurrentChat(text);
+            persistMessage('user', text, null);
+        }
+    };
+
+    const renderAssistantMessage = (data, persist, userRequestHint) => {
+        markChatActive();
+        const row = document.createElement('div');
+        row.className = 'chat-msg assistant';
+        row.innerHTML =
+            '<div class="chat-avatar">AI</div>' +
+            '<div class="chat-bubble">' +
+            '<div class="chat-role">AgenticTripAI</div>' +
+            '<div class="chat-body"></div>' +
+            '<div class="chat-actions"></div>' +
+            '</div>';
+        const userRequest = userRequestHint || findUserRequestForPlan(row);
+        const body = row.querySelector('.chat-body');
+        body.innerHTML = buildPlanCardHtml(data, userRequest);
+        const actions = row.querySelector('.chat-actions');
+        if (data.awaitingApproval && data.threadId) {
+            actions.classList.add('plan-actions');
+            const approve = document.createElement('button');
+            approve.type = 'button';
+            approve.className = 'submit-button';
+            approve.textContent = '✓ Approve';
+            const modify = document.createElement('button');
+            modify.type = 'button';
+            modify.className = 'submit-button ghost-button';
+            modify.textContent = '✏️ Modify';
+            const reject = document.createElement('button');
+            reject.type = 'button';
+            reject.className = 'submit-button ghost-button';
+            reject.textContent = '✕ Reject';
+            actions.appendChild(approve);
+            actions.appendChild(modify);
+            actions.appendChild(reject);
+            approve.onclick = () => decide('/api/plan/approve', data.threadId, null, row);
+            modify.onclick = () => {
+                const notes = window.prompt('What should we change?', '');
+                if (notes && notes.trim()) {
+                    decide('/api/plan/modify', data.threadId, notes.trim(), row);
+                }
+            };
+            reject.onclick = () => decide('/api/plan/reject', data.threadId, null, row);
+        }
+        chatThread.appendChild(row);
+        scrollChat();
+        if (persist) {
+            ensureCurrentChat(data.destination || data.routeSummary || 'Trip plan');
+            persistMessage('assistant', formatPlanSummary(data), data);
+        }
+        return row;
+    };
+
+    const appendUserMessage = (text) => renderUserMessage(text, true);
+    const appendAssistantMessage = (data) => renderAssistantMessage(data, true);
+
+    const normalizeSteps = (steps) => (steps || []).filter(step => step && step.node);
+
+    const dedupeSteps = (steps) => {
+        const seen = new Set();
+        return normalizeSteps(steps).filter(step => {
+            const key = (step.attempt || 1) + '|' + step.node + '|' + (step.detail || '');
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+    };
+
+    const formatStepLine = (step) => {
+        const status = (step.status || '').toUpperCase();
+        const icon = status === 'PARTIAL' || status === 'WARN' ? '⚠ '
+            : status === 'SKIPPED' || status === 'SKIP' ? '○ '
+            : status === 'RETRYING' ? '↻ '
+            : status === 'FAILED' ? '✕ '
+            : status === 'WAITING_HUMAN' ? '⏸ '
+            : '✓ ';
+        return icon + step.node
+            + (step.durationMs ? ' (' + (step.durationMs / 1000).toFixed(1) + 's)' : '')
+            + (step.model ? ' [' + step.model + ']' : '')
+            + (step.toolCalls ? ' tools=' + step.toolCalls : '')
+            + (step.inputTokens ? ' tok=' + step.inputTokens + '/' + (step.outputTokens || 0) : '')
+            + (step.detail ? ' — ' + step.detail : '');
+    };
+
+    const formatPlanSummary = (data) => {
+        const title = tripTitle(data || {});
+        const route = data && data.origin && data.destination
+            ? data.origin + ' → ' + data.destination
+            : (data && data.routeSummary) || title;
+        const quality = data && data.planQuality && data.planQuality.overall > 0
+            ? ' · Quality ' + Math.round(data.planQuality.overall * 100) + '/100' : '';
+        return title + ' — ' + route + quality;
+    };
+
+    const formatPlan = (data) => formatPlanSummary(data);
+
+
+    const createLiveResponse = () => {
+        const row = document.createElement('div');
+        row.className = 'live-response';
+        row.innerHTML = '<div class="chat-avatar">AI</div><div class="live-response-card">'
+            + '<div class="live-head"><div class="live-title">AgenticTripAI <span class="live-dots"><i></i><i></i><i></i></span></div><div class="live-state">Understanding request…</div></div>'
+            + '<div class="live-steps"></div></div>';
+        chatThread.appendChild(row);
+        scrollChat();
+        return {
+            row,
+            state: row.querySelector('.live-state'),
+            steps: row.querySelector('.live-steps'),
+            seen: new Set()
+        };
+    };
+
+    const updateLiveResponse = (live, node) => {
+        if (!live || !node) return;
+        const normalized = String(node).replace(/^__+|__+$/g, '').replace(/[-_]+/g, ' ');
+        live.state.textContent = normalized ? 'Running ' + normalized + '…' : 'Working…';
+        const key = normalized.toLowerCase();
+        if (!live.seen.has(key)) {
+            live.seen.add(key);
+            const pill = document.createElement('span');
+            pill.className = 'live-step active';
+            pill.textContent = '✓ ' + normalized;
+            live.steps.appendChild(pill);
+        }
+        live.steps.querySelectorAll('.live-step').forEach(p => p.classList.remove('active'));
+        const last = live.steps.lastElementChild;
+        if (last) last.classList.add('active');
+        scrollChat();
+    };
+
+    const removeLiveResponse = (live) => {
+        if (live && live.row && live.row.isConnected) live.row.remove();
+    };
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        syncUserIdField();
+
+        const text = promptInput.value.trim();
+        if (!text) {
+            return;
+        }
+
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+        payload.preferences = text;
+        payload.prompt = text;
+
+        appendUserMessage(text);
+        promptInput.value = '';
+        submitButton.disabled = true;
+        loadingState.classList.add('visible');
+        const liveResponse = createLiveResponse();
+
+        try {
+            const startRes = await fetch('/api/plan/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const startedBody = await startRes.text();
+            if (!startRes.ok) {
+                throw new Error(startedBody || 'Request failed');
+            }
+            const started = JSON.parse(startedBody);
+            const threadId = started.threadId;
+            const statusSpan = loadingState.querySelectorAll('span')[1];
+            await new Promise((resolve, reject) => {
+                let finished = false;
+                const es = new EventSource('/api/plan/' + encodeURIComponent(threadId) + '/events');
+                es.addEventListener('node', (evt) => {
+                    try {
+                        const data = JSON.parse(evt.data);
+                        if (statusSpan && data.node) {
+                            statusSpan.textContent = 'Running ' + data.node + '…';
+                            updateLiveResponse(liveResponse, data.node);
+                        }
+                    } catch (ignored) {}
+                });
+                es.addEventListener('complete', async (evt) => {
+                    finished = true;
+                    es.close();
+                    try {
+                        const wrapper = JSON.parse(evt.data);
+                        const data = wrapper.plan || wrapper;
+                        try {
+                            const hist = await fetch('/api/plan/' + encodeURIComponent(threadId) + '/history').then(r => r.json());
+                            if (!data.execution) {
+                                data.execution = {};
+                            }
+                            data.execution.executionHistory = (hist.snapshots || []).map(s =>
+                                (s.node || '?') + ' → ' + (s.next || 'end')
+                                + (s.planQuality != null ? ' q=' + (s.planQuality * 100).toFixed(0) + '%' : '')).join('\n');
+                            if (hist.planQuality) {
+                                data.planQuality = hist.planQuality;
+                            }
+                            if (hist.nodeFailure) {
+                                data.nodeFailure = hist.nodeFailure;
+                            }
+                            if (hist.semanticNotes) {
+                                data.semanticNotes = hist.semanticNotes;
+                            }
+                            if (hist.executionTimeline && hist.executionTimeline.length) {
+                                data.execution.timeline = hist.executionTimeline;
+                            }
+                        } catch (ignored) {}
+                        removeLiveResponse(liveResponse);
+                        appendAssistantMessage(data);
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+                es.addEventListener('failed', (evt) => {
+                    finished = true;
+                    es.close();
+                    removeLiveResponse(liveResponse);
+                    try {
+                        const data = JSON.parse(evt.data);
+                        reject(new Error(safeUiErrorMessage()));
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+                es.onerror = () => {
+                    if (finished) {
+                        return;
+                    }
+                    es.close();
+                    reject(new Error(safeUiErrorMessage()));
+                };
+            });
+        } catch (error) {
+            removeLiveResponse(liveResponse);
+            appendAssistantMessage({
+                status: 'ERROR',
+                finalPlan: safeUiErrorMessage(),
+                awaitingApproval: false,
+                pipeline: []
+            });
+        } finally {
+            submitButton.disabled = false;
+            loadingState.classList.remove('visible');
+            updateComposerState();
+            promptInput.focus();
+        }
+    });
+
+    const decide = async (url, threadId, notes, sourceRow) => {
+        loadingState.classList.add('visible');
+        submitButton.disabled = true;
+        if (sourceRow) {
+            sourceRow.querySelectorAll('.chat-actions button').forEach(btn => {
+                btn.disabled = true;
+            });
+        }
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: userIdField.value.trim() || 'aaro_hi_user',
+                    threadId,
+                    notes
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(safeUiErrorMessage());
+            }
+            if (notes) {
+                appendUserMessage(notes);
+            } else if (url.includes('reject')) {
+                appendUserMessage('Rejected this plan.');
+            } else {
+                appendUserMessage('Approved this plan.');
+            }
+            appendAssistantMessage(data);
+        } catch (error) {
+            appendAssistantMessage({
+                status: 'ERROR',
+                finalPlan: safeUiErrorMessage(),
+                awaitingApproval: false,
+                pipeline: []
+            });
+        } finally {
+            submitButton.disabled = false;
+            loadingState.classList.remove('visible');
+        }
+    };
+
+    promptInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
+            return;
+        }
+
+        // Enter submits the same way as clicking the visible send button.
+        // Use click() rather than requestSubmit() so this remains reliable
+        // across browsers and does not depend on form submitter resolution.
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!submitButton.disabled && promptInput.value.trim()) {
+            submitButton.click();
+        }
+    });
+
+    resizePrompt();
+    requestAnimationFrame(resizePrompt);
+    renderHistoryList();
+    const storeOnLoad = loadStore();
+    if (storeOnLoad.chats.length) {
+        openChat(storeOnLoad.chats.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0].id);
+    }
+    loadServerHistoryIntoStore();
+</script>
+</body>
+</html>

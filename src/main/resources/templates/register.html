@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Create account · AgenticTripAI</title>
+    <style>
+        *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Arial,Helvetica,sans-serif;color:#edf5ff;background:radial-gradient(circle at top,#173c69 0,transparent 38%),linear-gradient(135deg,#020b18,#0a182d)}
+        .card{width:min(500px,calc(100% - 32px));padding:34px;border:1px solid rgba(255,255,255,.1);border-radius:22px;background:rgba(13,27,46,.94);box-shadow:0 25px 80px rgba(0,0,0,.4)}.brand{font-size:24px;font-weight:800;margin-bottom:8px}.sub{color:#9fb4ce;margin:0 0 26px}.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}.label{display:block;color:#b9cbe0;font-size:13px;margin:16px 0 7px}.input{width:100%;padding:13px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#09172a;color:#fff;outline:none}.input:focus{border-color:#4b9cff;box-shadow:0 0 0 3px rgba(75,156,255,.12)}button{width:100%;margin-top:22px;padding:13px;border:0;border-radius:10px;background:#3f8df5;color:#fff;font-weight:800;font-size:15px;cursor:pointer}.msg{padding:11px 13px;border-radius:10px;margin:12px 0;font-size:13px}.error{background:rgba(220,70,70,.14);color:#ffb4b4;border:1px solid rgba(220,70,70,.2)}.foot{margin-top:20px;text-align:center;color:#8fa6c1;font-size:13px}.foot a{color:#79b1ff;text-decoration:none}.hint{font-size:11px;color:#7890aa;margin-top:8px}
+        @media(max-width:560px){.row{grid-template-columns:1fr}.card{padding:26px}}
+    </style>
+</head>
+<body>
+<main class="card">
+    <div class="brand">✈ AgenticTripAI</div>
+    <p class="sub">Create an account for your private travel workspace.</p>
+    <div th:if="${error}" class="msg error" th:text="${error}"></div>
+    <form method="post" action="/register">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <div class="row">
+            <div>
+                <label class="label" for="firstName">First name</label>
+                <input class="input" id="firstName" name="firstName" maxlength="80" autocomplete="given-name" required autofocus>
+            </div>
+            <div>
+                <label class="label" for="lastName">Last name</label>
+                <input class="input" id="lastName" name="lastName" maxlength="80" autocomplete="family-name" required>
+            </div>
+        </div>
+        <label class="label" for="email">Email address</label>
+        <input class="input" id="email" type="email" name="email" maxlength="254" autocomplete="email" required>
+        <label class="label" for="username">Username</label>
+        <input class="input" id="username" name="username" minlength="3" maxlength="80" pattern="[A-Za-z0-9._-]+" autocomplete="username" required>
+        <div class="hint">3–80 characters: letters, numbers, dot, underscore or hyphen.</div>
+        <label class="label" for="password">Password</label>
+        <input class="input" id="password" type="password" name="password" minlength="10" maxlength="128" autocomplete="new-password" required>
+        <div class="hint">Use 10–128 characters.</div>
+        <label class="label" for="confirmPassword">Confirm password</label>
+        <input class="input" id="confirmPassword" type="password" name="confirmPassword" minlength="10" maxlength="128" autocomplete="new-password" required>
+        <button type="submit">Create account</button>
+    </form>
+    <div class="foot">Already registered? <a href="/login">Sign in</a></div>
+</main>
+</body>
+</html>

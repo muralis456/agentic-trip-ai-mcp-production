@@ -1,0 +1,184 @@
+server:
+  port: 8081
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:true}
+        same-site: lax
+
+spring:
+  # When the application is launched from Spring Boot Dashboard without an explicit
+  # profile, use the development profile. A deployment can override this with
+  # SPRING_PROFILES_ACTIVE=prod.
+  profiles:
+    default: dev
+  application:
+    name: agentic-trip-ai-mcp
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+  ai:
+    mcp:
+      client:
+        enabled: ${TRAVEL_MCP_CLIENT_ENABLED:true}
+        type: SYNC
+        streamable-http:
+          connections:
+            travel:
+              url: ${TRAVEL_MCP_SERVER_URL:http://localhost:8090}
+              endpoint: ${TRAVEL_MCP_SERVER_ENDPOINT:/mcp}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        model: llama3.2:3b
+        temperature: 0.2
+        num-predict: 600
+      embedding:
+        model: ${TRAVEL_EMBEDDING_MODEL:nomic-embed-text}
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        initialize-schema: true
+        max-document-batch-size: 1000
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: AgenticTripAiHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      validation-timeout: 5000
+      keepalive-time: 120000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
+    baseline-description: initial-application-schema
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: never
+      table-name: SPRING_SESSION
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Keep the JDBC connection for the whole Spring transaction.
+        # RELEASE_AFTER_STATEMENT returns the connection to Hikari mid-tx;
+        # the pool rolls it back → sequence advances but rows never persist.
+        connection:
+          handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
+travel:
+  mcp:
+    client:
+      enabled: ${TRAVEL_MCP_CLIENT_ENABLED:true}
+      max-attempts: ${TRAVEL_MCP_CLIENT_MAX_ATTEMPTS:2}
+      timeout-ms: ${TRAVEL_MCP_CLIENT_TIMEOUT_MS:15000}
+    governance:
+      enabled: ${TRAVEL_MCP_GOVERNANCE_ENABLED:true}
+      max-argument-bytes: ${TRAVEL_MCP_MAX_ARGUMENT_BYTES:16384}
+      allowed-tools: ${TRAVEL_MCP_GOVERNANCE_ALLOWED_TOOLS:search_flights,search_hotels,get_weather,resolve_airport,search_travel_research,generate_itinerary}
+      allowed-users: ${TRAVEL_MCP_GOVERNANCE_ALLOWED_USERS:}
+      roles: ${TRAVEL_MCP_GOVERNANCE_ROLES:USER:READ_ONLY;ADMIN:READ_ONLY,SIDE_EFFECTING}
+      circuit-failure-threshold: ${TRAVEL_MCP_CIRCUIT_FAILURE_THRESHOLD:3}
+      circuit-open-ms: ${TRAVEL_MCP_CIRCUIT_OPEN_MS:30000}
+  itinerary:
+    provider: ${TRAVEL_ITINERARY_PROVIDER:fast}
+  rag:
+    enabled: ${TRAVEL_RAG_ENABLED:true}
+    top-k: ${TRAVEL_RAG_TOP_K:5}
+    similarity-threshold: ${TRAVEL_RAG_SIMILARITY_THRESHOLD:0.55}
+    max-iterations: ${TRAVEL_RAG_MAX_ITERATIONS:2}
+    hybrid:
+      enabled: ${TRAVEL_RAG_HYBRID_ENABLED:true}
+    rerank:
+      enabled: ${TRAVEL_RAG_RERANK_ENABLED:true}
+    compression:
+      enabled: ${TRAVEL_RAG_COMPRESSION_ENABLED:true}
+    fast-path:
+      enabled: ${TRAVEL_RAG_FAST_PATH_ENABLED:true}
+    seed-on-empty: ${TRAVEL_RAG_SEED_ON_EMPTY:true}
+  agent:
+    max-decision-steps: ${TRAVEL_AGENT_MAX_DECISION_STEPS:10}
+  graph:
+    max-retries: 5
+    max-llm-calls: 20
+    max-tavily-calls: 8
+    # A budget replan traverses router, specialists, supervisor, and budget
+    # before consuming one retry. Leave enough graph steps to reach the hard
+    # max-retries guard and complete the final pass.
+    max-iterations: 60
+  runtime:
+    max-concurrent-plans: ${TRAVEL_MAX_CONCURRENT_PLANS:12}
+    max-concurrent-plans-per-user: ${TRAVEL_MAX_CONCURRENT_PLANS_PER_USER:2}
+    max-concurrent-specialists: ${TRAVEL_MAX_CONCURRENT_SPECIALISTS:12}
+    plan-queue-capacity: ${TRAVEL_PLAN_QUEUE_CAPACITY:40}
+    rate-limit-per-window: ${TRAVEL_RATE_LIMIT_PER_WINDOW:6}
+    rate-limit-window-seconds: ${TRAVEL_RATE_LIMIT_WINDOW_SECONDS:60}
+  auth:
+    reset-base-url: ${TRAVEL_AUTH_RESET_BASE_URL:http://localhost:8081}
+    mail-from: ${TRAVEL_AUTH_MAIL_FROM:noreply@agentictrip.local}
+  models:
+    extraction: ${TRAVEL_MODEL_FAST:llama3.2:3b}
+    planner: ${TRAVEL_MODEL_PLANNER:llama3.2:3b}
+    itinerary: ${TRAVEL_MODEL_ITINERARY:llama3.2:3b}
+    finale: ${TRAVEL_MODEL_FINAL:llama3.2:3b}
+    fast: ${TRAVEL_MODEL_FAST:llama3.2:3b}
+    balanced: ${TRAVEL_MODEL_BALANCED:llama3.2:3b}
+    reasoning: ${TRAVEL_MODEL_REASONING:llama3.2:3b}
+    fallback-models:
+      - ${TRAVEL_MODEL_FALLBACK_1:}
+      - ${TRAVEL_MODEL_FALLBACK_2:}
+    max-tokens:
+      extraction: ${TRAVEL_MODEL_MAX_TOKENS_EXTRACTION:384}
+      planner: ${TRAVEL_MODEL_MAX_TOKENS_PLANNER:512}
+      itinerary: ${TRAVEL_MODEL_MAX_TOKENS_ITINERARY:800}
+      final: ${TRAVEL_MODEL_MAX_TOKENS_FINAL:700}
+  tavily:
+    api-url: https://api.tavily.com/search
+    api-key: ${TAVILY_API_KEY:}
+  aviation:
+    api-url: https://api.aviationstack.com/v1
+    api-key: ${AVIATIONSTACK_API_KEY:}
+    # Free plans reject flight_date with 403 function_access_restricted.
+    include-flight-date: false
+  weather:
+    provider: ${WEATHER_PROVIDER:openweather}
+    api-key: ${OPENWEATHER_API_KEY:}
+    geocode-url: ${OPENWEATHER_GEOCODE_URL:https://api.openweathermap.org/geo/1.0/direct}
+    current-url: ${OPENWEATHER_CURRENT_URL:https://api.openweathermap.org/data/2.5/weather}
+    forecast-url: ${OPENWEATHER_FORECAST_URL:https://api.openweathermap.org/data/2.5/forecast}
+  currency:
+    rates-url: https://api.frankfurter.app/latest
+
+app:
+  browser:
+    enabled: ${APP_BROWSER_ENABLED:false}
+    use-chrome: ${APP_BROWSER_USE_CHROME:true}
+    # chrome-path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+
+logging:
+  level:
+    com.example.travel.graph.GraphExecutionLogger: INFO
+    com.example.travel: INFO
+    org.springframework.ai: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+  
