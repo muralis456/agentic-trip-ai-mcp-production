@@ -175,14 +175,11 @@ public class AgentPlan implements Serializable {
         AgentTask task = task(taskId);
         if (task == null) return false;
 
-        // Initial execution may run both PENDING and explicitly READY tasks.
-        // Recovery is deliberately narrower: selectForExecution() marks only
-        // the recovery roots READY, while dependent tasks remain PENDING until
-        // their prerequisites succeed.
-        return selectiveExecution
-                ? task.getStatus() == AgentTask.Status.READY
-                : task.getStatus() == AgentTask.Status.PENDING
-                    || task.getStatus() == AgentTask.Status.READY;
+        // A task is executable only when its current status is eligible AND all
+        // declared dependencies have succeeded. This is important for the
+        // canonical plan: budget and itinerary start as PENDING, but must wait
+        // for their evidence-producing prerequisites.
+        return ready(taskId);
     }
 
     /** Return the executable pre-supervisor agents for the current pass. */
