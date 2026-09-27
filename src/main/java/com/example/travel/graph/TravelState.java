@@ -7,6 +7,7 @@ import com.example.travel.model.AgentStep;
 import com.example.travel.model.BudgetSummary;
 import com.example.travel.model.FlightOption;
 import com.example.travel.model.HotelOption;
+import com.example.travel.model.IntentPlan;
 import com.example.travel.model.Itinerary;
 import com.example.travel.model.ModificationRequest;
 import com.example.travel.model.NodeFailureInfo;
