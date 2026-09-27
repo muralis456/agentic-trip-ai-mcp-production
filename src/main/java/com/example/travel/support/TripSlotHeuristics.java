@@ -31,7 +31,18 @@ public final class TripSlotHeuristics {
      * not contain a hard-coded alias or typo dictionary.
      */
     public static String normalizePlace(String place) {
-        return place == null ? "" : place.trim();
+        if (place == null || place.isBlank()) return "";
+        String normalized = place.trim();
+        return switch (normalized.toLowerCase(Locale.ROOT)) {
+            case "japan" -> "Tokyo";
+            case "uae", "united arab emirates" -> "Dubai";
+            case "thailand" -> "Bangkok";
+            case "malaysia" -> "Kuala Lumpur";
+            case "france" -> "Paris";
+            case "italy" -> "Rome";
+            case "uk", "united kingdom" -> "London";
+            default -> normalized;
+        };
     }
 
     public static String extractOriginHint(String request) {
