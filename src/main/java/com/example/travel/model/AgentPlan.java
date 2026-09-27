@@ -174,8 +174,15 @@ public class AgentPlan implements Serializable {
     public boolean shouldExecute(String taskId) {
         AgentTask task = task(taskId);
         if (task == null) return false;
-        return task.getStatus() == AgentTask.Status.PENDING
-                || task.getStatus() == AgentTask.Status.READY;
+
+        // Initial execution may run both PENDING and explicitly READY tasks.
+        // Recovery is deliberately narrower: selectForExecution() marks only
+        // the recovery roots READY, while dependent tasks remain PENDING until
+        // their prerequisites succeed.
+        return selectiveExecution
+                ? task.getStatus() == AgentTask.Status.READY
+                : task.getStatus() == AgentTask.Status.PENDING
+                    || task.getStatus() == AgentTask.Status.READY;
     }
 
     /** Return the executable pre-supervisor agents for the current pass. */
