@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.security.PromptInjectionGuard;
 import com.example.travel.tool.ToolGovernanceService;
+import com.example.travel.tool.ToolInvocationContext;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
