@@ -1,0 +1,383 @@
+            transform: translateY(-3px);
+            filter: brightness(1.08);
+        }
+
+        /* ---------- Composer polish ---------- */
+        .composer-wrap {
+            position: sticky;
+            bottom: 0;
+            z-index: 20;
+            padding: 12px 0 max(18px, env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(2,11,24,0), rgba(2,11,24,.82) 28%, var(--bg-1) 72%);
+            border-top: 0;
+        }
+
+        .composer-bar {
+            padding: 9px 10px 9px 8px;
+            background: rgba(20, 24, 32, .92);
+            border-color: rgba(255,255,255,.12);
+            box-shadow: 0 12px 38px rgba(0,0,0,.28), 0 0 0 1px rgba(0,0,0,.10);
+            backdrop-filter: blur(18px);
+        }
+
+        .composer-bar:focus-within {
+            border-color: rgba(126,182,255,.30);
+            box-shadow: 0 12px 38px rgba(0,0,0,.30), 0 0 0 3px rgba(59,139,255,.06);
+        }
+
+        .composer-hint {
+            opacity: .7;
+        }
+
+        @media (max-width: 980px) {
+            .content { max-width: none; }
+            .hero { min-height: 58vh; }
+        }
+
+        @media (max-width: 560px) {
+            .content { padding-left: 14px; padding-right: 14px; }
+            .hero { min-height: 55vh; padding-top: 28px; }
+            .title { font-size: 2.65rem; }
+            .subtitle { font-size: 17px; }
+            .composer-hint { display: none; }
+        }
+
+
+        /* ===== V5 Travel Workspace UI ===== */
+        .travel-dashboard { display:grid; grid-template-columns:minmax(0,1fr) 310px; gap:16px; width:100%; }
+        .travel-main { min-width:0; }
+        .travel-side { min-width:0; }
+        .trip-banner { position:relative; overflow:hidden; border:1px solid rgba(83,157,255,.22); border-radius:18px; padding:22px 24px; background:linear-gradient(135deg,rgba(20,47,82,.92),rgba(9,23,42,.96)); margin-bottom:14px; }
+        .trip-banner:after { content:""; position:absolute; inset:auto -10% -70% 35%; height:180px; background:radial-gradient(circle,rgba(56,139,255,.20),transparent 65%); pointer-events:none; }
+        .trip-eyebrow { color:#8fb8ee; text-transform:uppercase; letter-spacing:.11em; font-size:11px; font-weight:800; }
+        .trip-route { font-size:clamp(1.65rem,2.7vw,2.45rem); font-weight:800; letter-spacing:-.04em; margin:6px 0 8px; }
+        .trip-facts { display:flex; flex-wrap:wrap; gap:8px; color:#c5d8ef; font-size:13px; }
+        .trip-fact { padding:7px 10px; border-radius:999px; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.07); }
+        .workspace-tabs { display:flex; gap:6px; overflow:auto; padding:3px; margin-bottom:14px; scrollbar-width:none; }
+        .workspace-tabs::-webkit-scrollbar {display:none;}
+        .workspace-tab { white-space:nowrap; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.035); color:#bcd0e8; border-radius:10px; padding:9px 13px; font-size:12px; font-weight:700; }
+        .workspace-tab.active { color:#eef6ff; background:rgba(45,126,235,.20); border-color:rgba(76,157,255,.38); }
+        .workspace-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+        .workspace-card { background:linear-gradient(180deg,rgba(15,34,58,.94),rgba(9,22,39,.94)); border:1px solid rgba(255,255,255,.075); border-radius:16px; padding:15px; min-width:0; box-shadow:0 12px 30px rgba(0,0,0,.12); }
+        .workspace-card.full { grid-column:1/-1; }
+        .workspace-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:12px; }
+        .workspace-card-title { display:flex; align-items:center; gap:9px; font-size:16px; font-weight:800; }
+        .workspace-card-sub { margin-top:3px; color:#8fa9c5; font-size:12px; }
+        .ready-badge { color:#9cf2c0; background:rgba(37,192,111,.12); border:1px solid rgba(37,192,111,.28); border-radius:999px; padding:5px 9px; font-size:11px; font-weight:800; }
+        .ready-badge.review-badge { color:#ffd28a; background:rgba(245,168,60,.10); border-color:rgba(245,168,60,.26); }
+        .ready-badge.approved-badge { color:#9cf2c0; background:rgba(37,192,111,.14); border-color:rgba(37,192,111,.34); }
+        .ready-badge.rejected-badge { color:#ffb0b0; background:rgba(214,76,76,.13); border-color:rgba(214,76,76,.34); }
+        .workspace-view { color:#9fc7f7; font-size:11px; font-weight:700; }
+        .workspace-content { min-width:0; }
+        .workspace-content .flight-card,.workspace-content .hotel-card { background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.055); border-radius:11px; padding:10px 11px; margin-bottom:7px; }
+        .workspace-content .flight-card:last-child,.workspace-content .hotel-card:last-child { margin-bottom:0; }
+        .workspace-content .item-title { font-weight:750; font-size:13px; }
+        .workspace-content .item-meta { color:#9eb4cf; font-size:11px; margin-top:4px; }
+        .workspace-content .item-note { color:#7891ae; font-size:11px; margin-top:4px; }
+        .workspace-content .budget-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+        .workspace-content .budget-card { padding:10px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.05); }
+        .workspace-content .budget-card .label { color:#a9bed6; font-size:11px; }
+        .workspace-content .budget-card .amount { margin-top:4px; font-weight:800; font-size:13px; }
+        .workspace-content .budget-total-card { display:flex; justify-content:space-between; gap:10px; margin-top:9px; padding:11px 12px; border-radius:10px; background:rgba(28,188,111,.10); border:1px solid rgba(28,188,111,.22); color:#c8f7da; }
+        .workspace-content .budget-total-card strong { color:#63e5a2; }
+        .workspace-content .weather-card { display:flex; align-items:center; gap:12px; padding:12px; border-radius:11px; background:rgba(255,255,255,.03); }
+        .workspace-content .weather-icon { font-size:25px; }
+        .workspace-content .weather-main { font-weight:750; font-size:13px; }
+        .workspace-content .weather-detail { color:#9eb4cf; font-size:11px; margin-top:3px; }
+        .itin-compact { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:9px; }
+        .itin-compact .itin-item { padding:11px; border-radius:11px; background:rgba(255,255,255,.028); border:1px solid rgba(255,255,255,.055); }
+        .itin-compact .itin-day-badge { color:#86baff; font-size:10px; font-weight:800; letter-spacing:.08em; }
+        .itin-compact .itin-day-title { margin-top:4px; font-size:13px; font-weight:750; }
+        .itin-compact .itin-activities { margin:7px 0 0; padding-left:15px; color:#a7bad2; font-size:11px; line-height:1.55; }
+        .trip-side-card { background:linear-gradient(180deg,rgba(15,34,58,.94),rgba(9,22,39,.94)); border:1px solid rgba(255,255,255,.075); border-radius:16px; padding:16px; margin-bottom:14px; }
+        .trip-side-title { font-size:14px; font-weight:800; margin-bottom:12px; }
+        .summary-row { display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.055); font-size:12px; }
+        .summary-row:last-child { border-bottom:0; }
+        .summary-row span:first-child { color:#8fa9c5; }
+        .summary-row strong { text-align:right; }
+        .status-list { display:grid; gap:8px; }
+        .status-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 10px; border-radius:10px; background:rgba(255,255,255,.025); }
+        .status-name { display:flex; align-items:center; gap:7px; font-size:12px; }
+        .status-dot { width:8px; height:8px; border-radius:50%; background:#39dc8a; box-shadow:0 0 10px rgba(57,220,138,.5); }
+        .status-value { color:#65e7a3; font-size:11px; font-weight:800; }
+        .status-dot.complete { background:#63b5ff; box-shadow:0 0 10px rgba(99,181,255,.45); }
+        .status-value.complete { color:#7fc0ff; }
+        .status-dot.rejected { background:#ef6b74; box-shadow:0 0 10px rgba(239,107,116,.4); }
+        .status-value.rejected { color:#ff9da4; }
+        .final-decision { border:1px solid rgba(82,160,255,.20); background:linear-gradient(180deg,rgba(17,39,66,.96),rgba(9,22,39,.96)); border-radius:16px; padding:16px; margin-top:14px; }
+        .final-decision h3 { margin:0 0 5px; font-size:15px; }
+        .final-decision p { margin:0 0 12px; color:#8fa9c5; font-size:12px; }
+        .final-actions { display:grid; grid-template-columns:1fr; gap:8px; }
+        .final-actions button { border:0; border-radius:10px; padding:11px 12px; color:white; font-weight:800; cursor:pointer; }
+        .final-approve { background:#12a965; }
+        .final-modify { background:#176fd8; }
+        .final-reject { background:#c7353d; }
+        .dashboard-actions { display:none; }
+        @media (max-width:1100px) { .travel-dashboard{grid-template-columns:1fr;} .travel-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;} .travel-side .trip-side-card{margin-bottom:0;} }
+        @media (max-width:760px) { .workspace-grid{grid-template-columns:1fr;} .workspace-card.full{grid-column:auto;} .travel-side{grid-template-columns:1fr;} .content{padding-left:14px;padding-right:14px;} .trip-banner{padding:18px;} }
+
+        .weather-dashboard-card{border:1px solid rgba(103,167,236,.18);border-radius:18px;background:linear-gradient(145deg,rgba(18,39,67,.92),rgba(7,20,37,.96));padding:18px;box-shadow:0 18px 42px rgba(0,0,0,.20);overflow:hidden;position:relative}
+        .weather-dashboard-card:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 86% 8%,rgba(92,174,255,.13),transparent 25%),radial-gradient(circle at 12% 92%,rgba(71,123,190,.08),transparent 28%)}
+        .weather-dashboard-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px;position:relative;z-index:1}
+        .weather-location-title{font-size:17px;font-weight:850;color:#f1f7ff;letter-spacing:-.01em}.weather-location-sub{margin-top:4px;color:#8fa9c5;font-size:11px}
+        .weather-live-badge{white-space:nowrap;color:#9dceff;background:rgba(55,139,235,.10);border:1px solid rgba(76,157,255,.24);border-radius:999px;padding:6px 10px;font-size:10px;font-weight:850}
+        .weather-current{display:grid;grid-template-columns:minmax(230px,1.05fr) minmax(0,2fr);gap:12px;margin-bottom:15px;position:relative;z-index:1}
+        .weather-current-main{position:relative;overflow:hidden;padding:20px;border-radius:16px;background:linear-gradient(145deg,rgba(49,111,180,.30),rgba(13,34,58,.90));border:1px solid rgba(104,177,255,.22);min-height:205px}
+        .weather-current-main:after{content:'';position:absolute;width:190px;height:190px;right:-70px;top:-95px;border-radius:50%;background:rgba(111,190,255,.11);filter:blur(3px)}
+        .weather-current-label{font-size:10px;font-weight:850;letter-spacing:.10em;text-transform:uppercase;color:#91b9e1}.weather-current-condition{display:flex;align-items:center;gap:10px;margin-top:10px}.weather-current-icon{width:72px;height:72px;object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.20))}.weather-current-temp{font-size:46px;font-weight:900;letter-spacing:-.055em;color:#f7fbff;line-height:.98}.weather-current-temp small{font-size:18px;font-weight:750;color:#b0c8df}.weather-current-desc{margin-top:7px;color:#d1e2f3;font-size:13px;text-transform:capitalize}.weather-current-feels{margin-top:13px;color:#94abc2;font-size:11px}
+        .weather-metrics{display:grid;grid-template-columns:repeat(4,minmax(92px,1fr));gap:8px}.weather-metric{padding:11px 10px;border-radius:12px;background:rgba(255,255,255,.038);border:1px solid rgba(255,255,255,.065);transition:transform .18s ease,border-color .18s ease}.weather-metric:hover{transform:translateY(-2px);border-color:rgba(111,185,255,.22)}.weather-metric-label{font-size:9px;color:#829bb6;text-transform:uppercase;letter-spacing:.055em}.weather-metric-value{margin-top:6px;color:#eef6ff;font-size:12px;font-weight:850}.weather-metric-sub{margin-top:3px;color:#718da8;font-size:9px}
+        .weather-sunline{display:flex;gap:8px;margin-top:9px}.weather-sun{flex:1;padding:9px 10px;border-radius:11px;background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.045);color:#9db6ce;font-size:10px}.weather-sun strong{display:block;color:#e7f2fc;font-size:11px;margin-top:3px}
+        .weather-source{margin-top:11px;color:#6f8ba6;font-size:9px;position:relative;z-index:1}.weather-source strong{color:#88afd2}
+        .weather-empty-state{padding:18px}.weather-empty-message{display:flex;align-items:center;gap:12px;padding:18px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}.weather-empty-icon{width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(255,255,255,.055);font-size:25px}.weather-empty-title{font-size:14px;font-weight:850;color:#eef6ff}.weather-empty-detail{margin-top:4px;color:#91a8c0;font-size:11px;line-height:1.5}
+        .weather-outlook{margin-top:18px;position:relative;z-index:1}.weather-outlook-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:11px}.weather-outlook-title{color:#e7f2fd;font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.075em}.weather-outlook-sub{margin-top:3px;color:#7892ad;font-size:10px}.weather-outlook-count{color:#8fb8df;font-size:10px;font-weight:800;padding:6px 9px;border:1px solid rgba(91,160,223,.16);border-radius:999px;background:rgba(66,135,201,.07)}
+        .weather-days-grid{display:grid;grid-template-columns:repeat(6,minmax(145px,1fr));gap:9px;overflow-x:auto;padding:2px 2px 7px;scrollbar-width:thin}.weather-day-card{min-width:145px;padding:13px 12px 12px;border-radius:15px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.065);text-align:left;position:relative;overflow:hidden;transition:transform .18s ease,border-color .18s ease,background .18s ease}.weather-day-card:hover{transform:translateY(-3px);border-color:rgba(104,177,255,.25);background:linear-gradient(180deg,rgba(65,132,201,.12),rgba(255,255,255,.025))}.weather-day-card.today{border-color:rgba(105,187,255,.36);box-shadow:inset 0 1px 0 rgba(154,214,255,.08)}
+        .weather-day-top{display:flex;justify-content:space-between;align-items:center;gap:8px}.weather-day-date{font-size:10px;font-weight:900;color:#b6cce2;text-transform:uppercase;letter-spacing:.065em}.weather-day-badge{font-size:8px;font-weight:900;color:#9dd0ff;padding:4px 6px;border-radius:999px;background:rgba(61,143,225,.12);border:1px solid rgba(83,161,235,.18);text-transform:uppercase}.weather-day-main{display:flex;align-items:center;gap:8px;margin:12px 0 9px}.weather-day-icon{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 5px 8px rgba(0,0,0,.18))}.weather-day-condition{font-size:10px;color:#c9d9eb;line-height:1.3;text-transform:capitalize;min-height:27px}.weather-day-temp{display:flex;align-items:baseline;gap:7px}.weather-day-temp strong{font-size:21px;color:#f3f8ff}.weather-day-temp span{font-size:12px;color:#8199b3}.weather-day-rain{margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#91c1ed}.weather-rain-track{height:4px;margin-top:7px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}.weather-rain-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#5ea8ef,#8bc9ff)}
+        .weather-day-note{margin-top:8px;color:#738da8;font-size:9px}.weather-insight{display:flex;gap:10px;margin-top:12px;padding:12px 13px;border-radius:13px;background:linear-gradient(90deg,rgba(75,151,235,.10),rgba(75,151,235,.045));border:1px solid rgba(75,151,235,.17);color:#a9c4e2;font-size:11px;line-height:1.5}.weather-insight strong{display:block;color:#dcecff;margin-bottom:2px}.weather-insight-icon{font-size:17px}
+        .weather-focused .weather-current{grid-template-columns:minmax(250px,1fr) minmax(0,2fr)}.weather-focused .weather-current-main{padding:22px}.weather-focused .weather-current-temp{font-size:48px}
+        @media(max-width:900px){.weather-current{grid-template-columns:1fr}.weather-metrics{grid-template-columns:repeat(2,minmax(100px,1fr))}.weather-focused .weather-current{grid-template-columns:1fr}}
+        @media(max-width:760px){.weather-days-grid{grid-template-columns:repeat(5,105px)}.weather-dashboard-head{flex-direction:column}.weather-live-badge{align-self:flex-start}}
+
+        /* ===== Final V5 visual design ===== */
+        .brand-v5 { margin: 2px 4px 22px; gap: 10px; }
+        .brand-v5 .brand-mark { width: 38px; height: 38px; border-radius: 11px; display:grid; place-items:center; background:linear-gradient(135deg,#54bfff,#1b68ef); color:white; font-size:22px; box-shadow:0 8px 22px rgba(31,116,255,.24); }
+        .brand-v5 .brand-mark::after { display:none; }
+        .brand-v5 strong { display:block; font-size:20px; line-height:1.05; letter-spacing:-.02em; }
+        .brand-v5 small { display:block; color:#829ab8; font-size:11px; font-weight:500; margin-top:4px; }
+        .new-chat-btn { width:100%; border:0; border-radius:11px; padding:12px 14px; background:linear-gradient(135deg,#1680ff,#1767ee); color:#fff; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 10px 24px rgba(19,104,242,.20); }
+        .sidebar-nav { display:grid; gap:3px; margin:18px 0 22px; }
+        .sidebar-nav-item { display:flex; align-items:center; gap:12px; padding:10px 11px; border-radius:9px; color:#a8bdd6; font-size:13px; font-weight:650; }
+        .sidebar-nav-item span { width:18px; text-align:center; color:#83a7cf; font-size:16px; }
+        .sidebar-nav-item.active { background:rgba(40,125,245,.13); color:#eef6ff; }
+        .sidebar-nav-item.active span { color:#58a5ff; }
+        .sidebar-section-title { color:#7891ae; font-size:11px; text-transform:uppercase; letter-spacing:.10em; font-weight:800; padding:0 8px 8px; }
+        .chat-history-list { gap:2px; }
+        .chat-history-list .sidebar-item { border-radius:10px; }
+        .sidebar-spacer { flex:1; min-height:18px; }
+        .sidebar-tech { padding-top:14px; border-top:1px solid rgba(255,255,255,.055); }
+        .sidebar-tech-title { color:#7891ae; font-size:11px; font-weight:800; margin:0 8px 8px; }
+        .tech-pill { display:flex; align-items:center; gap:9px; margin:5px 0; padding:8px 10px; border-radius:9px; color:#a8bdd6; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.045); font-size:11px; }
+        .tech-pill span { color:#75aef3; }
+        .sidebar-session { margin-top:12px; padding:8px; color:#627b99; font-size:10px; }
+        .sidebar { overflow:hidden; }
+        .sidebar .chat-history-list {
+            flex:1 1 auto;
+            min-height:150px;
+            overflow-y:auto;
+            overflow-x:hidden;
+            padding:2px 4px 4px 0;
+            scrollbar-width:thin;
+            scrollbar-color:rgba(119,155,199,.30) transparent;
+        }
+        .sidebar .chat-history-list::-webkit-scrollbar { width:5px; height:5px; }
+        .sidebar .chat-history-list::-webkit-scrollbar-thumb { background:rgba(119,155,199,.28); border-radius:999px; }
+        .sidebar .chat-history-list::-webkit-scrollbar-track { background:transparent; }
+        .sidebar-spacer, .sidebar-tech { display:none !important; }
+        .chat-history-item {
+            width:100%; text-align:left; border:1px solid transparent; cursor:pointer;
+            background:transparent; color:#c7d7ea; border-radius:10px; padding:9px 10px;
+            display:flex; flex-direction:column; gap:4px; margin:2px 0;
+            transition:background .16s ease,border-color .16s ease;
+        }
+        .chat-history-item:hover { background:rgba(54,116,196,.10); border-color:rgba(94,151,224,.12); }
+        .chat-history-item.active { background:rgba(42,116,231,.15); border-color:rgba(76,150,247,.20); }
+        .chat-history-item > span:first-child {
+            display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+            font-size:12px; font-weight:650; color:#dce9f7;
+        }
+        .chat-history-item .meta { color:#6f87a3; font-size:10px; white-space:nowrap; }
+        .chat-history-empty { padding:10px 8px; color:#7188a4; font-size:11px; line-height:1.5; }
+
+        .chat-history-item-wrap {
+            position:relative;
+            margin:2px 0;
+        }
+        .chat-history-item-wrap .chat-history-item {
+            margin:0;
+            padding-right:42px;
+        }
+        .chat-history-delete-btn {
+            position:absolute;
+            top:50%;
+            right:8px;
+            transform:translateY(-50%);
+            width:30px;
+            height:30px;
+            border:1px solid rgba(146,168,197,.12);
+            border-radius:8px;
+            background:rgba(9,18,32,.42);
+            color:#7f94ad;
+            cursor:pointer;
+            display:grid;
+            place-items:center;
+            z-index:3;
+            padding:0;
+            font-size:14px;
+            line-height:1;
+            opacity:.72;
+            transition:background .16s ease,color .16s ease,border-color .16s ease,opacity .16s ease,transform .16s ease;
+        }
+        .chat-history-item-wrap:hover .chat-history-delete-btn,
+        .chat-history-delete-btn:focus-visible { opacity:1; }
+        .chat-history-delete-btn:hover,
+        .chat-history-delete-btn:focus-visible {
+            background:rgba(218,67,78,.12);
+            border-color:rgba(255,112,123,.25);
+            color:#ff9da3;
+            outline:none;
+            transform:translateY(-50%) scale(1.04);
+        }
+
+        /* App-styled delete confirmation. Avoid the browser's native alert/confirm UI. */
+        .history-delete-modal {
+            position:fixed; inset:0; z-index:10000;
+            display:flex; align-items:center; justify-content:center;
+            padding:24px;
+            background:rgba(3,9,18,.72);
+            backdrop-filter:blur(8px);
+            -webkit-backdrop-filter:blur(8px);
+            opacity:0; visibility:hidden; pointer-events:none;
+            transition:opacity .18s ease,visibility .18s ease;
+        }
+        .history-delete-modal.visible { opacity:1; visibility:visible; pointer-events:auto; }
+        .history-delete-card {
+            width:min(430px,100%);
+            border:1px solid rgba(125,158,210,.20);
+            border-radius:18px;
+            background:linear-gradient(155deg,rgba(23,37,61,.98),rgba(10,21,38,.99));
+            box-shadow:0 28px 80px rgba(0,0,0,.48),0 0 0 1px rgba(255,255,255,.025) inset;
+            overflow:hidden;
+            transform:translateY(8px) scale(.98);
+            transition:transform .18s ease;
+        }
+        .history-delete-modal.visible .history-delete-card { transform:translateY(0) scale(1); }
+        .history-delete-head {
+            display:flex; align-items:flex-start; gap:13px; padding:20px 20px 14px;
+        }
+        .history-delete-icon {
+            flex:0 0 42px; width:42px; height:42px; border-radius:12px;
+            display:grid; place-items:center; font-size:19px;
+            background:rgba(225,76,88,.11); border:1px solid rgba(255,112,123,.18); color:#ff9da3;
+        }
+        .history-delete-title { margin:1px 0 4px; color:#eef5ff; font-size:17px; font-weight:760; }
+        .history-delete-subtitle { margin:0; color:#91a5c0; font-size:11px; line-height:1.5; }
+        .history-delete-body { padding:0 20px 18px; }
+        .history-delete-item {
+            padding:11px 12px; border-radius:10px;
+            background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.065);
+            color:#d9e5f4; font-size:12px; font-weight:650; line-height:1.45;
+            word-break:break-word;
+        }
+        .history-delete-note { margin:10px 0 0; color:#8297b2; font-size:10.5px; line-height:1.55; }
+        .history-delete-actions {
+            display:flex; justify-content:flex-end; gap:9px;
+            padding:14px 20px 18px; border-top:1px solid rgba(255,255,255,.055);
+            background:rgba(4,12,23,.22);
+        }
+        .history-delete-actions button {
+            min-width:92px; border:1px solid transparent; border-radius:9px; padding:9px 14px;
+            cursor:pointer; font-size:11px; font-weight:750; transition:.16s ease;
+        }
+        .history-delete-cancel { background:rgba(255,255,255,.055); border-color:rgba(255,255,255,.08)!important; color:#c1d0e2; }
+        .history-delete-cancel:hover { background:rgba(255,255,255,.09); }
+        .history-delete-confirm-btn { background:#c84450; color:#fff; box-shadow:0 7px 18px rgba(200,68,80,.18); }
+        .history-delete-confirm-btn:hover { background:#d6535e; }
+        .history-delete-confirm-btn:disabled, .history-delete-cancel:disabled { opacity:.55; cursor:default; }
+        @media (max-width:600px) {
+            .history-delete-modal { padding:16px; align-items:flex-end; }
+            .history-delete-card { border-radius:18px 18px 14px 14px; }
+        }
+        .server-memory-card {
+            padding:14px 16px; border-radius:14px; background:rgba(18,34,57,.72);
+            border:1px solid rgba(255,255,255,.065); color:#c6d5e7; line-height:1.65;
+        }
+        .server-memory-card p:last-child { margin-bottom:0; }
+        .sidebar-session .user-field { margin-top:5px; padding:7px 9px; font-size:11px; background:rgba(255,255,255,.06); color:#c4d5e9; border-color:rgba(255,255,255,.08); }
+        .travel-dashboard { grid-template-columns:minmax(0,1fr) 292px; gap:14px; }
+        .travel-main { min-width:0; width:100%; }
+        .travel-main > .workspace-tabs,
+        .travel-main > .workspace-grid,
+        .travel-main > .workspace-card { width:100%; max-width:100%; }
+        .trip-banner { min-height:128px; padding:22px 24px; background:linear-gradient(105deg,#12345b 0%,#0c223d 48%,#122d4b 100%); }
+        .trip-banner:before { content:""; position:absolute; right:0; top:0; bottom:0; width:48%; background:radial-gradient(circle at 65% 35%,rgba(77,164,255,.20),transparent 46%),linear-gradient(135deg,transparent 20%,rgba(65,134,207,.16)); pointer-events:none; }
+        .trip-banner:after { height:130px; inset:auto -5% -55% 42%; }
+        .trip-route { position:relative; z-index:1; font-size:clamp(1.8rem,2.6vw,2.35rem); }
+        .trip-facts { position:relative; z-index:1; }
+        .workspace-tabs {
+            display:grid;
+            grid-auto-flow:column;
+            grid-auto-columns:minmax(96px,1fr);
+            width:100%;
+            min-width:0;
+            gap:3px;
+            padding:3px;
+            margin:0 0 14px;
+            border:1px solid rgba(255,255,255,.06);
+            background:rgba(255,255,255,.025);
+            border-radius:12px;
+            overflow-x:auto;
+            scrollbar-width:none;
+        }
+        .workspace-tabs::-webkit-scrollbar { display:none; }
+        .workspace-tab {
+            min-width:96px;
+            border:0;
+            border-radius:9px;
+            padding:10px 12px;
+            cursor:pointer;
+            color:#9fb4ce;
+            background:transparent;
+            font:inherit;
+            font-size:11px;
+            font-weight:800;
+            white-space:nowrap;
+            transition:background .16s ease,color .16s ease,box-shadow .16s ease;
+        }
+        .workspace-tab:hover { background:rgba(255,255,255,.045); color:#e8f2ff; }
+        .workspace-tab.active {
+            color:#f2f7ff;
+            background:linear-gradient(180deg,rgba(55,128,231,.25),rgba(45,103,191,.16));
+            box-shadow:inset 0 0 0 1px rgba(93,166,255,.18);
+        }
+        .workspace-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+        .workspace-card { padding:14px; border-radius:14px; }
+        .workspace-card.full { grid-column:1/-1; }
+        .workspace-card-title { font-size:14px; }
+        .workspace-card-sub { font-size:11px; }
+        .workspace-content .flight-card,.workspace-content .hotel-card { padding:9px 10px; }
+        .workspace-content .item-title { font-size:12px; }
+        .workspace-content .item-meta,.workspace-content .item-note { font-size:10px; }
+        .trip-side-card { padding:15px; }
+        .travel-side { position:relative; }
+        .final-decision { position:sticky; top:12px; }
+        .final-actions button { min-height:42px; }
+        .final-approve { box-shadow:0 8px 20px rgba(18,169,101,.16); }
+        .travel-main .workspace-card { min-height:0; }
+        .workspace-content .flight-card,.workspace-content .hotel-card { min-height:74px; }
+        .workspace-content .hotel-card { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px; align-items:start; }
+        .workspace-content .hotel-card .item-title { min-width:0; }
+        .workspace-content .hotel-card .item-meta,.workspace-content .hotel-card .item-note { grid-column:1/-1; }
+        .workspace-content .hotel-card .item-note { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .workspace-content .hotel-card:nth-child(n+5) { display:none; }
+        .workspace-content .hotel-more { margin-top:8px; color:#7fa8d8; font-size:10px; font-weight:700; text-align:right; }
+        .knowledge-answer { max-height:220px; overflow:auto; padding-right:6px; }
+        .knowledge-answer p { margin:0 0 9px; }
+        .knowledge-answer ol,.knowledge-answer ul { margin:7px 0 9px 18px; padding:0; }
+        .trip-side { position:relative; }
+        .trip-side .trip-side-card:first-child { position:sticky; top:12px; }
+        @media (max-width:1250px) { .travel-dashboard{grid-template-columns:minmax(0,1fr) 260px;} .workspace-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+        @media (max-width:900px) { .layout > .sidebar{flex-basis:250px;width:250px;max-width:250px;} .layout > .main{width:calc(100% - 250px);} .travel-dashboard{grid-template-columns:1fr;} .travel-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;} .final-decision{position:static;} }
+        @media (max-width:650px) { .workspace-tabs{grid-auto-columns:minmax(92px,1fr);} .workspace-tab{min-width:92px;padding:9px 8px;font-size:10px;} }
+
+
+        /* V7 interaction and density fixes */
+        .sidebar-nav-item {
+            width:100%; border:0; background:transparent; cursor:pointer; font:inherit; text-align:left;
+            transition:background .16s ease,color .16s ease,transform .16s ease;
+        }
+        .sidebar-nav-item:hover { background:rgba(54,116,196,.10); color:#e9f3ff; }
+        .sidebar-nav-item:active { transform:translateY(1px); }
+        .sidebar-nav-item.active { background:rgba(40,125,245,.16); }
+        .sidebar-nav-item:focus-visible, .chat-history-item:focus-visible, .workspace-tab:focus-visible,
+        .hotel-more-btn:focus-visible, .flight-more-btn:focus-visible, .final-actions button:focus-visible { outline:2px solid #5ca7ff; outline-offset:2px; }
+        .sidebar-section-title { margin-top:2px; }
+        .chat-history-list { min-height:0 !important; }
