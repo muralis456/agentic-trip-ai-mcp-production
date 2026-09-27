@@ -93,9 +93,24 @@ public final class TripSlotHeuristics {
     }
 
     private static String findKnownPlace(String request, boolean destination) {
-        // Deliberately empty. Entity recognition and spelling correction are
-        // performed by QueryNormalizationService rather than a hard-coded
-        // place list.
+        if (request == null || request.isBlank()) return "";
+
+        // Deterministic fallback for short prompts that contain only a
+        // destination/country plus trip constraints, e.g. "Japan 7 days".
+        // The LLM normalizer remains the primary path; this fallback keeps
+        // degraded/LLM-free execution deterministic.
+        String text = request.trim();
+        String[] aliases = {
+                "japan", "uae", "united arab emirates", "thailand", "malaysia",
+                "france", "italy", "uk", "united kingdom", "singapore",
+                "indonesia", "vietnam", "south korea", "australia", "usa",
+                "united states", "germany", "spain", "switzerland"
+        };
+        for (String alias : aliases) {
+            if (text.matches("(?is).*\\b" + Pattern.quote(alias) + "\\b.*")) {
+                return normalizePlace(alias);
+            }
+        }
         return "";
     }
 
