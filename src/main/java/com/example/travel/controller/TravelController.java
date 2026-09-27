@@ -149,11 +149,12 @@ public class TravelController {
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(resumeInfo);
         }
 
+        // Keep stale hidden dates out of live provider calls, but keep TravelState pure
+        // so deterministic state/checkpoint tests can preserve explicit dates.
         if (request.getDepartureDate() != null && !request.getDepartureDate().isBlank()
                 && !com.example.travel.support.TripSlotHeuristics.hasDateHint(rawPrompt)
                 && isPastDate(request.getDepartureDate())) {
-            log.warn("Clearing stale past departureDate={} because current prompt has no explicit date",
-                    request.getDepartureDate());
+            log.warn("Clearing stale past departureDate={} at live request boundary", request.getDepartureDate());
             request.setDepartureDate("");
         }
         if (request.getReturnDate() != null && !request.getReturnDate().isBlank()
