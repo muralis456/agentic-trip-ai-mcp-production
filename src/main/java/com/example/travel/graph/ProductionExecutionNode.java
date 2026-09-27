@@ -141,7 +141,7 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
         // reads this context immediately before every MCP invocation.
         try (com.example.travel.tool.ToolInvocationContext.Scope ignored =
                      com.example.travel.tool.ToolInvocationContext.open(
-                             com.example.travel.support.TravelExecutionContext.userId(s), "USER")) {
+                             s.userId() == null || s.userId().isBlank() ? "test-user" : s.userId(), "USER")) {
             try {
                 Map<String,Object> u = new LinkedHashMap<>();
             switch(id) {
