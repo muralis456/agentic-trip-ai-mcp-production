@@ -141,7 +141,7 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
         // reads this context immediately before every MCP invocation.
         try (com.example.travel.tool.ToolInvocationContext.Scope ignored =
                      com.example.travel.tool.ToolInvocationContext.open(
-                             s.userId() == null || s.userId().isBlank() ? "test-user" : s.userId(), "USER")) {
+                             s.userId(), roleForUser(s.userId()))) {
             try {
                 Map<String,Object> u = new LinkedHashMap<>();
             switch(id) {
@@ -201,6 +201,15 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
                         e.getMessage() == null ? "execution failed" : e.getMessage());
             }
         }
+    }
+
+    private String roleForUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            // Unit tests and internal graph invocations may not carry an HTTP
+            // authentication context. They must still never receive an elevated role.
+            return "USER";
+        }
+        return "USER";
     }
 
     private boolean isInterrupted(Throwable error) {

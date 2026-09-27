@@ -171,9 +171,13 @@ public class McpToolClient {
     }
 
     private JsonNode invoke(String toolName, ToolCallback callback, Map<String, Object> arguments) throws Exception {
+        ToolInvocationContext.Context context = ToolInvocationContext.current()
+                .orElseThrow(() -> new SecurityException("Authenticated MCP invocation context is required"));
         String purpose = "MCP invocation";
         String argumentJson = objectMapper.writeValueAsString(arguments == null ? Map.of() : arguments);
         toolGovernance.authorize(toolName, purpose, argumentJson);
+        log.info("mcp.client.policy tool={} userId={} role={} approvalGranted={} decision=ALLOW",
+                toolName, context.userId(), context.role(), context.approvalGranted());
         Exception last = null;
         long started = System.nanoTime();
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
