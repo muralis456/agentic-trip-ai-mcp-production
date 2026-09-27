@@ -162,6 +162,18 @@ public class TravelController {
                 && isPastDate(request.getReturnDate())) {
             request.setReturnDate("");
         }
+        // Sanitize stale hidden dates only at the live request boundary.
+        if (request.getDepartureDate() != null && !request.getDepartureDate().isBlank()
+                && !com.example.travel.support.TripSlotHeuristics.hasDateHint(rawPrompt)
+                && isPastDate(request.getDepartureDate())) {
+            log.warn("Clearing stale past departureDate={} at live request boundary", request.getDepartureDate());
+            request.setDepartureDate("");
+        }
+        if (request.getReturnDate() != null && !request.getReturnDate().isBlank()
+                && !com.example.travel.support.TripSlotHeuristics.hasDateHint(rawPrompt)
+                && isPastDate(request.getReturnDate())) {
+            request.setReturnDate("");
+        }
         conversationMemoryService.hydrateRequestFromConversation(userId, conversationId, request);
         request.setOriginalPrompt(rawPrompt);
         QueryNormalizationService.NormalizationResult normalization = queryNormalizationService.normalize(request);
