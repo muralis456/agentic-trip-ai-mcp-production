@@ -140,7 +140,8 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
         // must be installed per task and removed in finally. The policy engine
         // reads this context immediately before every MCP invocation.
         try (com.example.travel.tool.ToolInvocationContext.Scope ignored =
-                     com.example.travel.tool.ToolInvocationContext.open(s.userId(), "USER")) {
+                     com.example.travel.tool.ToolInvocationContext.open(
+                             com.example.travel.support.TravelExecutionContext.userId(s), "USER")) {
             try {
                 Map<String,Object> u = new LinkedHashMap<>();
             switch(id) {
