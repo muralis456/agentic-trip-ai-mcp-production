@@ -57,6 +57,7 @@ public class RoutedLlm {
 
     public LlmExecutionResult completeWithMeta(AgentRole role, String system, String user, Object... tools) {
         if (!executionBudget.tryConsumeLlm()) {
+            observability.recordLlmBudgetExhausted(role.name());
             log.warn("LLM execution budget exhausted; returning an empty model result so internal state is never exposed to the user");
             observability.recordLlmBudgetExhausted(role.name());
             return new LlmExecutionResult("", "", "", 0);
