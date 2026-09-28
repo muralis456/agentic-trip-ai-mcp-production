@@ -11,6 +11,8 @@ import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.security.PromptInjectionGuard;
 import com.example.travel.tool.ToolGovernanceService;
 import com.example.travel.tool.ToolInvocationContext;
+import com.example.travel.observability.AgentObservabilityService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -42,6 +44,9 @@ public class McpToolClient {
     private final long timeoutMs;
     private final PromptInjectionGuard promptInjectionGuard;
     private final ToolGovernanceService toolGovernance;
+
+    @Autowired
+    private AgentObservabilityService observability;
 
     public McpToolClient(ToolCallbackProvider toolCallbackProvider,
                          ObjectMapper objectMapper,
@@ -185,7 +190,9 @@ public class McpToolClient {
                         toolName, context.userId(), context.role(), context.approvalGranted()));
         Exception last = null;
         long started = System.nanoTime();
+        int attemptsUsed = 0;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            attemptsUsed = attempt;
             try {
                 log.info("mcp.client.invocation-start tool={} attempt={}",
                         callback.getToolDefinition().name(), attempt);
@@ -200,6 +207,7 @@ public class McpToolClient {
                     }
                     if (success) {
                         toolGovernance.recordSuccess(toolName);
+                        observability.recordMcpCall(toolName, "success", elapsedMs(started), attempt - 1);
                         log.info("mcp.client.response tool={} success=true errorCode={} message={}",
                                 toolName, errorCode, message);
                     } else {
@@ -212,6 +220,7 @@ public class McpToolClient {
                         // quota/rate-limit errors, where another call only consumes more quota.
                         if (!responseRetryable) {
                             toolGovernance.recordFailure(toolName);
+                            observability.recordMcpCall(toolName, "provider_error", elapsedMs(started), attempt - 1);
                             log.warn("mcp.client.no-retry tool={} reason=provider-non-retryable errorCode={} message={}",
                                     toolName, errorCode, message);
                         }
@@ -243,6 +252,7 @@ public class McpToolClient {
                         toolName, attempt, attempt + 1, exception.getClass().getName(), safeExceptionMessage(exception));
             }
         }
+        observability.recordMcpCall(toolName, "error", elapsedMs(started), Math.max(0, attemptsUsed - 1));
         throw last;
     }
 
