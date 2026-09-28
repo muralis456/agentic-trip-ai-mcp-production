@@ -23,7 +23,6 @@ public class RoutedLlm {
     private final ChatClient chatClient;
     private final TravelModelsProperties models;
     private final AgentExecutionBudget executionBudget;
-    private final AgentObservabilityService observability;
     private final com.example.travel.observability.AgentObservabilityService observability;
     private final int extractionMaxTokens;
     private final int plannerMaxTokens;
@@ -33,7 +32,6 @@ public class RoutedLlm {
     public RoutedLlm(ChatClient chatClient,
                      TravelModelsProperties models,
                      AgentExecutionBudget executionBudget,
-                     AgentObservabilityService observability,
                      com.example.travel.observability.AgentObservabilityService observability,
                      @Value("${travel.models.max-tokens.extraction:384}") int extractionMaxTokens,
                      @Value("${travel.models.max-tokens.planner:512}") int plannerMaxTokens,
@@ -42,7 +40,6 @@ public class RoutedLlm {
         this.chatClient = chatClient;
         this.models = models;
         this.executionBudget = executionBudget;
-        this.observability = observability;
         this.observability = observability;
         this.extractionMaxTokens = Math.max(128, extractionMaxTokens);
         this.plannerMaxTokens = Math.max(128, plannerMaxTokens);
