@@ -212,6 +212,7 @@ public class McpToolClient {
                                 toolName, errorCode, message);
                     } else {
                         boolean responseRetryable = isRetryableProviderResponse(errorCode, message);
+                        observability.recordMcpCall(toolName, "provider_error", elapsedMs(started), attempt - 1);
                         log.error("mcp.client.error phase=server-response tool={} attempt={} success=false retryable={} errorCode={} message={}",
                                 toolName, attempt, responseRetryable, errorCode, message);
                         // A provider-declared failure is already a complete MCP response.
@@ -220,7 +221,6 @@ public class McpToolClient {
                         // quota/rate-limit errors, where another call only consumes more quota.
                         if (!responseRetryable) {
                             toolGovernance.recordFailure(toolName);
-                            observability.recordMcpCall(toolName, "provider_error", elapsedMs(started), attempt - 1);
                             log.warn("mcp.client.no-retry tool={} reason=provider-non-retryable errorCode={} message={}",
                                     toolName, errorCode, message);
                         }
