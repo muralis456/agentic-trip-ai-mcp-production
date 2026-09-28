@@ -84,6 +84,34 @@ spring:
         # the pool rolls it back → sequence advances but rows never persist.
         connection:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+    prometheus:
+      access: unrestricted
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        travel.agent.run: true
+        travel.agent.node: true
+        travel.mcp.call: true
+        travel.provider.call: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${SPRING_PROFILES_ACTIVE:dev}
+  tracing:
+    sampling:
+      probability: ${TRAVEL_OBSERVABILITY_TRACE_SAMPLE_RATE:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
 travel:
   mcp:
     client:
@@ -166,6 +194,17 @@ travel:
     forecast-url: ${OPENWEATHER_FORECAST_URL:https://api.openweathermap.org/data/2.5/forecast}
   currency:
     rates-url: https://api.frankfurter.app/latest
+
+  observability:
+    enabled: ${TRAVEL_OBSERVABILITY_ENABLED:true}
+    metrics:
+      enabled: ${TRAVEL_OBSERVABILITY_METRICS_ENABLED:true}
+    tracing:
+      enabled: ${TRAVEL_OBSERVABILITY_TRACING_ENABLED:true}
+    cost:
+      enabled: ${TRAVEL_OBSERVABILITY_COST_ENABLED:true}
+      input-token-usd-per-1k: ${TRAVEL_LLM_INPUT_COST_USD_PER_1K:0}
+      output-token-usd-per-1k: ${TRAVEL_LLM_OUTPUT_COST_USD_PER_1K:0}
 
 app:
   browser:
