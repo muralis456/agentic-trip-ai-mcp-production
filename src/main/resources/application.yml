@@ -1,5 +1,18 @@
 server:
   port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    tags:
+      application: agentic-trip-ai-mcp
+
   servlet:
     session:
       cookie:
@@ -180,5 +193,3 @@ logging:
     org.springframework.ai: INFO
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
-
-  

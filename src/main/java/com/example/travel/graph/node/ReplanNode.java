@@ -13,14 +13,24 @@ import java.util.Map;
 public class ReplanNode implements NodeAction<TravelState> {
 
     private final ReplanAgentService replanAgentService;
+    private final com.example.travel.observability.AgentObservabilityService observability;
 
-    public ReplanNode(ReplanAgentService replanAgentService) {
+    public ReplanNode(ReplanAgentService replanAgentService,
+                      com.example.travel.observability.AgentObservabilityService observability) {
         this.replanAgentService = replanAgentService;
+        this.observability = observability;
+    }
+
+    /** Backward-compatible constructor for deterministic graph unit tests. */
+    public ReplanNode(ReplanAgentService replanAgentService) {
+        this(replanAgentService, new com.example.travel.observability.AgentObservabilityService(
+                io.micrometer.core.instrument.Metrics.globalRegistry));
     }
 
     @Override
     public Map<String, Object> apply(TravelState state) {
         if (retriesExhausted(state)) {
+            observability.recordReplan("max_retries_exhausted");
             Map<String, Object> updates = new LinkedHashMap<>();
             // Replan is also entered from HITL.  Only block internal recovery
             // retries; a new user modification is not a failed retry.
@@ -37,6 +47,10 @@ public class ReplanNode implements NodeAction<TravelState> {
             return updates;
         }
 
+        String reason = state.goalEvaluation() == null || state.goalEvaluation().getBlockingIssues() == null
+                || state.goalEvaluation().getBlockingIssues().isEmpty()
+                ? "goal_not_achieved" : "goal_validation_failed";
+        observability.recordReplan("modify".equalsIgnoreCase(state.hitlDecision()) ? "user_modification" : reason);
         Map<String, Object> updates = new LinkedHashMap<>(replanAgentService.decide(state));
         if (!"modify".equalsIgnoreCase(state.hitlDecision())) {
             int nextRetry = state.retryCount() + 1;
