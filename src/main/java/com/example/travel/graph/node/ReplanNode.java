@@ -21,6 +21,12 @@ public class ReplanNode implements NodeAction<TravelState> {
         this.observability = observability;
     }
 
+    /** Backward-compatible constructor for deterministic graph unit tests. */
+    public ReplanNode(ReplanAgentService replanAgentService) {
+        this(replanAgentService, new com.example.travel.observability.AgentObservabilityService(
+                io.micrometer.core.instrument.Metrics.globalRegistry));
+    }
+
     @Override
     public Map<String, Object> apply(TravelState state) {
         if (retriesExhausted(state)) {
