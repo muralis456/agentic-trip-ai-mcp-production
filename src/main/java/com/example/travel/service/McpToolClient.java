@@ -69,6 +69,20 @@ public class McpToolClient {
         this.observability = observability;
     }
 
+    /** Backward-compatible constructor for infrastructure tests and callers. */
+    public McpToolClient(ToolCallbackProvider toolCallbackProvider,
+                         ObjectMapper objectMapper,
+                         McpToolSelector toolSelector,
+                         String allowedTools,
+                         int maxAttempts,
+                         long timeoutMs,
+                         PromptInjectionGuard promptInjectionGuard,
+                         ToolGovernanceService toolGovernance) {
+        this(toolCallbackProvider, objectMapper, toolSelector, allowedTools, maxAttempts, timeoutMs,
+                promptInjectionGuard, toolGovernance, new com.example.travel.observability.AgentObservabilityService(
+                        io.micrometer.core.instrument.Metrics.globalRegistry));
+    }
+
     /**
      * Invoke a tool by its exact MCP name. Kept for infrastructure/debugging
      * and backward compatibility, but domain clients should prefer callByUserInput().
