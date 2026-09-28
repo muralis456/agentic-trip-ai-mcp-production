@@ -59,6 +59,14 @@ public class AgentObservabilityService {
                 .record(Duration.ofMillis(Math.max(0, durationMs)));
     }
 
+    public void recordLlmBudgetExhausted(String operation) {
+        Counter.builder("agent.llm.budget.exhausted")
+                .description("LLM execution budget exhaustion events")
+                .tag("operation", normalize(operation))
+                .register(registry)
+                .increment();
+    }
+
     public void recordMcpCall(String tool, long durationMs, boolean success, int attempt) {
         String safeTool = normalize(tool);
 
