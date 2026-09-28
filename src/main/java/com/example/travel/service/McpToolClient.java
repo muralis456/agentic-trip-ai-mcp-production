@@ -42,6 +42,7 @@ public class McpToolClient {
     private final long timeoutMs;
     private final PromptInjectionGuard promptInjectionGuard;
     private final ToolGovernanceService toolGovernance;
+    private final com.example.travel.observability.AgentObservabilityService observability;
 
     public McpToolClient(ToolCallbackProvider toolCallbackProvider,
                          ObjectMapper objectMapper,
@@ -50,7 +51,8 @@ public class McpToolClient {
                          @Value("${travel.mcp.client.max-attempts:2}") int maxAttempts,
                          @Value("${travel.mcp.client.timeout-ms:15000}") long timeoutMs,
                          PromptInjectionGuard promptInjectionGuard,
-                         ToolGovernanceService toolGovernance) {
+                         ToolGovernanceService toolGovernance,
+                         com.example.travel.observability.AgentObservabilityService observability) {
         this.toolCallbackProvider = toolCallbackProvider;
         this.objectMapper = objectMapper;
         this.toolSelector = toolSelector;
@@ -64,6 +66,7 @@ public class McpToolClient {
         this.timeoutMs = Math.max(1000, timeoutMs);
         this.promptInjectionGuard = promptInjectionGuard;
         this.toolGovernance = toolGovernance;
+        this.observability = observability;
     }
 
     /**
@@ -180,6 +183,7 @@ public class McpToolClient {
         // and backward-compatible call() paths may use a mocked governance service,
         // while the real governance implementation enforces the context itself.
         toolGovernance.authorize(toolName, purpose, argumentJson);
+        observability.recordMcpPolicyDecision(toolName, "allow");
         ToolInvocationContext.current().ifPresent(context ->
                 log.info("mcp.client.policy tool={} userId={} role={} approvalGranted={} decision=ALLOW",
                         toolName, context.userId(), context.role(), context.approvalGranted()));
@@ -200,6 +204,7 @@ public class McpToolClient {
                     }
                     if (success) {
                         toolGovernance.recordSuccess(toolName);
+                        observability.recordMcpCall(toolName, elapsedMs(started), true, attempt);
                         log.info("mcp.client.response tool={} success=true errorCode={} message={}",
                                 toolName, errorCode, message);
                     } else {
@@ -212,6 +217,7 @@ public class McpToolClient {
                         // quota/rate-limit errors, where another call only consumes more quota.
                         if (!responseRetryable) {
                             toolGovernance.recordFailure(toolName);
+                            observability.recordMcpCall(toolName, elapsedMs(started), false, attempt);
                             log.warn("mcp.client.no-retry tool={} reason=provider-non-retryable errorCode={} message={}",
                                     toolName, errorCode, message);
                         }
@@ -231,6 +237,11 @@ public class McpToolClient {
                         || exception instanceof com.example.travel.exception.ToolApprovalRequiredException;
                 if (!policyFailure) {
                     toolGovernance.recordFailure(toolName);
+                    observability.recordMcpCall(toolName, elapsedMs(started), false, attempt);
+                } else {
+                    observability.recordMcpPolicyDecision(toolName,
+                            exception instanceof com.example.travel.exception.ToolApprovalRequiredException
+                                    ? "approval_required" : "denied");
                 }
                 boolean retryable = !policyFailure && isRetryable(exception);
                 log.error("mcp.client.error phase=invocation tool={} attempt={} retryable={} errorType={} errorMessage={} durationMs={}",
@@ -239,6 +250,7 @@ public class McpToolClient {
                 if (!retryable || attempt == maxAttempts) {
                     break;
                 }
+                observability.recordRetry("mcp", exception.getClass().getSimpleName());
                 log.warn("mcp.client.retry tool={} attempt={} nextAttempt={} errorType={} errorMessage={}",
                         toolName, attempt, attempt + 1, exception.getClass().getName(), safeExceptionMessage(exception));
             }
