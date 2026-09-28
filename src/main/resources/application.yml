@@ -182,3 +182,26 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
 
   
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        agent.llm.duration: true
+        agent.mcp.duration: true
+        agent.node.duration: true
+        agent.run.duration: true
+      percentiles:
+        agent.llm.duration: 0.5,0.95,0.99
+        agent.mcp.duration: 0.5,0.95,0.99
+        agent.node.duration: 0.5,0.95,0.99
+        agent.run.duration: 0.5,0.95,0.99
