@@ -9,9 +9,16 @@ import java.util.Map;
 @Component
 public class ProductionEvaluateNode implements NodeAction<TravelState> {
     private final GoalEvaluationService evaluator;
-    public ProductionEvaluateNode(GoalEvaluationService evaluator){this.evaluator=evaluator;}
+    private final com.example.travel.observability.AgentObservabilityService observability;
+    public ProductionEvaluateNode(GoalEvaluationService evaluator,
+                                  com.example.travel.observability.AgentObservabilityService observability){
+        this.evaluator=evaluator;
+        this.observability=observability;
+    }
     @Override public Map<String,Object> apply(TravelState state){
-        GoalEvaluation e=evaluator.evaluate(state); Map<String,Object> u=new LinkedHashMap<>();
+        GoalEvaluation e=evaluator.evaluate(state);
+        observability.recordGoalOutcome(e.getStatus().name());
+        Map<String,Object> u=new LinkedHashMap<>();
         u.put(TravelState.GOAL_EVALUATION,e);
         u.put(TravelState.SUPERVISOR_DECISION,e.getStatus().name());
         u.put(TravelState.REPLAN_NOTES,e.getReason()+" unmet="+e.getUnmetCriteria());
