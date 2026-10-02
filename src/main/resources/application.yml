@@ -108,6 +108,41 @@ travel:
     fallback-api-key: ${TRAVEL_JEV_FALLBACK_API_KEY:ollama}
     fallback-model: ${TRAVEL_JEV_FALLBACK_MODEL:tev1:4b}
     minimum-confidence: ${TRAVEL_JEV_MINIMUM_CONFIDENCE:0.75}
+    # Acceptance is risk-aware: routing decisions use probability + margin;
+    # higher-risk decisions retain a confidence gate.
+    policy:
+      choice:
+      min-confidence: ${TRAVEL_JEV_POLICY_CHOICE_MIN_CONFIDENCE:0.0}
+      min-probability: ${TRAVEL_JEV_POLICY_CHOICE_MIN_PROBABILITY:0.75}
+      min-margin: ${TRAVEL_JEV_POLICY_CHOICE_MIN_MARGIN:0.15}
+      model-routing:
+        min-confidence: ${TRAVEL_JEV_POLICY_MODEL_MIN_CONFIDENCE:0.0}
+        min-probability: ${TRAVEL_JEV_POLICY_MODEL_MIN_PROBABILITY:0.60}
+        min-margin: ${TRAVEL_JEV_POLICY_MODEL_MIN_MARGIN:0.15}
+      rag:
+        min-confidence: ${TRAVEL_JEV_POLICY_RAG_MIN_CONFIDENCE:0.0}
+        min-probability: ${TRAVEL_JEV_POLICY_RAG_MIN_PROBABILITY:0.70}
+        min-margin: ${TRAVEL_JEV_POLICY_RAG_MIN_MARGIN:0.15}
+      provider:
+        min-confidence: ${TRAVEL_JEV_POLICY_PROVIDER_MIN_CONFIDENCE:0.0}
+        min-probability: ${TRAVEL_JEV_POLICY_PROVIDER_MIN_PROBABILITY:0.75}
+        min-margin: ${TRAVEL_JEV_POLICY_PROVIDER_MIN_MARGIN:0.10}
+      goal:
+        min-confidence: ${TRAVEL_JEV_POLICY_GOAL_MIN_CONFIDENCE:0.80}
+        min-probability: ${TRAVEL_JEV_POLICY_GOAL_MIN_PROBABILITY:0.80}
+        min-margin: ${TRAVEL_JEV_POLICY_GOAL_MIN_MARGIN:0.20}
+      replan:
+        min-confidence: ${TRAVEL_JEV_POLICY_REPLAN_MIN_CONFIDENCE:0.0}
+        min-probability: ${TRAVEL_JEV_POLICY_REPLAN_MIN_PROBABILITY:0.75}
+        min-margin: ${TRAVEL_JEV_POLICY_REPLAN_MIN_MARGIN:0.15}
+      hitl:
+        min-confidence: ${TRAVEL_JEV_POLICY_HITL_MIN_CONFIDENCE:0.75}
+        min-probability: ${TRAVEL_JEV_POLICY_HITL_MIN_PROBABILITY:0.90}
+        min-margin: ${TRAVEL_JEV_POLICY_HITL_MIN_MARGIN:0.75}
+      noul:
+        min-probability: ${TRAVEL_JEV_POLICY_NOUL_MIN_PROBABILITY:0.75}
+      score:
+        min-confidence: ${TRAVEL_JEV_POLICY_SCORE_MIN_CONFIDENCE:0.75}
   security:
     bootstrap-admin:
       # Optional first-admin bootstrap. Set both environment variables together.
