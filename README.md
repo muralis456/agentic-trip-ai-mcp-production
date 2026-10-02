@@ -318,6 +318,6 @@ The application remains authoritative for policy, authorization, tool allow-list
 
 The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider preference, and evidence routing (RAG / WEB / BOTH / NONE).
 
-Jev never executes tools. Java remains authoritative for validation, authorization, confidence thresholds, retry/circuit policy, and execution. JEV is disabled by default; low-confidence or failed JEV calls fall back to deterministic application behavior.
+Jev never executes tools. Java remains authoritative for validation, authorization, confidence thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `tev1:4b`). Low-confidence decisions are rejected by the application policy; provider failures fall through to the next configured provider and finally to deterministic Java behavior.
 
 Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP server exposes AviationStack and Ignav flight providers. A preferred provider is attempted first when enabled and healthy; normal server-side fallback remains active. Duffel is not selected until a Duffel provider is actually exposed by the MCP server.
