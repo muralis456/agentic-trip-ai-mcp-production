@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
 
 @Component
 public class RagNode implements NodeAction<TravelState> {
@@ -46,7 +47,7 @@ public class RagNode implements NodeAction<TravelState> {
                     Map<String,Object> skipped = new LinkedHashMap<>();
                     skipped.put(TravelState.RAG_ENABLED, Boolean.FALSE);
                     skipped.put(TravelState.RAG_DECISION, "NONE");
-                    skipped.putAll(TravelState.trace(TravelGraphNodes.RAG, "skip", "jev decision=" + route.route()));
+                    skipped.putAll(TravelState.trace(TravelGraphNodes.RAG, "skip", "jev decision=" + routeName));
                     return skipped;
                 }
             }
