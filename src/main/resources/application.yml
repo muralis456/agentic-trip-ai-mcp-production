@@ -41,6 +41,8 @@ spring:
       client:
         enabled: ${TRAVEL_MCP_CLIENT_ENABLED:true}
         type: SYNC
+        # The MCP server is stateless. Spring AI's Streamable-HTTP client transport
+        # supports both stateful and stateless MCP servers, so no session affinity is required.
         streamable-http:
           connections:
             travel:
