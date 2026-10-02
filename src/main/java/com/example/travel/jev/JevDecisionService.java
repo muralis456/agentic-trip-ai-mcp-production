@@ -35,20 +35,33 @@ public class JevDecisionService {
             String instructions,
             Map<String, String> criteria) {
 
-        long started=System.nanoTime();
-        JevDecisionClient.JevChoiceDecision decision;
-        try { decision=client.choose(state, instructions, criteria); }
-        catch (RuntimeException ex) { observability.recordJevDecision("choice","error","jev",(System.nanoTime()-started)/1_000_000); throw ex; }
-        observability.recordJevDecision("choice", decision.confidence() >= minimumConfidence ? "accepted" : "low_confidence", decision.model(), (System.nanoTime()-started)/1_000_000);
-
-        boolean accepted = decision.confidence() >= minimumConfidence;
-
-        return new Decision(
-                decision.choice(),
-                decision.confidence(),
-                decision.probabilities(),
-                accepted,
-                decision.model());
+        long started = System.nanoTime();
+        try {
+            JevDecisionClient.JevChoiceDecision decision = client.choose(state, instructions, criteria);
+            boolean accepted = decision.confidence() >= minimumConfidence;
+            observability.recordJevDecision(
+                    "choice",
+                    accepted ? "accepted" : "low_confidence",
+                    decision.model(),
+                    elapsedMs(started));
+            return new Decision(
+                    decision.choice(),
+                    decision.confidence(),
+                    decision.probabilities(),
+                    accepted,
+                    decision.model());
+        } catch (RuntimeException ex) {
+            // JEV is an optional decision accelerator. A missing API key,
+            // exhausted credits, timeout, 4xx/5xx response, or malformed
+            // response must never become a graph failure. Returning an
+            // explicitly rejected decision lets each decision service apply
+            // its deterministic Java fallback policy.
+            String outcome = ex instanceof JevDecisionClient.JevUnavailableException
+                    ? "unavailable"
+                    : "error";
+            observability.recordJevDecision("choice", outcome, "jev", elapsedMs(started));
+            return new Decision("", 0.0, Map.of(), false, "jev-unavailable");
+        }
     }
 
     public YesNoDecision yesNo(Object state, String instructions, String trueCriteria, String falseCriteria) {
@@ -63,6 +76,10 @@ public class JevDecisionService {
         JevDecisionClient.JevScoreDecision d = client.score(state, instructions, criteria);
         observability.recordJevDecision("score", d.confidence() >= minimumConfidence ? "accepted" : "low_confidence", "jev", (System.nanoTime()-started)/1_000_000);
         return new ScoreDecision(d.score(), d.confidence(), d.confidence() >= minimumConfidence);
+    }
+
+    private static long elapsedMs(long started) {
+        return Math.max(0, (System.nanoTime() - started) / 1_000_000);
     }
 
     public record YesNoDecision(double probability, boolean accepted) { }
