@@ -23,6 +23,7 @@ public class FinalizationNode implements NodeAction<TravelState> {
     private final FinalPlannerAgentService finalPlannerAgentService;
     private final java.util.Optional<JevHitlDecisionService> jevHitlDecision;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public FinalizationNode(FinalPlannerAgentService finalPlannerAgentService, java.util.Optional<JevHitlDecisionService> jevHitlDecision) {
         this.finalPlannerAgentService = finalPlannerAgentService;
         this.jevHitlDecision = jevHitlDecision;
