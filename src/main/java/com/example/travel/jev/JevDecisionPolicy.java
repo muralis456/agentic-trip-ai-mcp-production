@@ -15,9 +15,9 @@ import java.util.Map;
  * recommendation is strong enough to influence the graph. The graph's
  * deterministic rules remain authoritative.</p>
  *
- * <p>Choice acceptance is risk-aware. Low-risk routing decisions primarily use
- * the selected probability and margin; model-reported confidence is retained
- * as an additional gate for higher-risk decisions such as HITL.</p>
+ * <p>Goal routing is choice-aware: a REPLAN recommendation uses the REPLAN
+ * threshold while HITL uses the stricter HITL threshold. This prevents the
+ * generic GOAL threshold from incorrectly rejecting a valid recovery decision.</p>
  */
 @Component
 public class JevDecisionPolicy {
@@ -70,7 +70,7 @@ public class JevDecisionPolicy {
         this.scoreMinimumConfidence = bounded(scoreMinimumConfidence, "score min confidence");
 
         log.info(
-                "jev.policy.effective choice={}/{} /{} modelRouting={}/{}/{} rag={}/{}/{} provider={}/{}/{} goal={}/{}/{} replan={}/{}/{} hitl={}/{}/{} noul={} score={}",
+                "jev.policy.effective choice={}/{}/{} modelRouting={}/{}/{} rag={}/{}/{} provider={}/{}/{} goal={}/{}/{} replan={}/{}/{} hitl={}/{}/{} noul={} score={}",
                 fmt(choice.minConfidence()), fmt(choice.minProbability()), fmt(choice.minMargin()),
                 fmt(modelRouting.minConfidence()), fmt(modelRouting.minProbability()), fmt(modelRouting.minMargin()),
                 fmt(ragRouting.minConfidence()), fmt(ragRouting.minProbability()), fmt(ragRouting.minMargin()),
@@ -82,11 +82,52 @@ public class JevDecisionPolicy {
     }
 
     public boolean accepts(DecisionKind kind, JevDecisionClient.JevChoiceDecision decision) {
+        return acceptanceReason(kind, decision).accepted();
+    }
+
+    /**
+     * Returns the exact acceptance result so production logs can explain why
+     * a recommendation was accepted or rejected instead of exposing only false.
+     */
+    public Acceptance acceptanceReason(DecisionKind kind, JevDecisionClient.JevChoiceDecision decision) {
         if (decision == null || decision.choice() == null || decision.choice().isBlank()) {
-            return false;
+            return new Acceptance(false, "missing_choice", 0.0, 0.0, 0.0);
         }
 
-        Threshold threshold = switch (kind) {
+        Threshold threshold = thresholdFor(kind, decision.choice());
+        double selectedProbability = probabilityOf(decision.probabilities(), decision.choice());
+        double decisionMargin = margin(decision.probabilities(), decision.choice());
+        double confidence = decision.confidence();
+
+        if (!Double.isFinite(confidence)) {
+            return new Acceptance(false, "invalid_confidence", confidence, selectedProbability, decisionMargin);
+        }
+        if (!Double.isFinite(selectedProbability)) {
+            return new Acceptance(false, "invalid_selected_probability", confidence, selectedProbability, decisionMargin);
+        }
+        if (!Double.isFinite(decisionMargin)) {
+            return new Acceptance(false, "invalid_probability_margin", confidence, selectedProbability, decisionMargin);
+        }
+        if (confidence < threshold.minConfidence()) {
+            return new Acceptance(false, "confidence_below_threshold", confidence, selectedProbability, decisionMargin);
+        }
+        if (selectedProbability < threshold.minProbability()) {
+            return new Acceptance(false, "selected_probability_below_threshold", confidence, selectedProbability, decisionMargin);
+        }
+        if (decisionMargin < threshold.minMargin()) {
+            return new Acceptance(false, "probability_margin_below_threshold", confidence, selectedProbability, decisionMargin);
+        }
+
+        return new Acceptance(true, "accepted", confidence, selectedProbability, decisionMargin);
+    }
+
+    private Threshold thresholdFor(DecisionKind kind, String choice) {
+        if (kind == DecisionKind.GOAL) {
+            if ("REPLAN".equalsIgnoreCase(choice)) return replan;
+            if ("HITL".equalsIgnoreCase(choice)) return hitl;
+        }
+
+        return switch (kind) {
             case MODEL_ROUTING -> modelRouting;
             case RAG -> ragRouting;
             case PROVIDER -> providerRouting;
@@ -95,16 +136,6 @@ public class JevDecisionPolicy {
             case HITL -> hitl;
             case CHOICE -> choice;
         };
-
-        double selectedProbability = probabilityOf(decision.probabilities(), decision.choice());
-        double decisionMargin = margin(decision.probabilities(), decision.choice());
-
-        return Double.isFinite(decision.confidence())
-                && Double.isFinite(selectedProbability)
-                && Double.isFinite(decisionMargin)
-                && decision.confidence() >= threshold.minConfidence()
-                && selectedProbability >= threshold.minProbability()
-                && decisionMargin >= threshold.minMargin();
     }
 
     public double selectedProbability(JevDecisionClient.JevChoiceDecision decision) {
@@ -127,6 +158,14 @@ public class JevDecisionPolicy {
 
     private static String fmt(double value) {
         return String.format(java.util.Locale.ROOT, "%.2f", value);
+    }
+
+    public record Acceptance(
+            boolean accepted,
+            String reason,
+            double confidence,
+            double selectedProbability,
+            double margin) {
     }
 
     public record Threshold(double minConfidence, double minProbability, double minMargin) { }
