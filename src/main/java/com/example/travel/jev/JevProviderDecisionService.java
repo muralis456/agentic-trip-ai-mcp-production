@@ -16,8 +16,8 @@ public class JevProviderDecisionService {
                 "Choose the preferred flight provider to try next. This is only a routing preference; authorization, availability, circuit state and actual fallback remain deterministic server policy.",
                 Map.of("IGNAV","Use Ignav when available for structured live flight offers.","AVIATIONSTACK","Use AviationStack as the configured flight provider."));
             String c=d.choice().toUpperCase();
-            return d.accepted()&&Map.of("IGNAV",1,"AVIATIONSTACK",1).containsKey(c)?new Decision(c,d.confidence(),true,"jev"):new Decision("IGNAV",d.confidence(),false,"fallback");
-        }catch(Exception ex){return new Decision("IGNAV",0,false,"jev unavailable: "+ex.getClass().getSimpleName());}
+            return d.accepted()&&Map.of("IGNAV",1,"AVIATIONSTACK",1).containsKey(c)?new Decision(c,d.confidence(),true,"jev"):new Decision("",d.confidence(),false,"fallback");
+        }catch(Exception ex){return new Decision("",0,false,"jev unavailable: "+ex.getClass().getSimpleName());}
     }
     public record Decision(String provider,double confidence,boolean accepted,String reason){}
 }
