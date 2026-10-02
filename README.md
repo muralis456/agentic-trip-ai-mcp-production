@@ -278,16 +278,39 @@ low confidence / Jev unavailable
 existing LLM selector fallback
 ```
 
-Jev is disabled by default. To enable it:
+Jev is disabled by default. For local development with the Ollama Tev1 model you downloaded:
+
+```bash
+ollama list
+ollama run tev1:4b
+```
+
+Then configure:
 
 ```text
 TRAVEL_JEV_ENABLED=true
-TRAVEL_JEV_API_KEY=<TypeSafe API key>
-TRAVEL_JEV_MODEL=jev-latest
+TRAVEL_JEV_PROVIDER=ollama
+TRAVEL_JEV_BASE_URL=http://localhost:11434
+TRAVEL_JEV_API_KEY=ollama
+TRAVEL_JEV_MODEL=tev1:4b
 TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
 ```
 
-**Safe fallback:** enabling JEV without an API key, running out of TypeSafe credits, a JEV timeout, or a JEV HTTP/API error must not stop the application. The JEV client stays optional at runtime and returns a rejected decision; each decision service then applies its deterministic Java fallback. This keeps the core workflow usable even when JEV is unavailable.
+For TypeSafe primary + local Ollama fallback:
+
+```text
+TRAVEL_JEV_ENABLED=true
+TRAVEL_JEV_PROVIDER=typesafe
+TRAVEL_JEV_API_KEY=<TypeSafe API key>
+TRAVEL_JEV_MODEL=jev-latest
+TRAVEL_JEV_FALLBACK_PROVIDER=ollama
+TRAVEL_JEV_FALLBACK_BASE_URL=http://localhost:11434
+TRAVEL_JEV_FALLBACK_API_KEY=ollama
+TRAVEL_JEV_FALLBACK_MODEL=tev1:4b
+TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
+```
+
+**Safe fallback:** TypeSafe failure, missing credits, timeout, or HTTP/API error automatically tries the local Ollama decision model. If both typed-decision providers are unavailable, each decision service applies its deterministic Java fallback. This keeps the core workflow usable even when typed decision AI is unavailable.
 
 The application remains authoritative for policy, authorization, tool allow-lists, confidence thresholds, retries, and execution. Jev only supplies a typed decision. The next planned integrations are goal evaluation, replan-action selection, model routing, and human-review decisions.
 
