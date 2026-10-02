@@ -11,6 +11,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Typed decision client.
@@ -24,6 +25,7 @@ import java.util.Map;
 public class JevDecisionClient {
 
     private static final Logger log = LoggerFactory.getLogger(JevDecisionClient.class);
+    private static final Pattern LOG_DECIMAL = Pattern.compile("(?<=[:\\[,])(-?\\d+\\.\\d{3,})(?=([,}\\]]))");
 
     private final RestClient primaryClient;
     private final RestClient fallbackClient;
@@ -111,14 +113,25 @@ public class JevDecisionClient {
         JsonNode answer = validateAnswer(response.response(), "choice");
 
         String choice = answer.path("choice").asString("").trim();
-        double confidence = answer.path("confidence").asDouble(0.0);
+        double confidence = answer.path("confidence").asDouble(Double.NaN);
         if (choice.isBlank()) {
             throw new IllegalStateException("Typed decision provider returned an empty choice.");
         }
+        validateProbability("confidence", confidence);
 
         Map<String, Double> probabilities = new LinkedHashMap<>();
-        answer.path("probabilities").properties().forEach(entry ->
-                probabilities.put(entry.getKey(), entry.getValue().asDouble()));
+        answer.path("probabilities").properties().forEach(entry -> {
+            double probability = entry.getValue().asDouble(Double.NaN);
+            validateProbability("probability[" + entry.getKey() + "]", probability);
+            probabilities.put(entry.getKey(), probability);
+        });
+        if (!probabilities.containsKey(choice)) {
+            throw new IllegalStateException("Typed decision provider returned a choice not present in probabilities: " + choice);
+        }
+        double probabilitySum = probabilities.values().stream().mapToDouble(Double::doubleValue).sum();
+        if (Math.abs(probabilitySum - 1.0) > 0.05) {
+            throw new IllegalStateException("Typed decision provider returned invalid probability distribution sum=" + probabilitySum);
+        }
 
         return new JevChoiceDecision(
                 response.response().path("model").asString(response.model()),
@@ -142,7 +155,9 @@ public class JevDecisionClient {
                 callWithFallback(request(state, Map.of("decision", question))).response(),
                 "noul");
 
-        return new JevNoulDecision(answer.path("noul").asDouble(0.0));
+        double probability = answer.path("noul").asDouble(Double.NaN);
+        validateProbability("noul", probability);
+        return new JevNoulDecision(probability);
     }
 
     public JevScoreDecision score(
@@ -159,9 +174,11 @@ public class JevDecisionClient {
                 callWithFallback(request(state, Map.of("decision", question))).response(),
                 "score");
 
-        return new JevScoreDecision(
-                answer.path("score").asDouble(0.0),
-                answer.path("confidence").asDouble(0.0));
+        double score = answer.path("score").asDouble(Double.NaN);
+        double confidence = answer.path("confidence").asDouble(Double.NaN);
+        validateProbability("score", score);
+        validateProbability("confidence", confidence);
+        return new JevScoreDecision(score, confidence);
     }
 
     private Map<String, Object> request(Object state, Map<String, Object> questions) {
@@ -282,11 +299,28 @@ public class JevDecisionClient {
         return answer;
     }
 
+    private String jsonForLog(Object value) {
+        String json = json(value);
+        return LOG_DECIMAL.matcher(json).replaceAll(match -> {
+            try {
+                return String.format(java.util.Locale.ROOT, "%.2f", Double.parseDouble(match.group()));
+            } catch (NumberFormatException ignored) {
+                return match.group();
+            }
+        });
+    }
+
     private String json(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception ex) {
             return String.valueOf(value);
+        }
+    }
+
+    private static void validateProbability(String name, double value) {
+        if (!Double.isFinite(value) || value < 0.0 || value > 1.0) {
+            throw new IllegalStateException("Typed decision provider returned invalid " + name + "=" + value);
         }
     }
 
