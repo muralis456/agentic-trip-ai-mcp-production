@@ -1,5 +1,6 @@
 package com.example.travel.service;
 
+import com.example.travel.exception.ToolApprovalRequiredException;
 import com.example.travel.observability.AgentObservabilityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -252,13 +253,13 @@ public class McpToolClient {
                 }
                 last = exception;
                 boolean policyFailure = exception instanceof SecurityException
-                        || exception instanceof com.example.travel.exception.ToolApprovalRequiredException;
+                        || exception instanceof ToolApprovalRequiredException;
                 if (!policyFailure) {
                     toolGovernance.recordFailure(toolName);
                     observability.recordMcpCall(toolName, elapsedMs(started), false, attempt);
                 } else {
                     observability.recordMcpPolicyDecision(toolName,
-                            exception instanceof com.example.travel.exception.ToolApprovalRequiredException
+                            exception instanceof ToolApprovalRequiredException
                                     ? "approval_required" : "denied");
                 }
                 boolean retryable = !policyFailure && isRetryable(exception);
@@ -311,7 +312,7 @@ public class McpToolClient {
         return !(exception instanceof IllegalArgumentException
                 || exception instanceof IllegalStateException
                 || exception instanceof SecurityException
-                || exception instanceof com.example.travel.exception.ToolApprovalRequiredException);
+                || exception instanceof ToolApprovalRequiredException);
     }
 
     private static boolean isCancellation(Throwable error) {
