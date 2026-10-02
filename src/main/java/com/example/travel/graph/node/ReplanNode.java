@@ -5,6 +5,7 @@ import com.example.travel.graph.TravelState;
 import com.example.travel.agent.ReplanAgentService;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,6 +16,7 @@ public class ReplanNode implements NodeAction<TravelState> {
     private final ReplanAgentService replanAgentService;
     private final com.example.travel.observability.AgentObservabilityService observability;
 
+    @Autowired
     public ReplanNode(ReplanAgentService replanAgentService,
                       com.example.travel.observability.AgentObservabilityService observability) {
         this.replanAgentService = replanAgentService;
