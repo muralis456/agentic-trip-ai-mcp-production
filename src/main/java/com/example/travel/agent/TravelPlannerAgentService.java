@@ -30,7 +30,7 @@ import com.example.travel.service.AgentRunAdmissionService;
 import com.example.travel.service.AgentRunControlService;
 import com.example.travel.service.ApiRateLimitService;
 import com.example.travel.exception.TooManyRequestsException;
-import GraphStopRequestedException;
+import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.exception.ResourceNotFoundException;
 import tools.jackson.databind.ObjectMapper;
 
