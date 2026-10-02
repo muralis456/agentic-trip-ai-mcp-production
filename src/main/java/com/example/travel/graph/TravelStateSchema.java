@@ -107,6 +107,7 @@ public final class TravelStateSchema {
         schema.put(Preferences.HOTEL_CHEAPER, Channels.base(() -> Boolean.FALSE));
         schema.put(Preferences.HOTEL_BUDGET, Channels.base(() -> TravelState.UNSET_BUDGET));
         schema.put(Preferences.FLIGHT_PREFERENCE, Channels.base(() -> "balanced"));
+        schema.put(Preferences.FLIGHT_PROVIDER, Channels.base(() -> ""));
         schema.put(Preferences.TRIP_REQUIREMENTS, Channels.base(TripRequirements::new));
         schema.put(Request.MODEL_POLICY, Channels.base(() -> "BALANCED"));
         schema.put(Request.INTENT_CONFIDENCE, Channels.base(() -> 1.0d));
