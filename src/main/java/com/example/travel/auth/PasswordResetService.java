@@ -4,6 +4,7 @@ import com.example.travel.entity.AppUser;
 import com.example.travel.entity.PasswordResetToken;
 import com.example.travel.repository.AppUserRepository;
 import com.example.travel.repository.PasswordResetTokenRepository;
+import com.example.travel.repository.SpringSessionRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,8 +19,6 @@ import java.util.Locale;
 
 @Service
 public class PasswordResetService {
-    @jakarta.persistence.PersistenceContext
-    private jakarta.persistence.EntityManager entityManager;
     private static final Duration TOKEN_TTL = Duration.ofMinutes(30);
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -27,16 +26,19 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetNotificationService notificationService;
+    private final SpringSessionRepository springSessionRepository;
 
     public PasswordResetService(
             AppUserRepository userRepository,
             PasswordResetTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
-            PasswordResetNotificationService notificationService) {
+            PasswordResetNotificationService notificationService,
+            SpringSessionRepository springSessionRepository) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
+        this.springSessionRepository = springSessionRepository;
     }
 
     /**
@@ -100,18 +102,10 @@ public class PasswordResetService {
         token.setUsedAt(now);
         tokenRepository.save(token);
 
-        // Spring Session persists sessions in PostgreSQL. Keep the application
-        // data-access boundary JPA-based while invalidating the two Spring Session
-        // infrastructure tables through the JPA EntityManager.
-        entityManager.createNativeQuery(
-                "delete from SPRING_SESSION_ATTRIBUTES where SESSION_PRIMARY_ID in " +
-                "(select PRIMARY_ID from SPRING_SESSION where PRINCIPAL_NAME = :username)")
-                .setParameter("username", user.getUsername())
-                .executeUpdate();
-        entityManager.createNativeQuery(
-                "delete from SPRING_SESSION where PRINCIPAL_NAME = :username")
-                .setParameter("username", user.getUsername())
-                .executeUpdate();
+        // Spring Session persists sessions in PostgreSQL. Keep the SQL isolated
+        // behind a repository so the service remains persistence-technology agnostic.
+        springSessionRepository.deleteAttributesByPrincipal(user.getUsername());
+        springSessionRepository.deleteSessionsByPrincipal(user.getUsername());
     }
 
     private void validateNewPassword(String password) {
