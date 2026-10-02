@@ -3,6 +3,9 @@ package com.example.travel.agent;
 import com.example.travel.config.TravelModelsProperties.AgentRole;
 import com.example.travel.graph.TravelState;
 import com.example.travel.model.Itinerary;
+import com.example.travel.model.ItineraryActivity;
+import com.example.travel.service.McpItineraryClient;
+import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.service.RoutedLlm;
 import com.example.travel.support.ItinerarySupport;
 import com.example.travel.support.JsonSupport;
@@ -21,11 +24,11 @@ public class ItineraryAgentService {
 
     private final RoutedLlm routedLlm;
     private final JsonSupport jsonSupport;
-    private final ObjectProvider<com.example.travel.service.McpItineraryClient> mcpItineraryClientProvider;
+    private final ObjectProvider<McpItineraryClient> mcpItineraryClientProvider;
     private final String itineraryProvider;
 
     public ItineraryAgentService(RoutedLlm routedLlm, JsonSupport jsonSupport,
-                                 ObjectProvider<com.example.travel.service.McpItineraryClient> mcpItineraryClientProvider,
+                                 ObjectProvider<McpItineraryClient> mcpItineraryClientProvider,
                                  @Value("${travel.itinerary.provider:jettova}") String itineraryProvider) {
         this.routedLlm = routedLlm;
         this.jsonSupport = jsonSupport;
@@ -60,7 +63,7 @@ public class ItineraryAgentService {
                     return normalized;
                 }
             } catch (Exception exception) {
-                    if (exception instanceof com.example.travel.exception.GraphStopRequestedException stop) throw stop;
+                    if (exception instanceof GraphStopRequestedException stop) throw stop;
             log.warn("Jettova itinerary unavailable; falling back to local Ollama itinerary destination={} reason={}",
                         state.destination(), exception.getMessage());
             }
@@ -90,7 +93,7 @@ public class ItineraryAgentService {
                             + "Do not invent flight numbers.",
                     stateSnapshot(state, departure, returning, expectedDays));
         } catch (Exception exception) {
-            if (exception instanceof com.example.travel.exception.GraphStopRequestedException stop) throw stop;
+            if (exception instanceof GraphStopRequestedException stop) throw stop;
             log.warn("Itinerary LLM failed for destination={}", state.destination(), exception);
             return ItinerarySupport.skeleton(nights, state.destination(), state.attractions());
         }
@@ -120,17 +123,17 @@ public class ItineraryAgentService {
         for (int i = 1; i < itinerary.getDays().size() - 1; i++) {
             var day = itinerary.getDays().get(i);
             if (requirements.isFoodExperiences() && !hasFood) {
-                day.getActivities().add(new com.example.travel.model.ItineraryActivity(
+                day.getActivities().add(new ItineraryActivity(
                         "Local family-friendly food experience", "food", "indoor", true, true, true));
                 hasFood = true;
             }
             if (requirements.isLocalExperiences() && !hasLocal) {
-                day.getActivities().add(new com.example.travel.model.ItineraryActivity(
+                day.getActivities().add(new ItineraryActivity(
                         "Explore a local neighborhood", "culture", "mixed", true, false, true));
                 hasLocal = true;
             }
             if (requirements.isFamilyFriendly() && !hasFamily) {
-                day.getActivities().add(new com.example.travel.model.ItineraryActivity(
+                day.getActivities().add(new ItineraryActivity(
                         "Family-friendly local activity", "family", "mixed", true, false, true));
                 hasFamily = true;
             }
