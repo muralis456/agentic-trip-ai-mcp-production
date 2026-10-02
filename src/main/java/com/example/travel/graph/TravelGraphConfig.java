@@ -186,7 +186,7 @@ public class TravelGraphConfig {
                 if (threadId != null && !threadId.isBlank() && runControlService.isStopRequested(threadId)) {
                     throw new GraphStopRequestedException();
                 }
-                if (jevModelRouting.isPresent()) {
+                if (jevModelRouting.isPresent() && "intent".equals(name)) {
                     String selected = jevModelRouting.get().choose(state);
                     ModelRoutingContext.set(selected);
                     GraphExecutionLogger.stageState(name, state, "jev-model=" + selected);
