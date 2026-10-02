@@ -1,5 +1,7 @@
 package com.example.travel.jev;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import java.util.Map;
 @ConditionalOnBean(JevDecisionClient.class)
 public class JevDecisionService {
 
+    private static final Logger log = LoggerFactory.getLogger(JevDecisionService.class);
     private final JevDecisionClient client;
     private final double minimumConfidence;
     private final AgentObservabilityService observability;
@@ -44,6 +47,8 @@ public class JevDecisionService {
                     accepted ? "accepted" : "low_confidence",
                     decision.model(),
                     elapsedMs(started));
+            log.info("jev.choice decision choice={} confidence={} accepted={} model={} durationMs={}",
+                    safe(decision.choice()), decision.confidence(), accepted, safe(decision.model()), elapsedMs(started));
             return new Decision(
                     decision.choice(),
                     decision.confidence(),
@@ -90,6 +95,7 @@ public class JevDecisionService {
             boolean accepted = d.confidence() >= minimumConfidence;
             observability.recordJevDecision(
                     "score", accepted ? "accepted" : "low_confidence", "jev", elapsedMs(started));
+            log.info("jev.score decision score={} confidence={} accepted={} durationMs={}", d.score(), d.confidence(), accepted, elapsedMs(started));
             return new ScoreDecision(d.score(), d.confidence(), accepted);
         } catch (RuntimeException ex) {
             observability.recordJevDecision(
@@ -100,6 +106,8 @@ public class JevDecisionService {
             return new ScoreDecision(0.0, 0.0, false);
         }
     }
+
+    private static String safe(String value) { return value == null ? "" : value.replace("\n", " ").trim(); }
 
     private static long elapsedMs(long started) {
         return Math.max(0, (System.nanoTime() - started) / 1_000_000);
