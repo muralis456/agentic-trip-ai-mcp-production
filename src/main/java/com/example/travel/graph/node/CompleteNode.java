@@ -2,6 +2,7 @@ package com.example.travel.graph.node;
 
 import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
+import com.example.travel.model.GoalEvaluation;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +19,7 @@ public class CompleteNode implements NodeAction<TravelState> {
     public Map<String, Object> apply(TravelState state) {
         if (state == null
                 || state.goalEvaluation() == null
-                || state.goalEvaluation().getStatus() != com.example.travel.model.GoalEvaluation.Status.ACHIEVED) {
+                || state.goalEvaluation().getStatus() != GoalEvaluation.Status.ACHIEVED) {
             throw new IllegalStateException("Cannot complete before the goal is achieved.");
         }
 
