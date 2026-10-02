@@ -19,6 +19,10 @@ public class ProductionEvaluateNode implements NodeAction<TravelState> {
         this.observability=observability;
         this.jevGoalDecision=jevGoalDecision;
     }
+    /** Backward-compatible constructor for unit tests and infrastructure wiring. */
+    public ProductionEvaluateNode(GoalEvaluationService evaluator, com.example.travel.observability.AgentObservabilityService observability){
+        this(evaluator, observability, java.util.Optional.empty());
+    }
     @Override public Map<String,Object> apply(TravelState state){
         GoalEvaluation e=evaluator.evaluate(state);
         observability.recordGoalOutcome(e.getStatus().name());
