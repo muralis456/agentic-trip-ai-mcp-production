@@ -1,14 +1,21 @@
 package com.example.travel.graph;
 
+import java.util.Optional;
+import java.util.List;
+import java.util.Arrays;
+import java.math.BigDecimal;
+import com.example.travel.model.ReplanAction;
+import com.example.travel.model.AgentTask;
+import com.example.travel.agent.IntentAgentService;
 import com.example.travel.model.AgentPlan;
 import com.example.travel.model.GoalEvaluation;
 import com.example.travel.jev.JevReplanDecisionService;
-import com.example.travel.agent.IntentAgentService;
-import com.example.travel.model.AgentTask;
-import com.example.travel.model.ReplanAction;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import IntentAgentService;
+import AgentTask;
+import ReplanAction;
+import Arrays;
+import List;
+import Optional;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
@@ -93,7 +100,7 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
         // Turn the LLM's typed strategy into concrete state changes consumed by
         // specialist agents. Without this bridge, a replan that says "cheaper"
         // would execute the exact same provider query again.
-        List<String> actions = next.getActions() == null ? java.util.List.of() : next.getActions();
+        List<String> actions = next.getActions() == null ? List.of() : next.getActions();
         if (jevReplanDecision.isPresent() && !actions.isEmpty()) {
             var d = jevReplanDecision.get().choose(state, e, actions);
             if (d.accepted() && !"NONE".equals(d.action()) && !"ASK_USER".equals(d.action())) {
@@ -106,7 +113,7 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
                     case "WEATHER" -> "get_weather_details";
                     default -> null;
                 };
-                if (token != null) { next.setActions(java.util.List.of(token)); actions = next.getActions(); }
+                if (token != null) { next.setActions(List.of(token)); actions = next.getActions(); }
             }
             u.put(TravelState.REPLAN_NOTES, u.get(TravelState.REPLAN_NOTES) + " decision=" + d.action());
         }
