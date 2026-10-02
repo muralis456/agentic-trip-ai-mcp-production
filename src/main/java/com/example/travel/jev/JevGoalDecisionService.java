@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -56,7 +57,7 @@ public class JevGoalDecisionService {
                     : new Decision(fallback, d.confidence(), false, "deterministic-goal-fallback");
 
             log.info("jev.goal.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",
-                    result.route(), choice, result.confidence(), result.accepted(), result.reason(), d.model());
+                    result.route(), choice, fmt(result.confidence()), result.accepted(), result.reason(), d.model());
             return result;
         } catch (Exception ex) {
             log.warn("jev.goal.decision-fallback outcome={} reason={}",
@@ -64,6 +65,8 @@ public class JevGoalDecisionService {
             return new Decision(fallback, 0, false, "jev unavailable: " + ex.getClass().getSimpleName());
         }
     }
+
+    private static String fmt(double value) { return String.format(Locale.ROOT, "%.2f", value); }
 
     public record Decision(String route, double confidence, boolean accepted, String reason) { }
 }
