@@ -104,7 +104,7 @@ public class TravelController {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("status", "KEY_REUSED", "message", conflict.getMessage()));
             } catch (Exception ex) {
                 log.error("Idempotency persistence failed userId={} key={} hash={}", userId, idempotencyKey, requestHash, ex);
-                throw new IllegalStateException("Unable to process Idempotency-Key. Verify Flyway migration V8__phase1_idempotency.sql is applied.", ex);
+                throw new IllegalStateException("Unable to process Idempotency-Key. Verify the required idempotency database schema is available.", ex);
             }
         }
         String conversationId = request.getConversationId();

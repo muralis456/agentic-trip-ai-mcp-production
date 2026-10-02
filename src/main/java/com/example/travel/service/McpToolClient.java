@@ -11,6 +11,7 @@ import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.security.PromptInjectionGuard;
 import com.example.travel.tool.ToolGovernanceService;
 import com.example.travel.tool.ToolInvocationContext;
+import com.example.travel.mcp.McpCorrelationContext;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -44,6 +45,7 @@ public class McpToolClient {
     private final ToolGovernanceService toolGovernance;
     private final com.example.travel.observability.AgentObservabilityService observability;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public McpToolClient(ToolCallbackProvider toolCallbackProvider,
                          ObjectMapper objectMapper,
                          McpToolSelector toolSelector,
@@ -203,11 +205,12 @@ public class McpToolClient {
                         toolName, context.userId(), context.role(), context.approvalGranted()));
         Exception last = null;
         long started = System.nanoTime();
+        String correlationId = McpCorrelationContext.currentOrCreate();
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                log.info("mcp.client.invocation-start tool={} attempt={}",
-                        callback.getToolDefinition().name(), attempt);
-                String response = callWithTimeout(callback, argumentJson);
+                log.info("mcp.client.invocation-start tool={} attempt={} correlationId={}",
+                        callback.getToolDefinition().name(), attempt, correlationId);
+                String response = callWithTimeout(callback, argumentJson, correlationId);
                 JsonNode result = responseTree(response);
                 if (result.has("success")) {
                     boolean success = result.path("success").asBoolean();
@@ -369,10 +372,14 @@ public class McpToolClient {
         return value.toString();
     }
 
-    private String callWithTimeout(ToolCallback callback, String argumentJson) throws Exception {
+    private String callWithTimeout(ToolCallback callback, String argumentJson, String correlationId) throws Exception {
         java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
         try {
-            java.util.concurrent.Future<String> future = executor.submit(() -> callback.call(argumentJson));
+            java.util.concurrent.Future<String> future = executor.submit(() -> {
+                try (McpCorrelationContext.Scope ignored = McpCorrelationContext.open(correlationId)) {
+                    return callback.call(argumentJson);
+                }
+            });
             try {
                 return future.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
             } catch (java.util.concurrent.TimeoutException timeout) {

@@ -4,7 +4,7 @@ import com.example.travel.entity.AppUser;
 import com.example.travel.entity.PasswordResetToken;
 import com.example.travel.repository.AppUserRepository;
 import com.example.travel.repository.PasswordResetTokenRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.example.travel.repository.UserSessionInvalidationRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,19 +26,19 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetNotificationService notificationService;
-    private final JdbcTemplate jdbcTemplate;
+    private final UserSessionInvalidationRepository userSessionInvalidationRepository;
 
     public PasswordResetService(
             AppUserRepository userRepository,
             PasswordResetTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
             PasswordResetNotificationService notificationService,
-            JdbcTemplate jdbcTemplate) {
+            UserSessionInvalidationRepository userSessionInvalidationRepository) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
-        this.jdbcTemplate = jdbcTemplate;
+        this.userSessionInvalidationRepository = userSessionInvalidationRepository;
     }
 
     /**
@@ -102,15 +102,10 @@ public class PasswordResetService {
         token.setUsedAt(now);
         tokenRepository.save(token);
 
-        // Spring Session JDBC schema uses these two tables. Delete the user's
-        // existing sessions so a password reset invalidates active logins.
-        jdbcTemplate.update(
-                "delete from SPRING_SESSION_ATTRIBUTES where SESSION_PRIMARY_ID in " +
-                "(select PRIMARY_ID from SPRING_SESSION where PRINCIPAL_NAME = ?)",
-                user.getUsername());
-        jdbcTemplate.update(
-                "delete from SPRING_SESSION where PRINCIPAL_NAME = ?",
-                user.getUsername());
+        // Spring Session persists sessions in PostgreSQL. Keep the SQL isolated
+        // behind a repository so the service remains persistence-technology agnostic.
+        userSessionInvalidationRepository.deleteAttributesByPrincipal(user.getUsername());
+        userSessionInvalidationRepository.deleteSessionsByPrincipal(user.getUsername());
     }
 
     private void validateNewPassword(String password) {

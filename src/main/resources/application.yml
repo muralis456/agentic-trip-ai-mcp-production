@@ -41,6 +41,8 @@ spring:
       client:
         enabled: ${TRAVEL_MCP_CLIENT_ENABLED:true}
         type: SYNC
+        # The MCP server is stateless. Spring AI's Streamable-HTTP client transport
+        # supports both stateful and stateless MCP servers, so no session affinity is required.
         streamable-http:
           connections:
             travel:
@@ -74,11 +76,6 @@ spring:
       keepalive-time: 120000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    baseline-version: 1
-    baseline-description: initial-application-schema
   session:
     store-type: jdbc
     jdbc:
@@ -87,7 +84,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     show-sql: false
     properties:
       hibernate:
@@ -98,6 +95,12 @@ spring:
         connection:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
+  security:
+    bootstrap-admin:
+      # Optional first-admin bootstrap. Set both environment variables together.
+      # After the first successful startup, remove them from the deployment environment.
+      username: ${BOOTSTRAP_ADMIN_USERNAME:}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:}
   mcp:
     client:
       enabled: ${TRAVEL_MCP_CLIENT_ENABLED:true}
@@ -193,3 +196,5 @@ logging:
     org.springframework.ai: INFO
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+# Correlation ids are emitted by the MCP client customizer and server response headers.

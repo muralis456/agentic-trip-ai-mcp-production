@@ -4,6 +4,8 @@ import com.example.travel.exception.ToolApprovalRequiredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -43,7 +45,9 @@ public class ToolGovernanceService {
     private final Map<String, AtomicInteger> failures = new ConcurrentHashMap<>();
     private final int circuitFailureThreshold;
     private final long circuitOpenMs;
+    private final DistributedMcpCircuitState distributedCircuitState;
 
+    @Autowired
     public ToolGovernanceService(
             @Value("${travel.mcp.governance.enabled:true}") boolean enabled,
             @Value("${travel.mcp.governance.max-argument-bytes:16384}") int maxArgumentBytes,
@@ -52,7 +56,8 @@ public class ToolGovernanceService {
             @Value("${travel.mcp.governance.approval-tools:}") String configuredApprovalTools,
             @Value("${travel.mcp.governance.roles:USER:READ_ONLY;ADMIN:READ_ONLY,SIDE_EFFECTING}") String configuredRoles,
             @Value("${travel.mcp.governance.circuit-failure-threshold:3}") int circuitFailureThreshold,
-            @Value("${travel.mcp.governance.circuit-open-ms:30000}") long circuitOpenMs) {
+            @Value("${travel.mcp.governance.circuit-open-ms:30000}") long circuitOpenMs,
+            ObjectProvider<DistributedMcpCircuitState> distributedCircuitState) {
         this.enabled = enabled;
         this.maxArgumentBytes = Math.max(1024, maxArgumentBytes);
         this.allowedUsers = parseSet(configuredUsers);
@@ -61,6 +66,20 @@ public class ToolGovernanceService {
         this.rolePermissions = parseRoles(configuredRoles);
         this.circuitFailureThreshold = Math.max(1, circuitFailureThreshold);
         this.circuitOpenMs = Math.max(1000, circuitOpenMs);
+        this.distributedCircuitState = distributedCircuitState.getIfAvailable();
+    }
+
+    public ToolGovernanceService(
+            boolean enabled,
+            int maxArgumentBytes,
+            String configuredUsers,
+            String configuredTools,
+            String configuredApprovalTools,
+            String configuredRoles,
+            int circuitFailureThreshold,
+            long circuitOpenMs) {
+        this(enabled, maxArgumentBytes, configuredUsers, configuredTools, configuredApprovalTools,
+                configuredRoles, circuitFailureThreshold, circuitOpenMs, null);
     }
 
     public void authorize(String toolName, String agentPurpose, String argumentsJson) {
@@ -101,7 +120,9 @@ public class ToolGovernanceService {
 
         long now = System.currentTimeMillis();
         Long until = cooldownUntil.get(normalizedTool);
-        if (until != null && until > now) {
+        boolean distributedOpen = distributedCircuitState != null
+                && distributedCircuitState.isOpen(normalizedTool, now);
+        if ((until != null && until > now) || distributedOpen) {
             deny(normalizedTool, userId, role, "CIRCUIT_OPEN");
             throw new IllegalStateException("MCP tool circuit is open: " + normalizedTool);
         }
@@ -144,6 +165,9 @@ public class ToolGovernanceService {
         String key = normalize(toolName);
         failures.remove(key);
         cooldownUntil.remove(key);
+        if (distributedCircuitState != null) {
+            distributedCircuitState.recordSuccess(key);
+        }
     }
 
     public void recordFailure(String toolName) {
@@ -151,8 +175,12 @@ public class ToolGovernanceService {
         int count = failures.computeIfAbsent(key, ignored -> new AtomicInteger()).incrementAndGet();
         if (count >= circuitFailureThreshold) {
             cooldownUntil.put(key, System.currentTimeMillis() + circuitOpenMs);
-            log.warn("mcp.policy circuit-open tool={} failures={} openMs={}",
-                    key, count, circuitOpenMs);
+            log.warn("mcp.policy circuit-open tool={} failures={} openMs={} distributed={}",
+                    key, count, circuitOpenMs, distributedCircuitState != null);
+        }
+        if (distributedCircuitState != null) {
+            distributedCircuitState.recordFailure(key, circuitFailureThreshold, circuitOpenMs,
+                    System.currentTimeMillis());
         }
     }
 

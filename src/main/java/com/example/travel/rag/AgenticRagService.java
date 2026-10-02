@@ -11,8 +11,8 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+
 import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
@@ -42,7 +42,7 @@ public class AgenticRagService {
     private static final int MAX_CONTEXT_CHARS = 6500;
 
     private final VectorStore vectorStore;
-    private final JdbcTemplate jdbcTemplate;
+    private final RagKeywordSearchRepository keywordSearchRepository;
     private final RoutedLlm routedLlm;
     private final JsonSupport jsonSupport;
     private final boolean enabled;
@@ -56,7 +56,7 @@ public class AgenticRagService {
 
     public AgenticRagService(
             VectorStore vectorStore,
-            JdbcTemplate jdbcTemplate,
+            RagKeywordSearchRepository keywordSearchRepository,
             RoutedLlm routedLlm,
             JsonSupport jsonSupport,
             @Value("${travel.rag.enabled:true}") boolean enabled,
@@ -68,7 +68,7 @@ public class AgenticRagService {
             @Value("${travel.rag.compression.enabled:true}") boolean compressionEnabled,
             @Value("${travel.rag.fast-path.enabled:true}") boolean fastPathEnabled) {
         this.vectorStore = vectorStore;
-        this.jdbcTemplate = jdbcTemplate;
+        this.keywordSearchRepository = keywordSearchRepository;
         this.routedLlm = routedLlm;
         this.jsonSupport = jsonSupport;
         this.enabled = enabled;
@@ -519,63 +519,43 @@ public class AgenticRagService {
         if (query == null || query.isBlank()) {
             return List.of();
         }
-        String destinationFilter = sqlDestinationFilter(decision);
-        String sql = """
-                select content, metadata
-                from vector_store
-                where to_tsvector('simple', content) @@ plainto_tsquery('simple', ?)
-                %s
-                order by ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', ?)) desc
-                limit ?
-                """.formatted(destinationFilter);
+
+        List<String> keys = destinationKeys(decision);
         try {
-            List<Object> params = new ArrayList<>();
-            params.add(query);
-            params.addAll(sqlDestinationParams(decision));
-            params.add(query);
-            params.add(limit);
-            List<Document> filtered = jdbcTemplate.query(sql,
-                    (rs, rowNum) -> {
-                        Map<String, Object> metadata = new LinkedHashMap<>();
-                        String rawMetadata = rs.getString("metadata");
-                        if (rawMetadata != null) {
-                            try {
-                                jsonSupport.readTree(rawMetadata).ifPresent(node -> node.properties().forEach(e -> metadata.put(e.getKey(), e.getValue().asString())));
-                            } catch (Exception ignored) { }
-                        }
-                        metadata.putIfAbsent("source", extractSource(rawMetadata));
-                        metadata.put("retrieval", "keyword");
-                        return new Document(rs.getString("content"), metadata);
-                    }, params.toArray());
-            if (filtered.isEmpty() && !destinationFilter.isBlank()) {
+            List<RagKeywordSearchRepository.RagKeywordRow> rows =
+                    keywordSearchRepository.search(query, query, limit, keys);
+            List<Document> filtered = toDocuments(rows);
+            if (filtered.isEmpty() && !keys.isEmpty()) {
                 log.info("RAG keyword destination filter returned 0 results; retrying without destination filter destination={} keys={}",
-                        decision.destination(), destinationKeys(decision));
-                String fallbackSql = """
-                        select content, metadata
-                        from vector_store
-                        where to_tsvector('simple', content) @@ plainto_tsquery('simple', ?)
-                        order by ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', ?)) desc
-                        limit ?
-                        """;
-                return jdbcTemplate.query(fallbackSql,
-                        (rs, rowNum) -> {
-                            Map<String, Object> metadata = new LinkedHashMap<>();
-                            String rawMetadata = rs.getString("metadata");
-                            if (rawMetadata != null) {
-                                try {
-                                    jsonSupport.readTree(rawMetadata).ifPresent(node -> node.properties().forEach(e -> metadata.put(e.getKey(), e.getValue().asString())));
-                                } catch (Exception ignored) { }
-                            }
-                            metadata.putIfAbsent("source", extractSource(rawMetadata));
-                            metadata.put("retrieval", "keyword");
-                            return new Document(rs.getString("content"), metadata);
-                        }, query, query, limit);
+                        decision.destination(), keys);
+                return toDocuments(keywordSearchRepository.search(query, query, limit, List.of()));
             }
             return filtered;
         } catch (Exception ex) {
             log.warn("Hybrid keyword retrieval unavailable; continuing with vector search: {}", ex.getMessage());
             return List.of();
         }
+    }
+
+    private List<Document> toDocuments(List<RagKeywordSearchRepository.RagKeywordRow> rows) {
+        List<Document> documents = new ArrayList<>();
+        for (RagKeywordSearchRepository.RagKeywordRow row : rows) {
+            String content = row.content() == null ? "" : row.content();
+            String rawMetadata = row.metadata();
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            if (rawMetadata != null && !rawMetadata.isBlank()) {
+                try {
+                    jsonSupport.readTree(rawMetadata).ifPresent(node ->
+                            node.properties().forEach(e -> metadata.put(e.getKey(), e.getValue().asString())));
+                } catch (Exception ignored) {
+                    // Preserve retrieval even if one legacy metadata row contains malformed JSON.
+                }
+            }
+            metadata.putIfAbsent("source", extractSource(rawMetadata));
+            metadata.put("retrieval", "keyword");
+            documents.add(new Document(content, metadata));
+        }
+        return documents;
     }
 
     private String destinationFilter(Decision decision) {

@@ -11,8 +11,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import org.springframework.core.annotation.Order;
 
 import java.nio.charset.StandardCharsets;
@@ -35,39 +36,41 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
     private static final Logger log = LoggerFactory.getLogger(RagKnowledgeLoader.class);
 
     private final VectorStore vectorStore;
-    private final JdbcTemplate jdbcTemplate;
+    private final RagKnowledgeRepository knowledgeRepository;
     private final AirportLocationRepository airportRepository;
     private final ResourcePatternResolver resourceResolver;
     private final boolean seedOnEmpty;
 
     public RagKnowledgeLoader(VectorStore vectorStore,
-                              JdbcTemplate jdbcTemplate,
+                              RagKnowledgeRepository knowledgeRepository,
                               AirportLocationRepository airportRepository,
                               @Value("${travel.rag.seed-on-empty:true}") boolean seedOnEmpty) {
         this.vectorStore = vectorStore;
-        this.jdbcTemplate = jdbcTemplate;
+        this.knowledgeRepository = knowledgeRepository;
         this.airportRepository = airportRepository;
         this.resourceResolver = new PathMatchingResourcePatternResolver();
         this.seedOnEmpty = seedOnEmpty;
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
         syncKnowledge(false);
     }
 
     /** Rebuilds all bundled and database-backed knowledge. */
+    @Transactional
     public synchronized Map<String, Object> reindex() throws Exception {
         return syncKnowledge(true);
     }
 
     private synchronized Map<String, Object> syncKnowledge(boolean forceReindex) {
         try {
-            Integer count = jdbcTemplate.queryForObject("select count(*) from vector_store", Integer.class);
-            boolean empty = count == null || count == 0;
+            int count = knowledgeRepository.countDocuments();
+            boolean empty = count == 0;
 
             if (forceReindex) {
-                jdbcTemplate.execute("truncate table vector_store");
+                knowledgeRepository.truncateVectorStore();
                 empty = true;
             }
 
@@ -90,7 +93,7 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
 
             // City/airport data is dynamic application data, so synchronize it on every startup.
             int cityDocuments = syncAirportCityKnowledge();
-            int total = jdbcTemplate.queryForObject("select count(*) from vector_store", Integer.class);
+            int total = knowledgeRepository.countDocuments();
             return Map.of(
                     "bundledDocuments", bundledDocuments,
                     "bundledChunks", bundledChunks,
@@ -106,7 +109,7 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
 
     private int syncAirportCityKnowledge() {
         // Remove only generated city records; never touch hand-authored travel/project knowledge.
-        jdbcTemplate.update("delete from vector_store where metadata ->> 'type' = ?", AIRPORT_CITY_TYPE);
+        knowledgeRepository.deleteGeneratedAirportCityKnowledge(AIRPORT_CITY_TYPE);
 
         List<AirportLocation> airports = airportRepository.findAll();
         if (airports.isEmpty()) {

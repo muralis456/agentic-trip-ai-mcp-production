@@ -1,32 +1,27 @@
 package com.example.travel.controller;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import com.example.travel.rag.RagKnowledgeLoader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 import com.example.travel.rag.eval.RagEvaluationCatalog;
 import com.example.travel.rag.eval.RagEvaluationRunner;
 import com.example.travel.rag.eval.RagEvaluationService;
-import org.springframework.ai.vectorstore.VectorStore;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/rag")
 public class RagController {
 
-    private final VectorStore vectorStore;
-    private final JdbcTemplate jdbcTemplate;
     private final RagEvaluationRunner evaluationRunner;
     private final RagEvaluationService evaluationService;
     private final com.example.travel.rag.eval.RagLlmJudgeService ragLlmJudgeService;
     private final RagKnowledgeLoader knowledgeLoader;
 
-    public RagController(VectorStore vectorStore, JdbcTemplate jdbcTemplate, RagEvaluationRunner evaluationRunner, RagEvaluationService evaluationService,
+    public RagController(RagEvaluationRunner evaluationRunner, RagEvaluationService evaluationService,
                          com.example.travel.rag.eval.RagLlmJudgeService ragLlmJudgeService,
                          RagKnowledgeLoader knowledgeLoader) {
-        this.vectorStore = vectorStore;
-        this.jdbcTemplate = jdbcTemplate;
         this.evaluationRunner = evaluationRunner;
         this.evaluationService = evaluationService;
         this.ragLlmJudgeService = ragLlmJudgeService;
@@ -59,6 +54,7 @@ public class RagController {
 
     /** Rebuilds bundled knowledge and regenerates database-backed city/airport knowledge. */
     @PostMapping("/reindex")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> reindex() {
         try {
             return knowledgeLoader.reindex();
