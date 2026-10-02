@@ -13,8 +13,6 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
@@ -44,8 +42,7 @@ public class AgenticRagService {
     private static final int MAX_CONTEXT_CHARS = 6500;
 
     private final VectorStore vectorStore;
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final RagKeywordSearchRepository keywordSearchRepository;
     private final RoutedLlm routedLlm;
     private final JsonSupport jsonSupport;
     private final boolean enabled;
@@ -59,6 +56,7 @@ public class AgenticRagService {
 
     public AgenticRagService(
             VectorStore vectorStore,
+            RagKeywordSearchRepository keywordSearchRepository,
             RoutedLlm routedLlm,
             JsonSupport jsonSupport,
             @Value("${travel.rag.enabled:true}") boolean enabled,
@@ -70,6 +68,7 @@ public class AgenticRagService {
             @Value("${travel.rag.compression.enabled:true}") boolean compressionEnabled,
             @Value("${travel.rag.fast-path.enabled:true}") boolean fastPathEnabled) {
         this.vectorStore = vectorStore;
+        this.keywordSearchRepository = keywordSearchRepository;
         this.routedLlm = routedLlm;
         this.jsonSupport = jsonSupport;
         this.enabled = enabled;
@@ -522,45 +521,14 @@ public class AgenticRagService {
         }
 
         List<String> keys = destinationKeys(decision);
-        String destinationPredicate = keys.isEmpty()
-                ? ""
-                : "and (metadata ->> 'destinationKey' = 'global' or " +
-                  keys.stream().map(key -> "metadata ->> 'destinationKey' = :destination_" + keys.indexOf(key))
-                          .reduce((a, b) -> a + " or " + b).orElse("") + ")";
-
-        String sql = """
-                select content, metadata
-                from vector_store
-                where to_tsvector('simple', content) @@ plainto_tsquery('simple', :query)
-                %s
-                order by ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', :rankQuery)) desc
-                limit :limit
-                """.formatted(destinationPredicate);
-
         try {
-            var nativeQuery = entityManager.createNativeQuery(sql)
-                    .setParameter("query", query)
-                    .setParameter("rankQuery", query)
-                    .setParameter("limit", limit);
-            bindDestinationParameters(nativeQuery, keys);
-
-            List<Document> filtered = toDocuments(nativeQuery.getResultList());
+            List<RagKeywordSearchRepository.RagKeywordRow> rows =
+                    keywordSearchRepository.search(query, query, limit, keys);
+            List<Document> filtered = toDocuments(rows);
             if (filtered.isEmpty() && !keys.isEmpty()) {
                 log.info("RAG keyword destination filter returned 0 results; retrying without destination filter destination={} keys={}",
                         decision.destination(), keys);
-
-                String fallbackSql = """
-                        select content, metadata
-                        from vector_store
-                        where to_tsvector('simple', content) @@ plainto_tsquery('simple', :query)
-                        order by ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', :rankQuery)) desc
-                        limit :limit
-                        """;
-                var fallbackQuery = entityManager.createNativeQuery(fallbackSql)
-                        .setParameter("query", query)
-                        .setParameter("rankQuery", query)
-                        .setParameter("limit", limit);
-                return toDocuments(fallbackQuery.getResultList());
+                return toDocuments(keywordSearchRepository.search(query, query, limit, List.of()));
             }
             return filtered;
         } catch (Exception ex) {
@@ -569,18 +537,11 @@ public class AgenticRagService {
         }
     }
 
-    private void bindDestinationParameters(jakarta.persistence.Query query, List<String> keys) {
-        for (int i = 0; i < keys.size(); i++) {
-            query.setParameter("destination_" + i, keys.get(i));
-        }
-    }
-
-    private List<Document> toDocuments(List<?> rows) {
+    private List<Document> toDocuments(List<RagKeywordSearchRepository.RagKeywordRow> rows) {
         List<Document> documents = new ArrayList<>();
-        for (Object row : rows) {
-            Object[] values = (Object[]) row;
-            String content = values[0] == null ? "" : String.valueOf(values[0]);
-            String rawMetadata = values[1] == null ? null : String.valueOf(values[1]);
+        for (RagKeywordSearchRepository.RagKeywordRow row : rows) {
+            String content = row.content() == null ? "" : row.content();
+            String rawMetadata = row.metadata();
             Map<String, Object> metadata = new LinkedHashMap<>();
             if (rawMetadata != null && !rawMetadata.isBlank()) {
                 try {
