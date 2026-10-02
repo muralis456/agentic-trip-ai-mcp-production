@@ -136,7 +136,12 @@ public class TravelGraphConfig {
                             && !state.nodeFailure().isRetryable()) {
                         return "FINAL";
                     }
-                    if (e.getStatus() == com.example.travel.model.GoalEvaluation.Status.ACHIEVED
+                    String decision = state.supervisorDecision();
+                    if ("REPLAN".equalsIgnoreCase(decision) && e.isRecoverable() && state.retryCount() < state.maxRetries()) {
+                        return "REPLAN";
+                    }
+                    if ("HITL".equalsIgnoreCase(decision) || "ACHIEVED".equalsIgnoreCase(decision)
+                            || e.getStatus() == com.example.travel.model.GoalEvaluation.Status.ACHIEVED
                             || e.getStatus() == com.example.travel.model.GoalEvaluation.Status.NEEDS_USER) {
                         return "FINAL";
                     }
