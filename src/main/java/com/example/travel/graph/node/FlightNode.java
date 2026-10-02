@@ -62,14 +62,21 @@ public class FlightNode implements NodeAction<TravelState> {
         } catch (Exception ex) {
             if (jevProviderDecision.isPresent()) {
                 var d = jevProviderDecision.get().choose(state, ex.getMessage());
+                Map<String,Object> failure = NodeFailureSupport.record(TravelGraphNodes.FLIGHT, state, ex, retryableFor(ex), state.nodeFailure().getNodeRetryCount());
+                failure.put(TravelState.FLIGHT_PROVIDER, d.accepted() ? d.provider() : "");
                 GraphExecutionLogger.specialistResult(TravelGraphNodes.FLIGHT, state, "provider-route",
                         "jevProvider=" + d.provider() + " confidence=" + d.confidence() + " accepted=" + d.accepted());
+                return failure;
             }
-            boolean retryable = ex instanceof McpFlightSearchClient.FlightProviderException providerException
-                    ? providerException.retryable()
-                    : ToolFailureClassifier.fromException(ex).isRetryable();
+            boolean retryable = retryableFor(ex);
             return NodeFailureSupport.record(TravelGraphNodes.FLIGHT, state, ex, retryable,
                     state.nodeFailure().getNodeRetryCount());
         }
+    }
+
+    private boolean retryableFor(Exception ex) {
+        return ex instanceof McpFlightSearchClient.FlightProviderException providerException
+                ? providerException.retryable()
+                : ToolFailureClassifier.fromException(ex).isRetryable();
     }
 }
