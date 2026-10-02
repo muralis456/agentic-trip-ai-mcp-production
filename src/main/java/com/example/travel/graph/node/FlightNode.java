@@ -8,6 +8,7 @@ import com.example.travel.agent.FlightAgentService;
 import com.example.travel.graph.GraphExecutionLogger;
 import com.example.travel.graph.NodeFailureSupport;
 import com.example.travel.support.ToolFailureClassifier;
+import com.example.travel.jev.JevProviderDecisionService;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 
@@ -19,9 +20,11 @@ import java.util.Map;
 public class FlightNode implements NodeAction<TravelState> {
 
     private final FlightAgentService flightAgentService;
+    private final java.util.Optional<JevProviderDecisionService> jevProviderDecision;
 
-    public FlightNode(FlightAgentService flightAgentService) {
+    public FlightNode(FlightAgentService flightAgentService, java.util.Optional<JevProviderDecisionService> jevProviderDecision) {
         this.flightAgentService = flightAgentService;
+        this.jevProviderDecision = jevProviderDecision;
     }
 
     @Override
@@ -52,6 +55,11 @@ public class FlightNode implements NodeAction<TravelState> {
                     "flights", "AviationStack", "", 0, result.originIata() + "->" + result.destinationIata())));
             return updates;
         } catch (Exception ex) {
+            if (jevProviderDecision.isPresent()) {
+                var d = jevProviderDecision.get().choose(state, ex.getMessage());
+                GraphExecutionLogger.specialistResult(TravelGraphNodes.FLIGHT, state, "provider-route",
+                        "jevProvider=" + d.provider() + " confidence=" + d.confidence() + " accepted=" + d.accepted());
+            }
             boolean retryable = ex instanceof McpFlightSearchClient.FlightProviderException providerException
                     ? providerException.retryable()
                     : ToolFailureClassifier.fromException(ex).isRetryable();
