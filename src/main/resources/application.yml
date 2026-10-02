@@ -112,19 +112,19 @@ travel:
     # higher-risk decisions retain a confidence gate.
     policy:
       choice:
-          min-confidence: ${TRAVEL_JEV_POLICY_CHOICE_MIN_CONFIDENCE:0.0}
+          min-confidence: ${TRAVEL_JEV_POLICY_CHOICE_MIN_CONFIDENCE:0.50}
           min-probability: ${TRAVEL_JEV_POLICY_CHOICE_MIN_PROBABILITY:0.75}
           min-margin: ${TRAVEL_JEV_POLICY_CHOICE_MIN_MARGIN:0.15}
       model-routing:
-        min-confidence: ${TRAVEL_JEV_POLICY_MODEL_MIN_CONFIDENCE:0.0}
+        min-confidence: ${TRAVEL_JEV_POLICY_MODEL_MIN_CONFIDENCE:0.50}
         min-probability: ${TRAVEL_JEV_POLICY_MODEL_MIN_PROBABILITY:0.60}
         min-margin: ${TRAVEL_JEV_POLICY_MODEL_MIN_MARGIN:0.15}
       rag:
-        min-confidence: ${TRAVEL_JEV_POLICY_RAG_MIN_CONFIDENCE:0.0}
+        min-confidence: ${TRAVEL_JEV_POLICY_RAG_MIN_CONFIDENCE:0.50}
         min-probability: ${TRAVEL_JEV_POLICY_RAG_MIN_PROBABILITY:0.70}
         min-margin: ${TRAVEL_JEV_POLICY_RAG_MIN_MARGIN:0.15}
       provider:
-        min-confidence: ${TRAVEL_JEV_POLICY_PROVIDER_MIN_CONFIDENCE:0.0}
+        min-confidence: ${TRAVEL_JEV_POLICY_PROVIDER_MIN_CONFIDENCE:0.50}
         min-probability: ${TRAVEL_JEV_POLICY_PROVIDER_MIN_PROBABILITY:0.75}
         min-margin: ${TRAVEL_JEV_POLICY_PROVIDER_MIN_MARGIN:0.10}
       goal:
@@ -132,7 +132,7 @@ travel:
         min-probability: ${TRAVEL_JEV_POLICY_GOAL_MIN_PROBABILITY:0.80}
         min-margin: ${TRAVEL_JEV_POLICY_GOAL_MIN_MARGIN:0.20}
       replan:
-        min-confidence: ${TRAVEL_JEV_POLICY_REPLAN_MIN_CONFIDENCE:0.0}
+        min-confidence: ${TRAVEL_JEV_POLICY_REPLAN_MIN_CONFIDENCE:0.50}
         min-probability: ${TRAVEL_JEV_POLICY_REPLAN_MIN_PROBABILITY:0.75}
         min-margin: ${TRAVEL_JEV_POLICY_REPLAN_MIN_MARGIN:0.15}
       hitl:
