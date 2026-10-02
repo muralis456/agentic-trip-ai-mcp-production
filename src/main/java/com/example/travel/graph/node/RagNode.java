@@ -23,9 +23,13 @@ public class RagNode implements NodeAction<TravelState> {
     private final AgenticRagService agenticRagService;
     private final RagAnswerService ragAnswerService;
     private final java.util.Optional<JevRagDecisionService> jevRagDecision;
-    private final TavilySearchTool tavilySearchTool;
+    private final java.util.Optional<TavilySearchTool> tavilySearchTool;
 
-    public RagNode(AgenticRagService agenticRagService, RagAnswerService ragAnswerService, java.util.Optional<JevRagDecisionService> jevRagDecision, TavilySearchTool tavilySearchTool) {
+    public RagNode(
+            AgenticRagService agenticRagService,
+            RagAnswerService ragAnswerService,
+            java.util.Optional<JevRagDecisionService> jevRagDecision,
+            java.util.Optional<TavilySearchTool> tavilySearchTool) {
         this.agenticRagService = agenticRagService;
         this.ragAnswerService = ragAnswerService;
         this.jevRagDecision = jevRagDecision;
@@ -34,7 +38,7 @@ public class RagNode implements NodeAction<TravelState> {
 
     /** Backward-compatible constructor for existing tests. */
     public RagNode(AgenticRagService agenticRagService, RagAnswerService ragAnswerService) {
-        this(agenticRagService, ragAnswerService, java.util.Optional.empty(), null);
+        this(agenticRagService, ragAnswerService, java.util.Optional.empty(), java.util.Optional.empty());
     }
 
     @Override
@@ -55,26 +59,32 @@ public class RagNode implements NodeAction<TravelState> {
             if ("RAG".equals(routeName) || "BOTH".equals(routeName)) {
                 result = agenticRagService.run(state);
             }
-            if (("WEB".equals(routeName) || "BOTH".equals(routeName)) && tavilySearchTool != null) {
-                List<SearchHit> hits = tavilySearchTool.searchHits(state.userRequest());
+            if ("WEB".equals(routeName) || "BOTH".equals(routeName)) {
+                if (tavilySearchTool.isEmpty()) {
+                    if ("WEB".equals(routeName)) {
+                        throw new IllegalStateException("WEB evidence route selected but TavilySearchTool is not available.");
+                    }
+                } else {
+                    List<SearchHit> hits = tavilySearchTool.get().searchHits(state.userRequest());
                 StringBuilder web = new StringBuilder();
                 List<String> webSources = new java.util.ArrayList<>();
                 hits.stream().limit(5).forEach(h -> {
                     web.append("[Web: ").append(h.getTitle()).append("]\\n").append(h.getContent()).append("\\n\\n");
                     if (h.getUrl()!=null && !h.getUrl().isBlank()) webSources.add(h.getUrl());
                 });
-                if ("WEB".equals(routeName)) {
-                    String context = web.toString().trim();
-                    result = new AgenticRagService.RagResult(true, "web", state.userRequest(), context,
-                            webSources, 1, !context.isBlank(), "web", hits.size(), hits.size(), context.length(),
-                            context.isBlank()?0.0:1.0, state.destination(), "", List.of());
-                } else if ("BOTH".equals(routeName) && result != null && !web.isEmpty()) {
-                    String context = result.context() + "\\n\\n" + web;
-                    List<String> sources = new java.util.ArrayList<>(result.sources()); sources.addAll(webSources);
-                    result = new AgenticRagService.RagResult(result.used(), "both", result.query(), context,
-                            sources.stream().distinct().toList(), result.iterations()+1, result.sufficient() || !web.isEmpty(),
-                            result.retrievalMethod()+"+web", result.candidateCount()+hits.size(), result.rerankedCount()+hits.size(), context.length(),
-                            Math.max(result.evidenceScore(), web.isEmpty()?0.0:1.0), result.destination(), result.country(), result.topics());
+                    if ("WEB".equals(routeName)) {
+                        String context = web.toString().trim();
+                        result = new AgenticRagService.RagResult(true, "web", state.userRequest(), context,
+                                webSources, 1, !context.isBlank(), "web", hits.size(), hits.size(), context.length(),
+                                context.isBlank()?0.0:1.0, state.destination(), "", List.of());
+                    } else if ("BOTH".equals(routeName) && result != null && !web.isEmpty()) {
+                        String context = result.context() + "\\n\\n" + web;
+                        List<String> sources = new java.util.ArrayList<>(result.sources()); sources.addAll(webSources);
+                        result = new AgenticRagService.RagResult(result.used(), "both", result.query(), context,
+                                sources.stream().distinct().toList(), result.iterations()+1, result.sufficient() || !web.isEmpty(),
+                                result.retrievalMethod()+"+web", result.candidateCount()+hits.size(), result.rerankedCount()+hits.size(), context.length(),
+                                Math.max(result.evidenceScore(), web.isEmpty()?0.0:1.0), result.destination(), result.country(), result.topics());
+                    }
                 }
             }
             if (result == null) {
