@@ -96,11 +96,16 @@ spring:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
   jev:
-    # Disabled by default until a TypeSafe API key is configured.
+    # TypeSafe is the primary provider. Local Ollama Tev1 is the default fallback.
     enabled: ${TRAVEL_JEV_ENABLED:false}
+    provider: ${TRAVEL_JEV_PROVIDER:typesafe}
     base-url: ${TRAVEL_JEV_BASE_URL:https://api.typesafe.ai}
     api-key: ${TRAVEL_JEV_API_KEY:}
     model: ${TRAVEL_JEV_MODEL:jev-latest}
+    fallback-provider: ${TRAVEL_JEV_FALLBACK_PROVIDER:ollama}
+    fallback-base-url: ${TRAVEL_JEV_FALLBACK_BASE_URL:http://localhost:11434}
+    fallback-api-key: ${TRAVEL_JEV_FALLBACK_API_KEY:ollama}
+    fallback-model: ${TRAVEL_JEV_FALLBACK_MODEL:tev1:4b}
     minimum-confidence: ${TRAVEL_JEV_MINIMUM_CONFIDENCE:0.75}
   security:
     bootstrap-admin:
