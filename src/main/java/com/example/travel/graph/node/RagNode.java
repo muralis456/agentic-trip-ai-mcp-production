@@ -6,6 +6,7 @@ import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
 import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.rag.AgenticRagService;
+import com.example.travel.jev.JevRagDecisionService;
 import com.example.travel.rag.RagAnswerService;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
@@ -18,15 +19,29 @@ public class RagNode implements NodeAction<TravelState> {
 
     private final AgenticRagService agenticRagService;
     private final RagAnswerService ragAnswerService;
+    private final java.util.Optional<JevRagDecisionService> jevRagDecision;
 
-    public RagNode(AgenticRagService agenticRagService, RagAnswerService ragAnswerService) {
+    public RagNode(AgenticRagService agenticRagService, RagAnswerService ragAnswerService, java.util.Optional<JevRagDecisionService> jevRagDecision) {
         this.agenticRagService = agenticRagService;
         this.ragAnswerService = ragAnswerService;
+        this.jevRagDecision = jevRagDecision;
     }
 
     @Override
     public Map<String, Object> apply(TravelState state) {
         try {
+            if (jevRagDecision.isPresent()) {
+                var route = jevRagDecision.get().decide(state);
+                if ("NONE".equals(route.route())) {
+                    Map<String,Object> skipped = new LinkedHashMap<>();
+                    skipped.put(TravelState.RAG_ENABLED, Boolean.FALSE);
+                    skipped.put(TravelState.RAG_DECISION, "NONE");
+                    skipped.putAll(TravelState.trace(TravelGraphNodes.RAG, "skip", "jev decision=" + route.route()));
+                    return skipped;
+                }
+                // AgenticRagService owns retrieval mechanics. Jev only chooses the evidence route.
+                state = new TravelState(new java.util.LinkedHashMap<>(state.data()));
+            }
             AgenticRagService.RagResult result = agenticRagService.run(state);
             Map<String, Object> updates = new LinkedHashMap<>();
             updates.put(TravelState.RAG_ENABLED, Boolean.TRUE);
