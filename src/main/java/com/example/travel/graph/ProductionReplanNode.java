@@ -2,6 +2,7 @@ package com.example.travel.graph;
 
 import com.example.travel.model.AgentPlan;
 import com.example.travel.model.GoalEvaluation;
+import com.example.travel.jev.JevReplanDecisionService;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
@@ -12,7 +13,8 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
     private final ReplanningService replanning;
     private final com.example.travel.agent.IntentAgentService intentAgent;
     private final ProductionPlanningService planning;
-    public ProductionReplanNode(ReplanningService replanning, com.example.travel.agent.IntentAgentService intentAgent, ProductionPlanningService planning){this.replanning=replanning;this.intentAgent=intentAgent;this.planning=planning;}
+    private final java.util.Optional<JevReplanDecisionService> jevReplanDecision;
+    public ProductionReplanNode(ReplanningService replanning, com.example.travel.agent.IntentAgentService intentAgent, ProductionPlanningService planning, java.util.Optional<JevReplanDecisionService> jevReplanDecision){this.replanning=replanning;this.intentAgent=intentAgent;this.planning=planning;this.jevReplanDecision=jevReplanDecision;}
     @Override public Map<String,Object> apply(TravelState state){
         GoalEvaluation e=state.goalEvaluation();
         AgentPlan next;
@@ -82,6 +84,22 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
         // specialist agents. Without this bridge, a replan that says "cheaper"
         // would execute the exact same provider query again.
         java.util.List<String> actions = next.getActions() == null ? java.util.List.of() : next.getActions();
+        if (jevReplanDecision.isPresent() && !actions.isEmpty()) {
+            var d = jevReplanDecision.get().choose(state, e, actions);
+            if (d.accepted() && !"NONE".equals(d.action()) && !"ASK_USER".equals(d.action())) {
+                String token = switch (d.action()) {
+                    case "FLIGHT" -> "cheaper_flight";
+                    case "HOTEL" -> "reduce_hotel_budget";
+                    case "BUDGET" -> "reduce_hotel_budget";
+                    case "ITINERARY" -> "adjust_itinerary";
+                    case "RESEARCH" -> "add_destination";
+                    case "WEATHER" -> "get_weather_details";
+                    default -> null;
+                };
+                if (token != null) { next.setActions(java.util.List.of(token)); actions = next.getActions(); }
+            }
+            u.put(TravelState.REPLAN_NOTES, u.get(TravelState.REPLAN_NOTES) + " decision=" + d.action());
+        }
         for (String token : actions) {
             var action = com.example.travel.model.ReplanAction.fromToken(token).orElse(null);
             if (action == null) continue;
