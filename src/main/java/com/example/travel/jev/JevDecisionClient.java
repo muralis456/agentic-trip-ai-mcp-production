@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -32,9 +33,11 @@ public class JevDecisionClient {
     private final boolean fallbackAvailable;
     private final String primaryProvider;
     private final String fallbackProvider;
+    private final ObjectMapper objectMapper;
 
     public JevDecisionClient(
             RestClient.Builder restClientBuilder,
+            ObjectMapper objectMapper,
             @Value("${travel.jev.provider:typesafe}") String provider,
             @Value("${travel.jev.base-url:https://api.typesafe.ai}") String baseUrl,
             @Value("${travel.jev.api-key:}") String apiKey,
@@ -44,6 +47,7 @@ public class JevDecisionClient {
             @Value("${travel.jev.fallback-api-key:ollama}") String fallbackApiKey,
             @Value("${travel.jev.fallback-model:tev1:4b}") String fallbackModel) {
 
+        this.objectMapper = objectMapper;
         this.primaryProvider = provider == null || provider.isBlank() ? "typesafe" : provider.trim().toLowerCase();
         this.fallbackProvider = fallbackProvider == null || fallbackProvider.isBlank()
                 ? "none"
@@ -168,7 +172,7 @@ public class JevDecisionClient {
         Map<String, Object> payload = new LinkedHashMap<>(request);
         payload.put("model", model);
 
-        log.debug("jev.provider.request provider={} model={}", provider, model);
+        log.info("jev.model.request provider={} model={} payload={}", provider, model, json(payload));
         JsonNode response = client.post()
                 .uri("/v1/systemone")
                 .body(payload)
@@ -181,7 +185,7 @@ public class JevDecisionClient {
         }
 
         String resolvedModel = response.path("model").asString(model);
-        log.info("jev.provider.response provider={} model={} responseValid=true", provider, resolvedModel);
+        log.info("jev.model.response provider={} model={} payload={}", provider, resolvedModel, json(response));
         return new ProviderResponse(response, resolvedModel, provider);
     }
 
@@ -211,6 +215,14 @@ public class JevDecisionClient {
         }
 
         return answer;
+    }
+
+    private String json(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            return String.valueOf(value);
+        }
     }
 
     private static RestClient buildClient(
