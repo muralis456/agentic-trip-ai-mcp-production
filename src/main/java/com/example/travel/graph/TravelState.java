@@ -105,6 +105,7 @@ public class TravelState extends AgentState {
     public static final String HOTEL_CHEAPER = TravelStateKeys.Preferences.HOTEL_CHEAPER;
     public static final String HOTEL_BUDGET = TravelStateKeys.Preferences.HOTEL_BUDGET;
     public static final String FLIGHT_PREFERENCE = TravelStateKeys.Preferences.FLIGHT_PREFERENCE;
+    public static final String FLIGHT_PROVIDER = TravelStateKeys.Preferences.FLIGHT_PROVIDER;
     public static final String TRIP_REQUIREMENTS = TravelStateKeys.Preferences.TRIP_REQUIREMENTS;
     public static final String MODEL_POLICY = TravelStateKeys.Request.MODEL_POLICY;
     public static final String INTENT_CONFIDENCE = TravelStateKeys.Request.INTENT_CONFIDENCE;
@@ -229,6 +230,7 @@ public class TravelState extends AgentState {
         input.put(HOTEL_BUDGET, UNSET_BUDGET);
         input.put(HOTEL_FALLBACK_EXHAUSTED, Boolean.FALSE);
         input.put(FLIGHT_PREFERENCE, "balanced");
+        input.put(FLIGHT_PROVIDER, "");
 
         // Every routing flag is explicitly initialized. Missing flags must never
         // default to true because that can accidentally execute old specialists.
