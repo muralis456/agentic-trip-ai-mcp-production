@@ -80,7 +80,7 @@ public class JevDecisionClient {
         }
 
         Map<String, Double> probabilities = new LinkedHashMap<>();
-        answer.path("probabilities").fields().forEachRemaining(entry ->
+        answer.path("probabilities").properties().forEach(entry ->
                 probabilities.put(entry.getKey(), entry.getValue().asDouble()));
 
         return new JevChoiceDecision(response.path("model").asString(model), choice, confidence, probabilities);
