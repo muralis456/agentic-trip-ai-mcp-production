@@ -27,6 +27,11 @@ public class RagNode implements NodeAction<TravelState> {
         this.jevRagDecision = jevRagDecision;
     }
 
+    /** Backward-compatible constructor for existing tests. */
+    public RagNode(AgenticRagService agenticRagService, RagAnswerService ragAnswerService) {
+        this(agenticRagService, ragAnswerService, java.util.Optional.empty());
+    }
+
     @Override
     public Map<String, Object> apply(TravelState state) {
         try {
