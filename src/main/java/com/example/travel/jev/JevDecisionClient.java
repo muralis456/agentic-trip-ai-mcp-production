@@ -21,6 +21,7 @@ public class JevDecisionClient {
 
     private final RestClient restClient;
     private final String model;
+    private final boolean apiKeyConfigured;
 
     public JevDecisionClient(
             RestClient.Builder restClientBuilder,
@@ -28,9 +29,15 @@ public class JevDecisionClient {
             @Value("${travel.jev.api-key:}") String apiKey,
             @Value("${travel.jev.model:jev-latest}") String model) {
 
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException(
-                    "Jev is enabled but TRAVEL_JEV_API_KEY is not configured.");
+        this.apiKeyConfigured = apiKey != null && !apiKey.isBlank();
+        this.model = model;
+
+        // JEV is an optional decision accelerator. A missing API key must never
+        // prevent the main application from starting; decision services will
+        // fall back to their deterministic Java policies instead.
+        if (!apiKeyConfigured) {
+            this.restClient = null;
+            return;
         }
 
         this.restClient = restClientBuilder
@@ -38,13 +45,14 @@ public class JevDecisionClient {
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", "application/json")
                 .build();
-        this.model = model;
     }
 
     public JevChoiceDecision choose(
             Object state,
             String instructions,
             Map<String, String> criteria) {
+
+        ensureAvailable();
 
         Map<String, Object> question = new LinkedHashMap<>();
         question.put("type", "choice");
@@ -87,6 +95,7 @@ public class JevDecisionClient {
     }
 
     public JevNoulDecision yesNo(Object state, String instructions, String trueCriteria, String falseCriteria) {
+        ensureAvailable();
         Map<String, Object> question = new LinkedHashMap<>();
         question.put("type", "noul");
         question.put("instructions", instructions);
@@ -97,6 +106,7 @@ public class JevDecisionClient {
     }
 
     public JevScoreDecision score(Object state, String instructions, java.util.List<String> criteria) {
+        ensureAvailable();
         Map<String, Object> question = new LinkedHashMap<>();
         question.put("type", "score"); question.put("instructions", instructions); question.put("criteria", criteria);
         JsonNode answer = call(state, Map.of("decision", question)).path("answers").path("decision");
@@ -104,7 +114,16 @@ public class JevDecisionClient {
         return new JevScoreDecision(answer.path("score").asDouble(0.0), answer.path("confidence").asDouble(0.0));
     }
 
+    private void ensureAvailable() {
+        if (!apiKeyConfigured || restClient == null) {
+            throw new JevUnavailableException(
+                    "Jev is unavailable because TRAVEL_JEV_API_KEY is not configured. " +
+                    "Continue with the deterministic Java decision policy.");
+        }
+    }
+
     private JsonNode call(Object state, Map<String, Object> questions) {
+        ensureAvailable();
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("state", state); request.put("model", model); request.put("questions", questions);
         JsonNode response = restClient.post().uri("/v1/systemone").body(request).retrieve().body(JsonNode.class);
@@ -120,5 +139,11 @@ public class JevDecisionClient {
             String choice,
             double confidence,
             Map<String, Double> probabilities) {
+    }
+
+    public static final class JevUnavailableException extends IllegalStateException {
+        public JevUnavailableException(String message) {
+            super(message);
+        }
     }
 }
