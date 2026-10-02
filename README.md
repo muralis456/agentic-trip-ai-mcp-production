@@ -288,3 +288,9 @@ TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
 ```
 
 The application remains authoritative for policy, authorization, tool allow-lists, confidence thresholds, retries, and execution. Jev only supplies a typed decision. The next planned integrations are goal evaluation, replan-action selection, model routing, and human-review decisions.
+
+## Jev decision layer
+
+The optional Jev layer from TypeSafe adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED/REPLAN/HITL), replan action selection, model policy (FAST/BALANCED/REASONING), HITL (AUTO_COMPLETE/ASK_USER), provider preference (Duffel/Ignav/AviationStack), and evidence routing (RAG/WEB/BOTH/NONE). Java remains authoritative for validation, authorization, retry/circuit policy and execution; Jev never invokes tools directly.
+
+Enable it with `TRAVEL_JEV_ENABLED=true` and `TRAVEL_JEV_API_KEY`. The configured model defaults to `jev-latest` and decisions below the configured confidence threshold fall back to deterministic application behavior. The integration uses TypeSafe's `POST /v1/systemone` typed decision API. citeturn0view0
