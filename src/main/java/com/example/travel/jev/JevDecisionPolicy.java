@@ -1,5 +1,7 @@
 package com.example.travel.jev;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +21,8 @@ import java.util.Map;
  */
 @Component
 public class JevDecisionPolicy {
+
+    private static final Logger log = LoggerFactory.getLogger(JevDecisionPolicy.class);
 
     private final Threshold choice;
     private final Threshold modelRouting;
@@ -64,6 +68,17 @@ public class JevDecisionPolicy {
         this.hitl = threshold(hitlConfidence, hitlProbability, hitlMargin);
         this.noulMinimumProbability = bounded(noulMinimumProbability, "noul min probability");
         this.scoreMinimumConfidence = bounded(scoreMinimumConfidence, "score min confidence");
+
+        log.info(
+                "jev.policy.effective choice={}/{} /{} modelRouting={}/{}/{} rag={}/{}/{} provider={}/{}/{} goal={}/{}/{} replan={}/{}/{} hitl={}/{}/{} noul={} score={}",
+                fmt(choice.minConfidence()), fmt(choice.minProbability()), fmt(choice.minMargin()),
+                fmt(modelRouting.minConfidence()), fmt(modelRouting.minProbability()), fmt(modelRouting.minMargin()),
+                fmt(ragRouting.minConfidence()), fmt(ragRouting.minProbability()), fmt(ragRouting.minMargin()),
+                fmt(providerRouting.minConfidence()), fmt(providerRouting.minProbability()), fmt(providerRouting.minMargin()),
+                fmt(goal.minConfidence()), fmt(goal.minProbability()), fmt(goal.minMargin()),
+                fmt(replan.minConfidence()), fmt(replan.minProbability()), fmt(replan.minMargin()),
+                fmt(hitl.minConfidence()), fmt(hitl.minProbability()), fmt(hitl.minMargin()),
+                fmt(noulMinimumProbability), fmt(scoreMinimumConfidence));
     }
 
     public boolean accepts(DecisionKind kind, JevDecisionClient.JevChoiceDecision decision) {
@@ -84,7 +99,10 @@ public class JevDecisionPolicy {
         double selectedProbability = probabilityOf(decision.probabilities(), decision.choice());
         double decisionMargin = margin(decision.probabilities(), decision.choice());
 
-        return decision.confidence() >= threshold.minConfidence()
+        return Double.isFinite(decision.confidence())
+                && Double.isFinite(selectedProbability)
+                && Double.isFinite(decisionMargin)
+                && decision.confidence() >= threshold.minConfidence()
                 && selectedProbability >= threshold.minProbability()
                 && decisionMargin >= threshold.minMargin();
     }
@@ -105,6 +123,10 @@ public class JevDecisionPolicy {
 
     public boolean acceptsScore(double confidence) {
         return confidence >= scoreMinimumConfidence;
+    }
+
+    private static String fmt(double value) {
+        return String.format(java.util.Locale.ROOT, "%.2f", value);
     }
 
     public record Threshold(double minConfidence, double minProbability, double minMargin) { }
