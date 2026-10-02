@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -53,7 +54,7 @@ public class JevHitlDecisionService {
                     : new Decision("ASK_USER", d.confidence(), false, "deterministic-hitl-fallback");
 
             log.info("jev.hitl.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",
-                    result.route(), choice, result.confidence(), result.accepted(), result.reason(), d.model());
+                    result.route(), choice, fmt(result.confidence()), result.accepted(), result.reason(), d.model());
             return result;
         } catch (Exception ex) {
             log.warn("jev.hitl.decision-fallback outcome=ASK_USER reason={}",
@@ -61,6 +62,8 @@ public class JevHitlDecisionService {
             return new Decision("ASK_USER", 0, false, "jev unavailable: " + ex.getClass().getSimpleName());
         }
     }
+
+    private static String fmt(double value) { return String.format(Locale.ROOT, "%.2f", value); }
 
     public record Decision(String route, double confidence, boolean accepted, String reason) { }
 }
