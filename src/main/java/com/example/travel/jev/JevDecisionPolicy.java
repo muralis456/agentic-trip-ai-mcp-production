@@ -121,10 +121,10 @@ public class JevDecisionPolicy {
         return new Acceptance(true, "accepted", confidence, selectedProbability, decisionMargin);
     }
 
-    private Threshold thresholdFor(DecisionKind kind, String choice) {
+    private Threshold thresholdFor(DecisionKind kind, String selectedChoice) {
         if (kind == DecisionKind.GOAL) {
-            if ("REPLAN".equalsIgnoreCase(choice)) return replan;
-            if ("HITL".equalsIgnoreCase(choice)) return hitl;
+            if ("REPLAN".equalsIgnoreCase(selectedChoice)) return replan;
+            if ("HITL".equalsIgnoreCase(selectedChoice)) return hitl;
         }
 
         return switch (kind) {
