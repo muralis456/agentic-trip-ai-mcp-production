@@ -1,5 +1,6 @@
 package com.example.travel.agent;
 
+import com.example.travel.model.GoalEvaluation;
 import com.example.travel.config.TravelModelsProperties;
 import com.example.travel.dto.AgentExecutionDetails;
 import com.example.travel.dto.TripPlanResult;
@@ -728,7 +729,7 @@ public class TravelPlannerAgentService {
 
         TravelState current = requireCheckpointState(key);
         if (current.goalEvaluation() == null
-                || current.goalEvaluation().getStatus() != com.example.travel.model.GoalEvaluation.Status.ACHIEVED) {
+                || current.goalEvaluation().getStatus() != GoalEvaluation.Status.ACHIEVED) {
             throw new IllegalStateException("This trip goal has not been achieved yet. Retry the failed capability before approving the plan.");
         }
         if (current.userInputRequired()) {
@@ -1154,7 +1155,7 @@ public class TravelPlannerAgentService {
         } else {
             com.example.travel.model.AgentTask target = current.agentPlan().task(requested);
             if (target == null || !target.isRequired()
-                    || target.getStatus() != com.example.travel.model.AgentTask.Status.FAILED) {
+                    || target.getStatus() != AgentTask.Status.FAILED) {
                 throw new IllegalArgumentException("Unknown or non-failed retry task: " + taskId);
             }
             recoveryTasks = List.of(requested);
@@ -1736,10 +1737,10 @@ public class TravelPlannerAgentService {
         if (state.userInputRequired()) {
             status = "NEEDS_USER_INPUT";
         } else if (state.goalEvaluation() != null
-                && state.goalEvaluation().getStatus() == com.example.travel.model.GoalEvaluation.Status.PARTIAL) {
+                && state.goalEvaluation().getStatus() == GoalEvaluation.Status.PARTIAL) {
             status = "PARTIAL";
         } else if (state.goalEvaluation() != null
-                && state.goalEvaluation().getStatus() == com.example.travel.model.GoalEvaluation.Status.FAILED) {
+                && state.goalEvaluation().getStatus() == GoalEvaluation.Status.FAILED) {
             status = "FAILED";
         } else if (awaitingApproval) {
             status = "PENDING_APPROVAL";
@@ -1810,8 +1811,8 @@ public class TravelPlannerAgentService {
             response.setBlockingIssues(state.goalEvaluation().getBlockingIssues());
         }
         List<String> failedTasks = state.agentPlan() == null ? List.of() : state.agentPlan().getTasks().stream()
-                .filter(t -> t.isRequired() && t.getStatus() == com.example.travel.model.AgentTask.Status.FAILED)
-                .map(com.example.travel.model.AgentTask::getId)
+                .filter(t -> t.isRequired() && t.getStatus() == AgentTask.Status.FAILED)
+                .map(AgentTask::getId)
                 .filter(java.util.Objects::nonNull)
                 .distinct()
                 .toList();
@@ -1819,7 +1820,7 @@ public class TravelPlannerAgentService {
         // keep the retry CTA alive after deterministic goal evaluation succeeded.
         response.setRetryableTasks(
                 state.goalEvaluation() != null
-                        && state.goalEvaluation().getStatus() == com.example.travel.model.GoalEvaluation.Status.ACHIEVED
+                        && state.goalEvaluation().getStatus() == GoalEvaluation.Status.ACHIEVED
                         ? List.of()
                         : failedTasks);
         response.setClarificationRequired(state.userInputRequired());
@@ -1853,13 +1854,13 @@ public class TravelPlannerAgentService {
         if (state.userInputRequired()) return "PENDING";
         if (awaitingApproval || state.awaitingApproval()) {
             return state.goalEvaluation() != null
-                    && state.goalEvaluation().getStatus() == com.example.travel.model.GoalEvaluation.Status.ACHIEVED
+                    && state.goalEvaluation().getStatus() == GoalEvaluation.Status.ACHIEVED
                     ? "PENDING" : "ACTION_REQUIRED";
         }
         String decision = state.hitlDecision();
         if ("approve".equalsIgnoreCase(decision)
                 && state.goalEvaluation() != null
-                && state.goalEvaluation().getStatus() == com.example.travel.model.GoalEvaluation.Status.ACHIEVED) return "APPROVED";
+                && state.goalEvaluation().getStatus() == GoalEvaluation.Status.ACHIEVED) return "APPROVED";
         if ("reject".equalsIgnoreCase(decision)) return "REJECTED";
         return requiresTripPlanning(state) ? "ACTION_REQUIRED" : "NOT_REQUIRED";
     }
