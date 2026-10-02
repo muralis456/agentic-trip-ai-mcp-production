@@ -3,6 +3,8 @@ package com.example.travel.agent;
 import com.example.travel.config.TravelModelsProperties.AgentRole;
 import com.example.travel.graph.TravelState;
 import com.example.travel.graph.model.PlannerExtraction;
+import com.example.travel.model.AgentDecision;
+import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.service.RoutedLlm;
 import com.example.travel.support.JsonSupport;
 import com.example.travel.support.TripSlotHeuristics;
@@ -57,7 +59,7 @@ public class PlannerAgentService {
                             + "\nStyle: " + state.travelStyle()
                             + "\nHistory (background only): " + state.historyContext());
         } catch (Exception exception) {
-            if (exception instanceof com.example.travel.exception.GraphStopRequestedException stop) throw stop;
+            if (exception instanceof GraphStopRequestedException stop) throw stop;
             log.warn("Planner LLM extraction failed, using request fields and regex", exception);
             content = "";
         }
@@ -141,7 +143,7 @@ public class PlannerAgentService {
         updates.put(TravelState.TRAVEL_STYLE, travelStyle);
         updates.put(TravelState.DATES_FLEXIBLE, !TripSlotHeuristics.hasDateHint(state.userRequest()));
         updates.put(TravelState.ROUND_TRIP, state.roundTrip());
-        updates.put(TravelState.LAST_DECISION, new com.example.travel.model.AgentDecision(
+        updates.put(TravelState.LAST_DECISION, new AgentDecision(
                 "planner",
                 state.requestType(),
                 "slots origin=" + origin + " dest=" + destination + " strategy=" + state.planStrategy(),
