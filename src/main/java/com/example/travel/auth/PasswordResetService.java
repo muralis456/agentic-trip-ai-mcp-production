@@ -33,7 +33,7 @@ public class PasswordResetService {
             PasswordResetTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
             PasswordResetNotificationService notificationService,
-            SpringSessionRepository springSessionRepository) {
+            UserSessionInvalidationRepository userSessionInvalidationRepository) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
