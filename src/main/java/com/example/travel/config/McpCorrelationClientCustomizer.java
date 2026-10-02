@@ -14,7 +14,10 @@ public class McpCorrelationClientCustomizer
 
     @Override
     public void customize(String name, HttpClientStreamableHttpTransport.Builder builder) {
-        builder.httpRequestCustomizer(request -> McpCorrelationContext.current()
-                .ifPresent(correlationId -> request.header("X-Correlation-ID", correlationId)));
+        builder.httpRequestCustomizer((request, method, endpoint, body, context) -> {
+            McpCorrelationContext.current()
+                    .ifPresent(correlationId -> request.header("X-Correlation-ID", correlationId));
+            return request;
+        });
     }
 }
