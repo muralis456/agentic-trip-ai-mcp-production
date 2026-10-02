@@ -17,7 +17,6 @@ public class McpCorrelationClientCustomizer
         builder.httpRequestCustomizer((request, method, endpoint, body, context) -> {
             McpCorrelationContext.current()
                     .ifPresent(correlationId -> request.header("X-Correlation-ID", correlationId));
-            return request;
         });
     }
 }
