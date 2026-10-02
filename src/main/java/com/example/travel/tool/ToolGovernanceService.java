@@ -56,7 +56,7 @@ public class ToolGovernanceService {
             @Value("${travel.mcp.governance.approval-tools:}") String configuredApprovalTools,
             @Value("${travel.mcp.governance.roles:USER:READ_ONLY;ADMIN:READ_ONLY,SIDE_EFFECTING}") String configuredRoles,
             @Value("${travel.mcp.governance.circuit-failure-threshold:3}") int circuitFailureThreshold,
-            @Value("${travel.mcp.governance.circuit-open-ms:30000}") long circuitOpenMs) ,
+            @Value("${travel.mcp.governance.circuit-open-ms:30000}") long circuitOpenMs,
             ObjectProvider<DistributedMcpCircuitState> distributedCircuitState) {
         this.enabled = enabled;
         this.maxArgumentBytes = Math.max(1024, maxArgumentBytes);
