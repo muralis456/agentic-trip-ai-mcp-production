@@ -1,6 +1,8 @@
 package com.example.travel.graph;
 
-import com.example.travel.model.GoalEvaluation;
+import com.example.travel.service.ModelRoutingContext;
+import com.example.travel.model.IntentPlan;
+import GoalEvaluation;
 import com.example.travel.dto.TravelRequest;
 import com.example.travel.model.AgentDecision;
 import com.example.travel.model.AgentPlan;
@@ -8,7 +10,7 @@ import com.example.travel.model.AgentStep;
 import com.example.travel.model.BudgetSummary;
 import com.example.travel.model.FlightOption;
 import com.example.travel.model.HotelOption;
-import com.example.travel.model.IntentPlan;
+import IntentPlan;
 import com.example.travel.model.Itinerary;
 import com.example.travel.model.ModificationRequest;
 import com.example.travel.model.NodeFailureInfo;
@@ -249,7 +251,7 @@ public class TravelState extends AgentState {
         input.put(RUN_WEATHER, false);
         input.put(RUN_BUDGET, false);
         input.put(RUN_ITINERARY, false);
-        input.put(MODEL_POLICY, com.example.travel.service.ModelRoutingContext.normalize(request.getSelectedModel()));
+        input.put(MODEL_POLICY, ModelRoutingContext.normalize(request.getSelectedModel()));
         input.put(VALIDATION_ERRORS, new ArrayList<String>());
         input.put(PIPELINE, new ArrayList<AgentStep>());
         input.put(AWAITING_APPROVAL, Boolean.FALSE);
@@ -556,8 +558,8 @@ public class TravelState extends AgentState {
         return this.<AgentPlan>value(AGENT_PLAN).orElseGet(AgentPlan::new);
     }
 
-    public com.example.travel.model.GoalEvaluation goalEvaluation() {
-        return this.<com.example.travel.model.GoalEvaluation>value(GOAL_EVALUATION).orElseGet(com.example.travel.model.GoalEvaluation::new);
+    public GoalEvaluation goalEvaluation() {
+        return this.<GoalEvaluation>value(GOAL_EVALUATION).orElseGet(GoalEvaluation::new);
     }
 
     public String requestType() {
@@ -644,8 +646,8 @@ public class TravelState extends AgentState {
         return flag(RUN_ITINERARY);
     }
 
-    public static void applyIntentAndRun(Map<String, Object> updates, com.example.travel.model.IntentPlan intent) {
-        if (intent == null) intent = new com.example.travel.model.IntentPlan();
+    public static void applyIntentAndRun(Map<String, Object> updates, IntentPlan intent) {
+        if (intent == null) intent = new IntentPlan();
         // AgentPlan is the sole normalization boundary. It owns the semantic
         // trip-planning contract; legacy flags below are only a projection.
         AgentPlan plan = AgentPlan.fromIntent(intent);
