@@ -84,7 +84,7 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
         Map<String,Object> u=new LinkedHashMap<>();
         int count=state.retryCount()+1;
         u.put(TravelState.RETRY_COUNT,count); u.put(TravelState.AGENT_PLAN,next); u.put(TravelState.PLAN_VERSION,next.getVersion());
-        u.put(TravelState.GOAL_EVALUATION, new com.example.travel.model.GoalEvaluation());
+        u.put(TravelState.GOAL_EVALUATION, new GoalEvaluation());
         u.put(TravelState.SUPERVISOR_DECISION,"REPLAN");
         u.put(TravelState.REPLAN_NOTES, manualRetry != null && !manualRetry.isBlank()
                 ? "manual recovery: failed-task recovery=" + manualRetry
