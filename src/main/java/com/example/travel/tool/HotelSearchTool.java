@@ -1,5 +1,8 @@
 package com.example.travel.tool;
 
+import java.util.stream.Collectors;
+import java.util.List;
+import java.math.BigDecimal;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.ObjectProvider;
