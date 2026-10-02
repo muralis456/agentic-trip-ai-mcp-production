@@ -13,6 +13,8 @@ public class JevModelRoutingService {
     public JevModelRoutingService(JevDecisionService decisions){this.decisions=decisions;}
     public String choose(TravelState state){
         String fallback=ModelRoutingContext.normalize(state.modelPolicy());
+        String selectedModel = state.selectedModel();
+        if (selectedModel != null && selectedModel.contains(":")) return selectedModel.trim();
         try{
             var d=decisions.choose(Map.of("request",state.userRequest(),"currentPolicy",fallback,"complexity",ModelRoutingContext.getComplexity().name(),"tripPlanning",state.isTripPlanningWorkflow(),"requestType",state.requestType(),"needsFlights",state.needsFlights(),"needsHotels",state.needsHotels(),"needsResearch",state.needsResearch(),"needsItinerary",state.needsItinerary(),"needsKnowledge",state.needsKnowledge()),
                 "Choose the model policy for this graph turn. Prefer FAST for simple extraction, BALANCED for normal planning, and REASONING for complex multi-constraint recovery.",
