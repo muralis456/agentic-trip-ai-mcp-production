@@ -38,7 +38,7 @@ class JevDecisionPolicyTest {
         probabilities.put("REPLAN", 0.09);
 
         var decision = new JevDecisionClient.JevChoiceDecision(
-                "tev1:4b", "HITL", 0.80, probabilities);
+                "tev1:4b", "HITL", 0.70, probabilities);
 
         var result = policy.acceptanceReason(JevDecisionPolicy.DecisionKind.GOAL, decision);
 
