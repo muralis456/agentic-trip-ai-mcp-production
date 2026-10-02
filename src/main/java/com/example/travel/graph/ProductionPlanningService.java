@@ -1,5 +1,6 @@
 package com.example.travel.graph;
 
+import com.example.travel.model.IntentPlan;
 import com.example.travel.config.TravelModelsProperties.AgentRole;
 import com.example.travel.model.AgentPlan;
 import com.example.travel.model.AgentTask;
@@ -203,7 +204,7 @@ public class ProductionPlanningService {
     public AgentPlan fallback(TravelState state) {
         // Fallback must preserve the semantic scope of the current request.
         // Never turn an itinerary/hotel/weather-only request into a full trip.
-        com.example.travel.model.IntentPlan intent = new com.example.travel.model.IntentPlan();
+        IntentPlan intent = new IntentPlan();
         intent.setRequestType(first(state.requestType(), "GENERAL"));
         intent.setNeedsFlights(state.needsFlights());
         intent.setNeedsHotels(state.needsHotels());
