@@ -31,7 +31,7 @@ public class ProductionEvaluateNode implements NodeAction<TravelState> {
             u.put(TravelState.REPLAN_NOTES, e.getReason() + " unmet=" + e.getUnmetCriteria() + " decision=" + d.route());
         }
         u.put(TravelState.SUPERVISOR_DECISION, route);
-        u.put(TravelState.REPLAN_NOTES,e.getReason()+" unmet="+e.getUnmetCriteria());
+        if (!u.containsKey(TravelState.REPLAN_NOTES)) u.put(TravelState.REPLAN_NOTES,e.getReason()+" unmet="+e.getUnmetCriteria());
 
         // A successful recovery consumes the previous failure marker. Keeping
         // nodeFailure around after the capability has recovered can incorrectly
