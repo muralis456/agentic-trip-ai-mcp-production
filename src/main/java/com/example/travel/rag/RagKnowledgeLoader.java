@@ -54,7 +54,6 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
     }
 
     @Override
-    @Override
     @Transactional
     public void run(String... args) {
         syncKnowledge(false);
@@ -70,7 +69,7 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
         try {
             Number countResult = (Number) entityManager.createNativeQuery("select count(*) from vector_store").getSingleResult();
             int count = countResult.intValue();
-            boolean empty = count == null || count == 0;
+            boolean empty = count == 0;
 
             if (forceReindex) {
                 entityManager.createNativeQuery("truncate table vector_store").executeUpdate();
