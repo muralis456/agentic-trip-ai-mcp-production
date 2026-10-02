@@ -66,12 +66,15 @@ public class RagNode implements NodeAction<TravelState> {
                     }
                 } else {
                     List<SearchHit> hits = tavilySearchTool.get().searchHits(state.userRequest());
-                StringBuilder web = new StringBuilder();
-                List<String> webSources = new java.util.ArrayList<>();
-                hits.stream().limit(5).forEach(h -> {
-                    web.append("[Web: ").append(h.getTitle()).append("]\\n").append(h.getContent()).append("\\n\\n");
-                    if (h.getUrl()!=null && !h.getUrl().isBlank()) webSources.add(h.getUrl());
-                });
+                    StringBuilder web = new StringBuilder();
+                    List<String> webSources = new java.util.ArrayList<>();
+                    hits.stream().limit(5).forEach(h -> {
+                        web.append("[Web: ").append(h.getTitle()).append("]\\n")
+                                .append(h.getContent()).append("\\n\\n");
+                        if (h.getUrl()!=null && !h.getUrl().isBlank()) {
+                            webSources.add(h.getUrl());
+                        }
+                    });
                     if ("WEB".equals(routeName)) {
                         String context = web.toString().trim();
                         result = new AgenticRagService.RagResult(true, "web", state.userRequest(), context,
