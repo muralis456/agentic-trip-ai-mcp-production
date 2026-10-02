@@ -21,6 +21,7 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
     private final IntentAgentService intentAgent;
     private final ProductionPlanningService planning;
     private final Optional<JevReplanDecisionService> jevReplanDecision;
+    @org.springframework.beans.factory.annotation.Autowired
     public ProductionReplanNode(ReplanningService replanning, IntentAgentService intentAgent, ProductionPlanningService planning, Optional<JevReplanDecisionService> jevReplanDecision){this.replanning=replanning;this.intentAgent=intentAgent;this.planning=planning;this.jevReplanDecision=jevReplanDecision;}
     /** Backward-compatible constructor for existing tests. */
     public ProductionReplanNode(ReplanningService replanning, IntentAgentService intentAgent, ProductionPlanningService planning){
