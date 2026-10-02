@@ -12,7 +12,7 @@ import java.util.List;
  * focused on retrieval orchestration.
  */
 @org.springframework.stereotype.Repository
-public interface RagKeywordSearchRepository extends Repository<Object, String> {
+public interface RagKeywordSearchRepository extends Repository<RagVectorStoreEntity, String> {
 
     @Query(value = """
             select content as content, metadata::text as metadata
