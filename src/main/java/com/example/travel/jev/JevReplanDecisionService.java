@@ -2,6 +2,8 @@ package com.example.travel.jev;
 
 import com.example.travel.graph.TravelState;
 import com.example.travel.model.GoalEvaluation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import java.util.*;
@@ -9,9 +11,11 @@ import java.util.*;
 @Service
 @ConditionalOnBean(JevDecisionService.class)
 public class JevReplanDecisionService {
+    private static final Logger log = LoggerFactory.getLogger(JevReplanDecisionService.class);
     private final JevDecisionService decisions;
     public JevReplanDecisionService(JevDecisionService decisions){this.decisions=decisions;}
     public Decision choose(TravelState state, GoalEvaluation evaluation, List<String> proposed){
+        log.info("jev.replan.decision-start proposedActions={} unmetCriteria={}", proposed == null ? 0 : proposed.size(), evaluation == null || evaluation.getUnmetCriteria() == null ? 0 : evaluation.getUnmetCriteria().size());
         List<String> allowed=List.of("FLIGHT","HOTEL","BUDGET","ITINERARY","RESEARCH","WEATHER","ASK_USER","NONE");
         String fallback=deterministic(evaluation,state);
         try{
@@ -20,8 +24,10 @@ public class JevReplanDecisionService {
             var d=decisions.choose(Map.of("request",state.userRequest(),"unmet",evaluation==null?List.of():evaluation.getUnmetCriteria(),"blocking",evaluation==null||evaluation.getBlockingIssues()==null?List.of():evaluation.getBlockingIssues(),"proposedActions",proposed==null?List.of():proposed),
                     "Choose the single highest-value replan lever. Select only a capability that can address the unmet outcome. Do not choose ASK_USER unless automation cannot safely recover.",criteria);
             String choice=d.choice().toUpperCase();
-            return d.accepted()&&allowed.contains(choice)?new Decision(choice,d.confidence(),true,"jev"):new Decision(fallback,d.confidence(),false,"low-confidence or invalid decision");
-        }catch(Exception ex){return new Decision(fallback,0,false,"jev unavailable: "+ex.getClass().getSimpleName());}
+            Decision result=d.accepted()&&allowed.contains(choice)?new Decision(choice,d.confidence(),true,"jev"):new Decision(fallback,d.confidence(),false,"low-confidence or invalid decision");
+            log.info("jev.replan.decision outcome={} confidence={} accepted={} reason={}", result.action(), result.confidence(), result.accepted(), result.reason());
+            return result;
+        }catch(Exception ex){ log.warn("jev.replan.decision-fallback outcome={} reason={}", fallback, ex.getClass().getSimpleName()); return new Decision(fallback,0,false,"jev unavailable: "+ex.getClass().getSimpleName());}
     }
     private String deterministic(GoalEvaluation e,TravelState s){
         String u=String.join(" ",e==null?List.of():e.getUnmetCriteria()).toLowerCase();
