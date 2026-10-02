@@ -100,6 +100,12 @@ spring:
         connection:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
+  security:
+    bootstrap-admin:
+      # Optional first-admin bootstrap. Set both environment variables together.
+      # After the first successful startup, remove them from the deployment environment.
+      username: ${BOOTSTRAP_ADMIN_USERNAME:}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:}
   mcp:
     client:
       enabled: ${TRAVEL_MCP_CLIENT_ENABLED:true}
