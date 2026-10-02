@@ -17,7 +17,7 @@ public interface RagKnowledgeRepository extends Repository<Object, String> {
 
     @Modifying
     @Query(value = "truncate table vector_store", nativeQuery = true)
-    int truncateVectorStore();
+    void truncateVectorStore();
 
     @Modifying
     @Query(value = "delete from vector_store where metadata ->> 'type' = :type", nativeQuery = true)
