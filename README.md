@@ -236,3 +236,21 @@ On startup:
 After the first successful startup, remove `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` from the deployment environment. The account remains an `ADMIN` user in PostgreSQL.
 
 This mechanism is intended for controlled deployment/bootstrap use, not routine role management.
+
+
+### API authentication from Postman
+
+API endpoints under `/api/**` support HTTP Basic authentication for API clients such as Postman. Use an existing application account:
+
+```text
+POST http://localhost:8081/api/rag/reindex
+
+Authorization:
+  Type: Basic Auth
+  Username: admin
+  Password: <admin-password>
+```
+
+The password is sent only as part of the HTTPS Basic Authentication exchange in production. Spring Security loads the account from `app_user`, converts its database role (for example `ADMIN`) into the `ROLE_ADMIN` authority, and `@PreAuthorize("hasRole('ADMIN')")` enforces the authorization check.
+
+Do not send `role` in the request body or accept a client-supplied role as an authorization decision.
