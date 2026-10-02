@@ -34,5 +34,5 @@ travel:
 
 
   jev:
-    log-payloads: true
+    log-payloads: false
     keep-alive: 30m
