@@ -1,11 +1,14 @@
 package com.example.travel.agent;
 
+import com.example.travel.service.McpItineraryClient;
+import com.example.travel.model.ItineraryActivity;
+import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.config.TravelModelsProperties.AgentRole;
 import com.example.travel.graph.TravelState;
 import com.example.travel.model.Itinerary;
-import com.example.travel.model.ItineraryActivity;
-import com.example.travel.service.McpItineraryClient;
-import com.example.travel.exception.GraphStopRequestedException;
+import ItineraryActivity;
+import McpItineraryClient;
+import GraphStopRequestedException;
 import com.example.travel.service.RoutedLlm;
 import com.example.travel.support.ItinerarySupport;
 import com.example.travel.support.JsonSupport;
