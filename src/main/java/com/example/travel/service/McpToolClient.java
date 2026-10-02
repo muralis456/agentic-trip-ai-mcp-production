@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import com.example.travel.exception.GraphStopRequestedException;
-import AgentObservabilityService;
 import com.example.travel.security.PromptInjectionGuard;
 import com.example.travel.tool.ToolGovernanceService;
 import com.example.travel.tool.ToolInvocationContext;
