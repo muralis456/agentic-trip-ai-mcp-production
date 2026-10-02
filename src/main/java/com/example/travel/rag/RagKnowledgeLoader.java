@@ -54,16 +54,18 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
     }
 
     @Override
+    @Override
+    @Transactional
     public void run(String... args) {
         syncKnowledge(false);
     }
 
     /** Rebuilds all bundled and database-backed knowledge. */
+    @Transactional
     public synchronized Map<String, Object> reindex() throws Exception {
         return syncKnowledge(true);
     }
 
-    @Transactional
     private synchronized Map<String, Object> syncKnowledge(boolean forceReindex) {
         try {
             Number countResult = (Number) entityManager.createNativeQuery("select count(*) from vector_store").getSingleResult();
