@@ -44,6 +44,19 @@ public class JevDecisionService {
                 decision.model());
     }
 
+    public YesNoDecision yesNo(Object state, String instructions, String trueCriteria, String falseCriteria) {
+        JevDecisionClient.JevNoulDecision d = client.yesNo(state, instructions, trueCriteria, falseCriteria);
+        return new YesNoDecision(d.probability(), d.probability() >= minimumConfidence);
+    }
+
+    public ScoreDecision score(Object state, String instructions, java.util.List<String> criteria) {
+        JevDecisionClient.JevScoreDecision d = client.score(state, instructions, criteria);
+        return new ScoreDecision(d.score(), d.confidence(), d.confidence() >= minimumConfidence);
+    }
+
+    public record YesNoDecision(double probability, boolean accepted) { }
+    public record ScoreDecision(double score, double confidence, boolean accepted) { }
+
     public record Decision(
             String choice,
             double confidence,
