@@ -2,7 +2,7 @@ package com.example.travel.graph;
 
 import com.example.travel.service.ModelRoutingContext;
 import com.example.travel.model.IntentPlan;
-import GoalEvaluation;
+import com.example.travel.model.GoalEvaluation;
 import com.example.travel.dto.TravelRequest;
 import com.example.travel.model.AgentDecision;
 import com.example.travel.model.AgentPlan;
