@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import com.example.travel.exception.GraphStopRequestedException;
+import com.example.travel.observability.AgentObservabilityService;
 import com.example.travel.security.PromptInjectionGuard;
 import com.example.travel.tool.ToolGovernanceService;
 import com.example.travel.tool.ToolInvocationContext;
@@ -38,12 +39,12 @@ public class McpToolClient {
     private final ToolCallbackProvider toolCallbackProvider;
     private final ObjectMapper objectMapper;
     private final McpToolSelector toolSelector;
-    private final java.util.Set<String> allowedTools;
+    private final Set<String> allowedTools;
     private final int maxAttempts;
     private final long timeoutMs;
     private final PromptInjectionGuard promptInjectionGuard;
     private final ToolGovernanceService toolGovernance;
-    private final com.example.travel.observability.AgentObservabilityService observability;
+    private final AgentObservabilityService observability;
 
     @org.springframework.beans.factory.annotation.Autowired
     public McpToolClient(ToolCallbackProvider toolCallbackProvider,
@@ -54,7 +55,7 @@ public class McpToolClient {
                          @Value("${travel.mcp.client.timeout-ms:15000}") long timeoutMs,
                          PromptInjectionGuard promptInjectionGuard,
                          ToolGovernanceService toolGovernance,
-                         com.example.travel.observability.AgentObservabilityService observability) {
+                         AgentObservabilityService observability) {
         this.toolCallbackProvider = toolCallbackProvider;
         this.objectMapper = objectMapper;
         this.toolSelector = toolSelector;
@@ -81,7 +82,7 @@ public class McpToolClient {
                          PromptInjectionGuard promptInjectionGuard,
                          ToolGovernanceService toolGovernance) {
         this(toolCallbackProvider, objectMapper, toolSelector, allowedTools, maxAttempts, timeoutMs,
-                promptInjectionGuard, toolGovernance, new com.example.travel.observability.AgentObservabilityService(
+                promptInjectionGuard, toolGovernance, new AgentObservabilityService(
                         io.micrometer.core.instrument.Metrics.globalRegistry));
     }
 
