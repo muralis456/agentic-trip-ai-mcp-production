@@ -25,6 +25,7 @@ public class RagNode implements NodeAction<TravelState> {
     private final java.util.Optional<JevRagDecisionService> jevRagDecision;
     private final java.util.Optional<TavilySearchTool> tavilySearchTool;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RagNode(
             AgenticRagService agenticRagService,
             RagAnswerService ragAnswerService,
