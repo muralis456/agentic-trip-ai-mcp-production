@@ -291,6 +291,8 @@ The application remains authoritative for policy, authorization, tool allow-list
 
 ## Jev decision layer
 
-The optional Jev layer from TypeSafe adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED/REPLAN/HITL), replan action selection, model policy (FAST/BALANCED/REASONING), HITL (AUTO_COMPLETE/ASK_USER), provider preference (Duffel/Ignav/AviationStack), and evidence routing (RAG/WEB/BOTH/NONE). Java remains authoritative for validation, authorization, retry/circuit policy and execution; Jev never invokes tools directly.
+The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider preference, and evidence routing (RAG / WEB / BOTH / NONE).
 
-Enable it with `TRAVEL_JEV_ENABLED=true` and `TRAVEL_JEV_API_KEY`. The configured model defaults to `jev-latest` and decisions below the configured confidence threshold fall back to deterministic application behavior. The integration uses TypeSafe's `POST /v1/systemone` typed decision API.
+Jev never executes tools. Java remains authoritative for validation, authorization, confidence thresholds, retry/circuit policy, and execution. JEV is disabled by default; low-confidence or failed JEV calls fall back to deterministic application behavior.
+
+Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP server exposes AviationStack and Ignav flight providers. A preferred provider is attempted first when enabled and healthy; normal server-side fallback remains active. Duffel is not selected until a Duffel provider is actually exposed by the MCP server.
