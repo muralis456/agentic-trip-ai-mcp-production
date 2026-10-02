@@ -47,6 +47,9 @@ public class RagNode implements NodeAction<TravelState> {
             String routeName = "RAG";
             if (jevRagDecision.isPresent()) {
                 routeName = jevRagDecision.get().decide(state).route();
+                if (!List.of("RAG", "WEB", "BOTH", "NONE").contains(routeName)) {
+                    routeName = state.needsKnowledge() ? "RAG" : "NONE";
+                }
                 if ("NONE".equals(routeName)) {
                     Map<String,Object> skipped = new LinkedHashMap<>();
                     skipped.put(TravelState.RAG_ENABLED, Boolean.FALSE);
