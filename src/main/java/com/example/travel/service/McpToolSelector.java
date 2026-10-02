@@ -38,6 +38,7 @@ public class McpToolSelector {
         this(routedLlm, objectMapper, promptInjectionGuard, Optional.empty());
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public McpToolSelector(
             RoutedLlm routedLlm,
             ObjectMapper objectMapper,
