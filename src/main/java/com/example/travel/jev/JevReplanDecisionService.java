@@ -17,7 +17,7 @@ public class JevReplanDecisionService {
         try{
             Map<String,String> criteria=new LinkedHashMap<>();
             for(String a:allowed) criteria.put(a, description(a));
-            var d=decisions.choose(Map.of("request",state.userRequest(),"unmet",evaluation==null?List.of():evaluation.getUnmetCriteria(),"blocking",evaluation==null?List.of():evaluation.getBlockingIssues(),"proposedActions",proposed==null?List.of():proposed),
+            var d=decisions.choose(Map.of("request",state.userRequest(),"unmet",evaluation==null?List.of():evaluation.getUnmetCriteria(),"blocking",evaluation==null||evaluation.getBlockingIssues()==null?List.of():evaluation.getBlockingIssues(),"proposedActions",proposed==null?List.of():proposed),
                     "Choose the single highest-value replan lever. Select only a capability that can address the unmet outcome. Do not choose ASK_USER unless automation cannot safely recover.",criteria);
             String choice=d.choice().toUpperCase();
             return d.accepted()&&allowed.contains(choice)?new Decision(choice,d.confidence(),true,"jev"):new Decision(fallback,d.confidence(),false,"low-confidence or invalid decision");
