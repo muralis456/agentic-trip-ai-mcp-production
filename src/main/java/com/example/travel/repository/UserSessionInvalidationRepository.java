@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-public interface UserSessionInvalidationRepository extends Repository<Object, String> {
+public interface UserSessionInvalidationRepository extends Repository<UserSessionInvalidationRepository.SessionInvalidationEntity, String> {
 
     @Modifying
     @Query(value = """
@@ -24,4 +24,12 @@ public interface UserSessionInvalidationRepository extends Repository<Object, St
             WHERE PRINCIPAL_NAME = :username
             """, nativeQuery = true)
     int deleteSessionsByPrincipal(@Param("username") String username);
+
+    @jakarta.persistence.Entity
+    @jakarta.persistence.Table(name = "SPRING_SESSION")
+    class SessionInvalidationEntity {
+        @jakarta.persistence.Id
+        @jakarta.persistence.Column(name = "PRIMARY_ID")
+        private String id;
+    }
 }
