@@ -22,6 +22,7 @@ public class FlightNode implements NodeAction<TravelState> {
     private final FlightAgentService flightAgentService;
     private final java.util.Optional<JevProviderDecisionService> jevProviderDecision;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public FlightNode(FlightAgentService flightAgentService, java.util.Optional<JevProviderDecisionService> jevProviderDecision) {
         this.flightAgentService = flightAgentService;
         this.jevProviderDecision = jevProviderDecision;
