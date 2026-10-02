@@ -3,6 +3,12 @@ package com.example.travel.graph;
 import com.example.travel.model.AgentPlan;
 import com.example.travel.model.GoalEvaluation;
 import com.example.travel.jev.JevReplanDecisionService;
+import com.example.travel.agent.IntentAgentService;
+import com.example.travel.model.AgentTask;
+import com.example.travel.model.ReplanAction;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
@@ -11,13 +17,13 @@ import java.util.Map;
 @Component
 public class ProductionReplanNode implements NodeAction<TravelState> {
     private final ReplanningService replanning;
-    private final com.example.travel.agent.IntentAgentService intentAgent;
+    private final IntentAgentService intentAgent;
     private final ProductionPlanningService planning;
-    private final java.util.Optional<JevReplanDecisionService> jevReplanDecision;
-    public ProductionReplanNode(ReplanningService replanning, com.example.travel.agent.IntentAgentService intentAgent, ProductionPlanningService planning, java.util.Optional<JevReplanDecisionService> jevReplanDecision){this.replanning=replanning;this.intentAgent=intentAgent;this.planning=planning;this.jevReplanDecision=jevReplanDecision;}
+    private final Optional<JevReplanDecisionService> jevReplanDecision;
+    public ProductionReplanNode(ReplanningService replanning, IntentAgentService intentAgent, ProductionPlanningService planning, Optional<JevReplanDecisionService> jevReplanDecision){this.replanning=replanning;this.intentAgent=intentAgent;this.planning=planning;this.jevReplanDecision=jevReplanDecision;}
     /** Backward-compatible constructor for existing tests. */
-    public ProductionReplanNode(ReplanningService replanning, com.example.travel.agent.IntentAgentService intentAgent, ProductionPlanningService planning){
-        this(replanning, intentAgent, planning, java.util.Optional.empty());
+    public ProductionReplanNode(ReplanningService replanning, IntentAgentService intentAgent, ProductionPlanningService planning){
+        this(replanning, intentAgent, planning, Optional.empty());
     }
     @Override public Map<String,Object> apply(TravelState state){
         GoalEvaluation e=state.goalEvaluation();
@@ -32,16 +38,16 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
             // Manual recovery is a recovery of the whole failed set, not a
             // hard-coded specialist retry. The UI normally sends ALL_FAILED;
             // older callers may still send a single task id.
-            java.util.List<String> requested = java.util.Arrays.stream(manualRetry.split(","))
+            List<String> requested = Arrays.stream(manualRetry.split(","))
                     .map(String::trim)
                     .filter(v -> !v.isBlank())
                     .toList();
-            java.util.List<String> failed = next.getTasks().stream()
-                    .filter(com.example.travel.model.AgentTask::isRequired)
-                    .filter(t -> t.getStatus() == com.example.travel.model.AgentTask.Status.FAILED)
-                    .map(com.example.travel.model.AgentTask::getId)
+            List<String> failed = next.getTasks().stream()
+                    .filter(AgentTask::isRequired)
+                    .filter(t -> t.getStatus() == AgentTask.Status.FAILED)
+                    .map(AgentTask::getId)
                     .toList();
-            java.util.List<String> selected = (requested.size() == 1
+            List<String> selected = (requested.size() == 1
                     && !"ALL_FAILED".equalsIgnoreCase(requested.get(0))
                     && !"ALL".equalsIgnoreCase(requested.get(0)))
                     ? requested
@@ -54,7 +60,7 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
                     throw new IllegalArgumentException("Cannot retry unknown task: " + taskId);
                 }
                 if (!next.task(taskId).isRequired()
-                        || next.task(taskId).getStatus() != com.example.travel.model.AgentTask.Status.FAILED) {
+                        || next.task(taskId).getStatus() != AgentTask.Status.FAILED) {
                     throw new IllegalArgumentException("Task is not currently failed: " + taskId);
                 }
             }
@@ -87,7 +93,7 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
         // Turn the LLM's typed strategy into concrete state changes consumed by
         // specialist agents. Without this bridge, a replan that says "cheaper"
         // would execute the exact same provider query again.
-        java.util.List<String> actions = next.getActions() == null ? java.util.List.of() : next.getActions();
+        List<String> actions = next.getActions() == null ? java.util.List.of() : next.getActions();
         if (jevReplanDecision.isPresent() && !actions.isEmpty()) {
             var d = jevReplanDecision.get().choose(state, e, actions);
             if (d.accepted() && !"NONE".equals(d.action()) && !"ASK_USER".equals(d.action())) {
@@ -105,12 +111,12 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
             u.put(TravelState.REPLAN_NOTES, u.get(TravelState.REPLAN_NOTES) + " decision=" + d.action());
         }
         for (String token : actions) {
-            var action = com.example.travel.model.ReplanAction.fromToken(token).orElse(null);
+            var action = ReplanAction.fromToken(token).orElse(null);
             if (action == null) continue;
             switch (action) {
                 case CHEAPER_FLIGHT -> {
                     u.put(TravelState.FLIGHT_PREFERENCE, "cheapest");
-                    u.put(TravelState.COST_FACTOR, state.costFactor().multiply(java.math.BigDecimal.valueOf(0.95)));
+                    u.put(TravelState.COST_FACTOR, state.costFactor().multiply(BigDecimal.valueOf(0.95)));
                 }
                 case REDUCE_HOTEL_BUDGET -> u.put(TravelState.HOTEL_CHEAPER, Boolean.TRUE);
                 case HOTEL_UPGRADE -> { u.put(TravelState.HOTEL_CHEAPER, Boolean.FALSE); u.put(TravelState.TRAVEL_STYLE, "upscale"); }
