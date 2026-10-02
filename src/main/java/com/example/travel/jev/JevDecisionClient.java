@@ -1,5 +1,7 @@
 package com.example.travel.jev;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "travel.jev", name = "enabled", havingValue = "true")
 public class JevDecisionClient {
 
+    private static final Logger log = LoggerFactory.getLogger(JevDecisionClient.class);
     private final RestClient primaryClient;
     private final RestClient fallbackClient;
     private final String primaryModel;
@@ -127,19 +130,23 @@ public class JevDecisionClient {
 
         if (primaryAvailable) {
             try {
+                log.debug("jev.provider.primary-attempt provider={} model={}", primaryProvider, primaryModel);
                 return invoke(primaryClient, primaryModel, request, primaryProvider);
             } catch (RuntimeException ex) {
                 primaryFailure = ex;
+                log.warn("jev.provider.primary-failed provider={} model={} reason={}", primaryProvider, primaryModel, ex.getClass().getSimpleName());
             }
         }
 
         if (fallbackAvailable) {
             try {
+                log.info("jev.provider.fallback-attempt provider={} model={}", fallbackProvider, fallbackModel);
                 return invoke(fallbackClient, fallbackModel, request, fallbackProvider);
             } catch (RuntimeException fallbackFailure) {
                 if (primaryFailure != null) {
                     fallbackFailure.addSuppressed(primaryFailure);
                 }
+                log.error("jev.provider.fallback-failed provider={} model={} reason={}", fallbackProvider, fallbackModel, fallbackFailure.getClass().getSimpleName());
                 throw new JevUnavailableException(
                         "Typed decision providers are unavailable. Primary=" +
                         primaryProvider + ", fallback=" + fallbackProvider,
@@ -161,6 +168,7 @@ public class JevDecisionClient {
         Map<String, Object> payload = new LinkedHashMap<>(request);
         payload.put("model", model);
 
+        log.debug("jev.provider.request provider={} model={}", provider, model);
         JsonNode response = client.post()
                 .uri("/v1/systemone")
                 .body(payload)
@@ -172,7 +180,9 @@ public class JevDecisionClient {
                     "Typed decision provider returned an empty/invalid response: " + provider);
         }
 
-        return new ProviderResponse(response, response.path("model").asString(model), provider);
+        String resolvedModel = response.path("model").asString(model);
+        log.info("jev.provider.response provider={} model={} responseValid=true", provider, resolvedModel);
+        return new ProviderResponse(response, resolvedModel, provider);
     }
 
     private static JsonNode validateAnswer(JsonNode response, String expectedType) {
