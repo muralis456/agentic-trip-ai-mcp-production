@@ -4,7 +4,7 @@ import com.example.travel.entity.AppUser;
 import com.example.travel.entity.PasswordResetToken;
 import com.example.travel.repository.AppUserRepository;
 import com.example.travel.repository.PasswordResetTokenRepository;
-import com.example.travel.repository.SpringSessionRepository;
+import com.example.travel.repository.UserSessionInvalidationRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +26,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetNotificationService notificationService;
-    private final SpringSessionRepository springSessionRepository;
+    private final UserSessionInvalidationRepository userSessionInvalidationRepository;
 
     public PasswordResetService(
             AppUserRepository userRepository,
@@ -38,7 +38,7 @@ public class PasswordResetService {
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
-        this.springSessionRepository = springSessionRepository;
+        this.userSessionInvalidationRepository = userSessionInvalidationRepository;
     }
 
     /**
@@ -104,8 +104,8 @@ public class PasswordResetService {
 
         // Spring Session persists sessions in PostgreSQL. Keep the SQL isolated
         // behind a repository so the service remains persistence-technology agnostic.
-        springSessionRepository.deleteAttributesByPrincipal(user.getUsername());
-        springSessionRepository.deleteSessionsByPrincipal(user.getUsername());
+        userSessionInvalidationRepository.deleteAttributesByPrincipal(user.getUsername());
+        userSessionInvalidationRepository.deleteSessionsByPrincipal(user.getUsername());
     }
 
     private void validateNewPassword(String password) {
