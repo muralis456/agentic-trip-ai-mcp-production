@@ -45,6 +45,7 @@ public class McpToolClient {
     private final ToolGovernanceService toolGovernance;
     private final com.example.travel.observability.AgentObservabilityService observability;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public McpToolClient(ToolCallbackProvider toolCallbackProvider,
                          ObjectMapper objectMapper,
                          McpToolSelector toolSelector,
