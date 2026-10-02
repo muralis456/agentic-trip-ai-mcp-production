@@ -287,6 +287,8 @@ TRAVEL_JEV_MODEL=jev-latest
 TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
 ```
 
+**Safe fallback:** enabling JEV without an API key, running out of TypeSafe credits, a JEV timeout, or a JEV HTTP/API error must not stop the application. The JEV client stays optional at runtime and returns a rejected decision; each decision service then applies its deterministic Java fallback. This keeps the core workflow usable even when JEV is unavailable.
+
 The application remains authoritative for policy, authorization, tool allow-lists, confidence thresholds, retries, and execution. Jev only supplies a typed decision. The next planned integrations are goal evaluation, replan-action selection, model routing, and human-review decisions.
 
 ## Jev decision layer
