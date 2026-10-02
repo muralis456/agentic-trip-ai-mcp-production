@@ -30,7 +30,7 @@ public interface McpToolCircuitStateRepository extends JpaRepository<McpToolCirc
                 cooldown_until_epoch_ms = NULL,
                 updated_at_epoch_ms = EXCLUDED.updated_at_epoch_ms
             """, nativeQuery = true)
-    int reset(@Param("toolName") String toolName,
+    int resetCircuit(@Param("toolName") String toolName,
               @Param("nowEpochMs") long nowEpochMs);
 
     @Modifying
