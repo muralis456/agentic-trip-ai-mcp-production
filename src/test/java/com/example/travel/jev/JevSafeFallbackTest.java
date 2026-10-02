@@ -23,10 +23,10 @@ class JevSafeFallbackTest {
         RestClient.Builder builder = mock(RestClient.Builder.class);
 
         assertDoesNotThrow(() ->
-                new JevDecisionClient(builder, "https://api.typesafe.ai", "", "jev-latest"));
+                new JevDecisionClient(builder, "typesafe", "https://api.typesafe.ai", "", "jev-latest", "none", "http://localhost:11434", "", "tev1:4b"));
 
         JevDecisionClient client =
-                new JevDecisionClient(builder, "https://api.typesafe.ai", "", "jev-latest");
+                new JevDecisionClient(builder, "typesafe", "https://api.typesafe.ai", "", "jev-latest", "none", "http://localhost:11434", "", "tev1:4b");
 
         assertThrows(
                 JevDecisionClient.JevUnavailableException.class,
