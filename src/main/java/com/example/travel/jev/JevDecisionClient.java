@@ -35,6 +35,7 @@ public class JevDecisionClient {
     private final String fallbackProvider;
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public JevDecisionClient(
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
@@ -66,6 +67,21 @@ public class JevDecisionClient {
         this.fallbackClient = fallbackConfigured
                 ? buildClient(restClientBuilder, fallbackBaseUrl, fallbackApiKey)
                 : null;
+    }
+
+    /** Backward-compatible constructor for direct unit-test construction. */
+    public JevDecisionClient(
+            RestClient.Builder restClientBuilder,
+            String provider,
+            String baseUrl,
+            String apiKey,
+            String model,
+            String fallbackProvider,
+            String fallbackBaseUrl,
+            String fallbackApiKey,
+            String fallbackModel) {
+        this(restClientBuilder, new ObjectMapper(), provider, baseUrl, apiKey, model,
+                fallbackProvider, fallbackBaseUrl, fallbackApiKey, fallbackModel);
     }
 
     public JevChoiceDecision choose(Object state, String instructions, Map<String, String> criteria) {
