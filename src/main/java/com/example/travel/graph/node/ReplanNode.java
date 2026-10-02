@@ -4,7 +4,6 @@ import com.example.travel.observability.AgentObservabilityService;
 import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
 import com.example.travel.agent.ReplanAgentService;
-import AgentObservabilityService;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
