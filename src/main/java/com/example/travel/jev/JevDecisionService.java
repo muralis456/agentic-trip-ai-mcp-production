@@ -3,6 +3,7 @@ package com.example.travel.jev;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
+import com.example.travel.observability.AgentObservabilityService;
 
 import java.util.Map;
 
@@ -18,12 +19,15 @@ public class JevDecisionService {
 
     private final JevDecisionClient client;
     private final double minimumConfidence;
+    private final AgentObservabilityService observability;
 
     public JevDecisionService(
             JevDecisionClient client,
-            @Value("${travel.jev.minimum-confidence:0.75}") double minimumConfidence) {
+            @Value("${travel.jev.minimum-confidence:0.75}") double minimumConfidence,
+            AgentObservabilityService observability) {
         this.client = client;
         this.minimumConfidence = minimumConfidence;
+        this.observability = observability;
     }
 
     public Decision choose(
@@ -31,8 +35,11 @@ public class JevDecisionService {
             String instructions,
             Map<String, String> criteria) {
 
-        JevDecisionClient.JevChoiceDecision decision =
-                client.choose(state, instructions, criteria);
+        long started=System.nanoTime();
+        JevDecisionClient.JevChoiceDecision decision;
+        try { decision=client.choose(state, instructions, criteria); }
+        catch (RuntimeException ex) { observability.recordJevDecision("choice","error","jev",(System.nanoTime()-started)/1_000_000); throw ex; }
+        observability.recordJevDecision("choice", decision.confidence() >= minimumConfidence ? "accepted" : "low_confidence", decision.model(), (System.nanoTime()-started)/1_000_000);
 
         boolean accepted = decision.confidence() >= minimumConfidence;
 
@@ -45,12 +52,16 @@ public class JevDecisionService {
     }
 
     public YesNoDecision yesNo(Object state, String instructions, String trueCriteria, String falseCriteria) {
+        long started=System.nanoTime();
         JevDecisionClient.JevNoulDecision d = client.yesNo(state, instructions, trueCriteria, falseCriteria);
+        observability.recordJevDecision("noul", d.probability() >= minimumConfidence ? "accepted" : "low_confidence", "jev", (System.nanoTime()-started)/1_000_000);
         return new YesNoDecision(d.probability(), d.probability() >= minimumConfidence);
     }
 
     public ScoreDecision score(Object state, String instructions, java.util.List<String> criteria) {
+        long started=System.nanoTime();
         JevDecisionClient.JevScoreDecision d = client.score(state, instructions, criteria);
+        observability.recordJevDecision("score", d.confidence() >= minimumConfidence ? "accepted" : "low_confidence", "jev", (System.nanoTime()-started)/1_000_000);
         return new ScoreDecision(d.score(), d.confidence(), d.confidence() >= minimumConfidence);
     }
 
