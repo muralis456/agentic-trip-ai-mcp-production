@@ -15,16 +15,16 @@ import java.util.Map;
 /**
  * Typed decision client.
  *
- * Primary provider can be TypeSafe JEV or local Ollama System One.
- * When TypeSafe is unavailable, the client can transparently fall back to a
- * local Ollama Jev-style model (for example tev1:4b). Java decision services
- * remain the final deterministic fallback.
+ * <p>Primary provider can be TypeSafe JEV or local Ollama Tev1. The Java
+ * decision layer remains authoritative: provider failures and rejected
+ * recommendations are converted into deterministic fallbacks by callers.</p>
  */
 @Service
 @ConditionalOnProperty(prefix = "travel.jev", name = "enabled", havingValue = "true")
 public class JevDecisionClient {
 
     private static final Logger log = LoggerFactory.getLogger(JevDecisionClient.class);
+
     private final RestClient primaryClient;
     private final RestClient fallbackClient;
     private final String primaryModel;
@@ -33,6 +33,8 @@ public class JevDecisionClient {
     private final boolean fallbackAvailable;
     private final String primaryProvider;
     private final String fallbackProvider;
+    private final String keepAlive;
+    private final boolean logPayloads;
     private final ObjectMapper objectMapper;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -46,15 +48,19 @@ public class JevDecisionClient {
             @Value("${travel.jev.fallback-provider:ollama}") String fallbackProvider,
             @Value("${travel.jev.fallback-base-url:http://localhost:11434}") String fallbackBaseUrl,
             @Value("${travel.jev.fallback-api-key:ollama}") String fallbackApiKey,
-            @Value("${travel.jev.fallback-model:tev1:4b}") String fallbackModel) {
+            @Value("${travel.jev.fallback-model:tev1:4b}") String fallbackModel,
+            @Value("${travel.jev.keep-alive:30m}") String keepAlive,
+            @Value("${travel.jev.log-payloads:false}") boolean logPayloads) {
 
         this.objectMapper = objectMapper;
-        this.primaryProvider = provider == null || provider.isBlank() ? "typesafe" : provider.trim().toLowerCase();
+        this.primaryProvider = provider == null || provider.isBlank()
+                ? "typesafe" : provider.trim().toLowerCase();
         this.fallbackProvider = fallbackProvider == null || fallbackProvider.isBlank()
-                ? "none"
-                : fallbackProvider.trim().toLowerCase();
+                ? "none" : fallbackProvider.trim().toLowerCase();
         this.primaryModel = model;
         this.fallbackModel = fallbackModel;
+        this.keepAlive = keepAlive == null ? "30m" : keepAlive.trim();
+        this.logPayloads = logPayloads;
 
         boolean primaryConfigured = isConfigured(this.primaryProvider, baseUrl, apiKey);
         this.primaryAvailable = primaryConfigured;
@@ -80,8 +86,19 @@ public class JevDecisionClient {
             String fallbackBaseUrl,
             String fallbackApiKey,
             String fallbackModel) {
-        this(restClientBuilder, new ObjectMapper(), provider, baseUrl, apiKey, model,
-                fallbackProvider, fallbackBaseUrl, fallbackApiKey, fallbackModel);
+        this(
+                restClientBuilder,
+                new ObjectMapper(),
+                provider,
+                baseUrl,
+                apiKey,
+                model,
+                fallbackProvider,
+                fallbackBaseUrl,
+                fallbackApiKey,
+                fallbackModel,
+                "30m",
+                false);
     }
 
     public JevChoiceDecision choose(Object state, String instructions, Map<String, String> criteria) {
@@ -110,7 +127,12 @@ public class JevDecisionClient {
                 probabilities);
     }
 
-    public JevNoulDecision yesNo(Object state, String instructions, String trueCriteria, String falseCriteria) {
+    public JevNoulDecision yesNo(
+            Object state,
+            String instructions,
+            String trueCriteria,
+            String falseCriteria) {
+
         Map<String, Object> question = new LinkedHashMap<>();
         question.put("type", "noul");
         question.put("instructions", instructions);
@@ -123,7 +145,11 @@ public class JevDecisionClient {
         return new JevNoulDecision(answer.path("noul").asDouble(0.0));
     }
 
-    public JevScoreDecision score(Object state, String instructions, java.util.List<String> criteria) {
+    public JevScoreDecision score(
+            Object state,
+            String instructions,
+            java.util.List<String> criteria) {
+
         Map<String, Object> question = new LinkedHashMap<>();
         question.put("type", "score");
         question.put("instructions", instructions);
@@ -154,7 +180,8 @@ public class JevDecisionClient {
                 return invoke(primaryClient, primaryModel, request, primaryProvider);
             } catch (RuntimeException ex) {
                 primaryFailure = ex;
-                log.warn("jev.provider.primary-failed provider={} model={} reason={}", primaryProvider, primaryModel, ex.getClass().getSimpleName());
+                log.warn("jev.provider.primary-failed provider={} model={} reason={}",
+                        primaryProvider, primaryModel, ex.getClass().getSimpleName());
             }
         }
 
@@ -166,10 +193,11 @@ public class JevDecisionClient {
                 if (primaryFailure != null) {
                     fallbackFailure.addSuppressed(primaryFailure);
                 }
-                log.error("jev.provider.fallback-failed provider={} model={} reason={}", fallbackProvider, fallbackModel, fallbackFailure.getClass().getSimpleName());
+                log.error("jev.provider.fallback-failed provider={} model={} reason={}",
+                        fallbackProvider, fallbackModel, fallbackFailure.getClass().getSimpleName());
                 throw new JevUnavailableException(
                         "Typed decision providers are unavailable. Primary=" +
-                        primaryProvider + ", fallback=" + fallbackProvider,
+                                primaryProvider + ", fallback=" + fallbackProvider,
                         fallbackFailure);
             }
         }
@@ -188,7 +216,21 @@ public class JevDecisionClient {
         Map<String, Object> payload = new LinkedHashMap<>(request);
         payload.put("model", model);
 
-        log.info("jev.model.request provider={} model={} payload={}", provider, model, json(payload));
+        // Ollama's System One endpoint supports keep_alive. Do not send this
+        // provider-specific field to TypeSafe, whose request schema is stricter.
+        if ("ollama".equals(provider) && !keepAlive.isBlank()) {
+            payload.put("keep_alive", keepAlive);
+        }
+
+        if (logPayloads) {
+            log.info("jev.model.request provider={} model={} payload={}",
+                    provider, model, json(payload));
+        } else {
+            log.info("jev.model.request provider={} model={} questionCount={} payloadLogging=false",
+                    provider, model, payload.containsKey("questions")
+                            ? ((Map<?, ?>) payload.get("questions")).size() : 0);
+        }
+
         JsonNode response = client.post()
                 .uri("/v1/systemone")
                 .body(payload)
@@ -201,7 +243,16 @@ public class JevDecisionClient {
         }
 
         String resolvedModel = response.path("model").asString(model);
-        log.info("jev.model.response provider={} model={} payload={}", provider, resolvedModel, json(response));
+
+        if (logPayloads) {
+            log.info("jev.model.response provider={} model={} payload={}",
+                    provider, resolvedModel, json(response));
+        } else {
+            log.info("jev.model.response provider={} model={} answerCount={} payloadLogging=false",
+                    provider, resolvedModel,
+                    response.path("answers").size());
+        }
+
         return new ProviderResponse(response, resolvedModel, provider);
     }
 
@@ -214,20 +265,18 @@ public class JevDecisionClient {
                     "Typed decision provider returned no answer for question 'decision'.");
         }
 
-        // TypeSafe/Ollama System One responses identify the question by name
-        // and return the type-specific answer fields directly. The response
-        // does not contain answers.decision.type.
         String answerField = switch (expectedType) {
             case "choice" -> "choice";
             case "noul" -> "noul";
             case "score" -> "score";
-            default -> throw new IllegalArgumentException("Unsupported decision type: " + expectedType);
+            default -> throw new IllegalArgumentException(
+                    "Unsupported decision type: " + expectedType);
         };
 
         if (answer.path(answerField).isMissingNode()) {
             throw new IllegalStateException(
                     "Typed decision provider returned an invalid " + expectedType +
-                    " answer for question 'decision'.");
+                            " answer for question 'decision'.");
         }
 
         return answer;
@@ -270,6 +319,7 @@ public class JevDecisionClient {
     private record ProviderResponse(JsonNode response, String model, String provider) { }
 
     public record JevNoulDecision(double probability) { }
+
     public record JevScoreDecision(double score, double confidence) { }
 
     public record JevChoiceDecision(
