@@ -5,6 +5,7 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Persistence boundary for PostgreSQL full-text retrieval from Spring AI's
@@ -12,7 +13,7 @@ import java.util.List;
  * focused on retrieval orchestration.
  */
 @org.springframework.stereotype.Repository
-public interface RagKeywordSearchRepository extends Repository<RagVectorStoreEntity, String> {
+public interface RagKeywordSearchRepository extends Repository<RagVectorStoreEntity, UUID> {
 
     @Query(value = """
             select content as content, metadata::text as metadata
