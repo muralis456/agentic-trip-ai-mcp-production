@@ -17,7 +17,7 @@ import com.example.travel.graph.TravelState;
 import com.example.travel.model.ModificationRequest;
 import com.example.travel.model.StoppedRunActionDecision;
 import com.example.travel.model.AgentPlan;
-import AgentTask;
+import com.example.travel.model.AgentTask;
 import com.example.travel.model.IntentPlan;
 import com.example.travel.service.AgentExecutionBudget;
 import com.example.travel.service.ConversationMemoryService;
