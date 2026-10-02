@@ -15,8 +15,8 @@ public class JevModelRoutingService {
     private final JevDecisionService decisions;
     public JevModelRoutingService(JevDecisionService decisions){this.decisions=decisions;}
     public String choose(TravelState state){
-        log.info("jev.model-routing.decision-start currentPolicy={} complexity={}", fallback, ModelRoutingContext.getComplexity());
         String fallback=ModelRoutingContext.normalize(state.modelPolicy());
+        log.info("jev.model-routing.decision-start currentPolicy={} complexity={}", fallback, ModelRoutingContext.getComplexity());
         String selectedModel = state.selectedModel();
         if (selectedModel != null && selectedModel.contains(":")) return selectedModel.trim();
         try{
