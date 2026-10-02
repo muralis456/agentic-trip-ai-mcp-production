@@ -51,7 +51,10 @@ public class RagNode implements NodeAction<TravelState> {
                     return skipped;
                 }
             }
-            AgenticRagService.RagResult result = agenticRagService.run(state);
+            AgenticRagService.RagResult result = null;
+            if ("RAG".equals(routeName) || "BOTH".equals(routeName)) {
+                result = agenticRagService.run(state);
+            }
             if (("WEB".equals(routeName) || "BOTH".equals(routeName)) && tavilySearchTool != null) {
                 List<SearchHit> hits = tavilySearchTool.searchHits(state.userRequest());
                 StringBuilder web = new StringBuilder();
@@ -65,7 +68,7 @@ public class RagNode implements NodeAction<TravelState> {
                     result = new AgenticRagService.RagResult(true, "web", state.userRequest(), context,
                             webSources, 1, !context.isBlank(), "web", hits.size(), hits.size(), context.length(),
                             context.isBlank()?0.0:1.0, state.destination(), "", List.of());
-                } else if (!web.isEmpty()) {
+                } else if ("BOTH".equals(routeName) && result != null && !web.isEmpty()) {
                     String context = result.context() + "\\n\\n" + web;
                     List<String> sources = new java.util.ArrayList<>(result.sources()); sources.addAll(webSources);
                     result = new AgenticRagService.RagResult(result.used(), "both", result.query(), context,
@@ -74,8 +77,12 @@ public class RagNode implements NodeAction<TravelState> {
                             Math.max(result.evidenceScore(), web.isEmpty()?0.0:1.0), result.destination(), result.country(), result.topics());
                 }
             }
+            if (result == null) {
+                result = new AgenticRagService.RagResult(false, "none", state.userRequest(), "", List.of(), 0, false,
+                        "none", 0, 0, 0, 0.0, state.destination(), "", List.of());
+            }
             Map<String, Object> updates = new LinkedHashMap<>();
-            updates.put(TravelState.RAG_ENABLED, Boolean.TRUE);
+            updates.put(TravelState.RAG_ENABLED, !"NONE".equals(routeName));
             updates.put(TravelState.RAG_DECISION, result.decision());
             updates.put(TravelState.RAG_QUERY, result.query());
             updates.put(TravelState.RAG_CONTEXT, result.context());
