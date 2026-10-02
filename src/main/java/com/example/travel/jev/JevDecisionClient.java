@@ -64,6 +64,11 @@ public class JevDecisionClient {
         this.keepAlive = keepAlive == null ? "30m" : keepAlive.trim();
         this.logPayloads = logPayloads;
 
+        log.info(
+                "jev.client.effective primaryProvider={} primaryModel={} fallbackProvider={} fallbackModel={} keepAlive={} logPayloads={}",
+                this.primaryProvider, this.primaryModel, this.fallbackProvider, this.fallbackModel,
+                this.keepAlive, this.logPayloads);
+
         boolean primaryConfigured = isConfigured(this.primaryProvider, baseUrl, apiKey);
         this.primaryAvailable = primaryConfigured;
         this.primaryClient = primaryConfigured
