@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -17,6 +18,8 @@ public class JevModelRoutingService {
     public JevModelRoutingService(JevDecisionService decisions) {
         this.decisions = decisions;
     }
+
+    private static String fmt(double value) { return String.format(Locale.ROOT, "%.2f", value); }
 
     public String choose(TravelState state) {
         String fallback = ModelRoutingContext.normalize(state.modelPolicy());
@@ -63,7 +66,7 @@ public class JevModelRoutingService {
                     "jev.model-routing.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",
                     result,
                     c,
-                    d.confidence(),
+                    fmt(d.confidence()),
                     d.accepted(),
                     d.accepted() ? "jev-policy-accepted" : "deterministic-model-policy-fallback",
                     d.model());
