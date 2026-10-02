@@ -195,3 +195,5 @@ logging:
     org.springframework.ai: INFO
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+# Correlation ids are emitted by the MCP client customizer and server response headers.
