@@ -28,6 +28,11 @@ public class FinalizationNode implements NodeAction<TravelState> {
         this.jevHitlDecision = jevHitlDecision;
     }
 
+    /** Backward-compatible constructor for existing tests. */
+    public FinalizationNode(FinalPlannerAgentService finalPlannerAgentService) {
+        this(finalPlannerAgentService, java.util.Optional.empty());
+    }
+
     @Override
     public Map<String, Object> apply(TravelState state) {
         boolean tripPlanning = state != null && state.isTripPlanningWorkflow();
