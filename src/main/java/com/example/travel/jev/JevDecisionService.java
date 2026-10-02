@@ -65,17 +65,40 @@ public class JevDecisionService {
     }
 
     public YesNoDecision yesNo(Object state, String instructions, String trueCriteria, String falseCriteria) {
-        long started=System.nanoTime();
-        JevDecisionClient.JevNoulDecision d = client.yesNo(state, instructions, trueCriteria, falseCriteria);
-        observability.recordJevDecision("noul", d.probability() >= minimumConfidence ? "accepted" : "low_confidence", "jev", (System.nanoTime()-started)/1_000_000);
-        return new YesNoDecision(d.probability(), d.probability() >= minimumConfidence);
+        long started = System.nanoTime();
+        try {
+            JevDecisionClient.JevNoulDecision d =
+                    client.yesNo(state, instructions, trueCriteria, falseCriteria);
+            boolean accepted = d.probability() >= minimumConfidence;
+            observability.recordJevDecision(
+                    "noul", accepted ? "accepted" : "low_confidence", "jev", elapsedMs(started));
+            return new YesNoDecision(d.probability(), accepted);
+        } catch (RuntimeException ex) {
+            observability.recordJevDecision(
+                    "noul",
+                    ex instanceof JevDecisionClient.JevUnavailableException ? "unavailable" : "error",
+                    "jev",
+                    elapsedMs(started));
+            return new YesNoDecision(0.0, false);
+        }
     }
 
     public ScoreDecision score(Object state, String instructions, java.util.List<String> criteria) {
-        long started=System.nanoTime();
-        JevDecisionClient.JevScoreDecision d = client.score(state, instructions, criteria);
-        observability.recordJevDecision("score", d.confidence() >= minimumConfidence ? "accepted" : "low_confidence", "jev", (System.nanoTime()-started)/1_000_000);
-        return new ScoreDecision(d.score(), d.confidence(), d.confidence() >= minimumConfidence);
+        long started = System.nanoTime();
+        try {
+            JevDecisionClient.JevScoreDecision d = client.score(state, instructions, criteria);
+            boolean accepted = d.confidence() >= minimumConfidence;
+            observability.recordJevDecision(
+                    "score", accepted ? "accepted" : "low_confidence", "jev", elapsedMs(started));
+            return new ScoreDecision(d.score(), d.confidence(), accepted);
+        } catch (RuntimeException ex) {
+            observability.recordJevDecision(
+                    "score",
+                    ex instanceof JevDecisionClient.JevUnavailableException ? "unavailable" : "error",
+                    "jev",
+                    elapsedMs(started));
+            return new ScoreDecision(0.0, 0.0, false);
+        }
     }
 
     private static long elapsedMs(long started) {
