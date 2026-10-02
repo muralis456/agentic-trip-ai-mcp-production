@@ -289,6 +289,8 @@ public class TravelState extends AgentState {
         return this.<String>value(RAG_DECISION).orElse("skip");
     }
 
+    public String flightProvider() { return this.<String>value(FLIGHT_PROVIDER).orElse(""); }
+
     public String ragQuery() {
         return this.<String>value(RAG_QUERY).orElse("");
     }
