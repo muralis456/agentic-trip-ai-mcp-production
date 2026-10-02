@@ -5,6 +5,7 @@ import com.example.travel.model.FlightOption;
 import com.example.travel.tool.AirportLookupTool;
 import com.example.travel.tool.FlightSearchTool;
 import com.example.travel.service.McpFlightSearchClient;
+import com.example.travel.jev.JevProviderDecisionService;
 import com.example.travel.support.TripSlotHeuristics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.time.OffsetDateTime;
 import java.time.LocalDate;
+import java.util.Optional;
 
 @Service
 public class FlightAgentService {
@@ -23,13 +25,24 @@ public class FlightAgentService {
     private final FlightSearchTool flightSearchTool;
     private final AirportLookupTool airportLookupTool;
     private final ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient;
+    private final Optional<JevProviderDecisionService> jevProviderDecision;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public FlightAgentService(FlightSearchTool flightSearchTool,
                               AirportLookupTool airportLookupTool,
-                              ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient) {
+                              ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient,
+                              Optional<JevProviderDecisionService> jevProviderDecision) {
         this.flightSearchTool = flightSearchTool;
         this.airportLookupTool = airportLookupTool;
         this.mcpFlightSearchClient = mcpFlightSearchClient;
+        this.jevProviderDecision = jevProviderDecision;
+    }
+
+    /** Backward-compatible constructor for existing tests. */
+    public FlightAgentService(FlightSearchTool flightSearchTool,
+                              AirportLookupTool airportLookupTool,
+                              ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient) {
+        this(flightSearchTool, airportLookupTool, mcpFlightSearchClient, Optional.empty());
     }
 
     public FlightSearchResult search(TravelState state) {
@@ -67,6 +80,16 @@ public class FlightAgentService {
         log.info("Flight agent searching roundTrip={} datesFlexible={} {} -> {}",
                 state.roundTrip(), state.datesFlexible(), originIata, destinationIata);
         McpFlightSearchClient mcpClient = mcpFlightSearchClient.getIfAvailable();
+        String preferredProvider = state.flightProvider();
+        if (TravelState.isBlank(preferredProvider) && jevProviderDecision.isPresent()) {
+            var decision = jevProviderDecision.get().choose(state, "");
+            preferredProvider = decision.accepted() ? decision.provider() : "";
+            log.info("jev.flight-provider.route provider={} confidence={} accepted={} reason={}",
+                    preferredProvider, String.format(java.util.Locale.ROOT, "%.2f", decision.confidence()), decision.accepted(), decision.reason());
+        } else {
+            log.info("jev.flight-provider.route skipped explicitProvider={} jevAvailable={}",
+                    preferredProvider, jevProviderDecision.isPresent());
+        }
         java.time.LocalDate outboundDate = state.datesFlexible() ? null : state.departureDate();
         // FINAL LIVE-PROVIDER GUARD: a live flight provider cannot search a past
         // departure date. Do not trust planner/LLM output, conversation memory,
@@ -83,7 +106,7 @@ public class FlightAgentService {
         }
         List<FlightOption> flights = mcpClient == null
                 ? flightSearchTool.search(originIata, destinationIata, outboundDate)
-                : mcpClient.search(originIata, destinationIata, outboundDate, state.travelers(), state.userRequest());
+                : mcpClient.search(originIata, destinationIata, outboundDate, state.travelers(), state.userRequest(), preferredProvider);
         flights = normalizeResults(flights, "outbound", outboundDate, state.datesFlexible(), originIata, destinationIata);
 
         if (state.roundTrip()) {
@@ -109,7 +132,7 @@ public class FlightAgentService {
             List<FlightOption> returns = mcpClient == null
                     ? flightSearchTool.search(destinationIata, originIata, returnDate)
                     : mcpClient.search(destinationIata, originIata, returnDate, state.travelers(),
-                    state.userRequest() + " Return journey");
+                    state.userRequest() + " Return journey", preferredProvider);
             // A provider may ignore the requested reverse route. Never relabel a
             // BLR->NRT result as a return NRT->BLR flight; discard route-mismatched
             // records instead of presenting incorrect round-trip data.

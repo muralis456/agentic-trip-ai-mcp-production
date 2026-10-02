@@ -32,10 +32,14 @@ public class McpFlightSearchClient {
     }
 
     public List<FlightOption> search(String origin, String destination, LocalDate departureDate, int passengers) {
-        return search(origin, destination, departureDate, passengers, "Flight search for " + origin + " to " + destination);
+        return search(origin, destination, departureDate, passengers, "Flight search for " + origin + " to " + destination, "");
     }
 
     public List<FlightOption> search(String origin, String destination, LocalDate departureDate, int passengers, String userInput) {
+        return search(origin, destination, departureDate, passengers, userInput, "");
+    }
+
+    public List<FlightOption> search(String origin, String destination, LocalDate departureDate, int passengers, String userInput, String preferredProvider) {
         // Absolute last line of defence: this is the exact boundary where the
         // request is serialized and sent to the MCP server. A past date must
         // never leave the client, regardless of how it entered graph state.
@@ -62,7 +66,8 @@ public class McpFlightSearchClient {
                     "destination", destination,
                     "departureDate", providerDepartureDate.toString(),
                     "returnDate", "",
-                    "passengers", Math.max(1, passengers));
+                    "passengers", Math.max(1, passengers),
+                    "preferredProvider", preferredProvider == null ? "" : preferredProvider);
                 return parse(mcpToolClient.invokePreferred("search_flights", "Live flight schedule search", userInput, input));
         } catch (FlightProviderException exception) {
             log.error("mcp.client.error client=McpFlightSearchClient operation=search origin={} destination={} departureDate={} passengers={} errorCode={} retryable={} errorMessage={}",

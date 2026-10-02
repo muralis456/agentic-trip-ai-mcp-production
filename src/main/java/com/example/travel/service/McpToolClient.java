@@ -1,5 +1,7 @@
 package com.example.travel.service;
 
+import com.example.travel.exception.ToolApprovalRequiredException;
+import com.example.travel.observability.AgentObservabilityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
@@ -38,12 +40,12 @@ public class McpToolClient {
     private final ToolCallbackProvider toolCallbackProvider;
     private final ObjectMapper objectMapper;
     private final McpToolSelector toolSelector;
-    private final java.util.Set<String> allowedTools;
+    private final Set<String> allowedTools;
     private final int maxAttempts;
     private final long timeoutMs;
     private final PromptInjectionGuard promptInjectionGuard;
     private final ToolGovernanceService toolGovernance;
-    private final com.example.travel.observability.AgentObservabilityService observability;
+    private final AgentObservabilityService observability;
 
     @org.springframework.beans.factory.annotation.Autowired
     public McpToolClient(ToolCallbackProvider toolCallbackProvider,
@@ -54,7 +56,7 @@ public class McpToolClient {
                          @Value("${travel.mcp.client.timeout-ms:15000}") long timeoutMs,
                          PromptInjectionGuard promptInjectionGuard,
                          ToolGovernanceService toolGovernance,
-                         com.example.travel.observability.AgentObservabilityService observability) {
+                         AgentObservabilityService observability) {
         this.toolCallbackProvider = toolCallbackProvider;
         this.objectMapper = objectMapper;
         this.toolSelector = toolSelector;
@@ -81,7 +83,7 @@ public class McpToolClient {
                          PromptInjectionGuard promptInjectionGuard,
                          ToolGovernanceService toolGovernance) {
         this(toolCallbackProvider, objectMapper, toolSelector, allowedTools, maxAttempts, timeoutMs,
-                promptInjectionGuard, toolGovernance, new com.example.travel.observability.AgentObservabilityService(
+                promptInjectionGuard, toolGovernance, new AgentObservabilityService(
                         io.micrometer.core.instrument.Metrics.globalRegistry));
     }
 
@@ -251,13 +253,13 @@ public class McpToolClient {
                 }
                 last = exception;
                 boolean policyFailure = exception instanceof SecurityException
-                        || exception instanceof com.example.travel.exception.ToolApprovalRequiredException;
+                        || exception instanceof ToolApprovalRequiredException;
                 if (!policyFailure) {
                     toolGovernance.recordFailure(toolName);
                     observability.recordMcpCall(toolName, elapsedMs(started), false, attempt);
                 } else {
                     observability.recordMcpPolicyDecision(toolName,
-                            exception instanceof com.example.travel.exception.ToolApprovalRequiredException
+                            exception instanceof ToolApprovalRequiredException
                                     ? "approval_required" : "denied");
                 }
                 boolean retryable = !policyFailure && isRetryable(exception);
@@ -310,7 +312,7 @@ public class McpToolClient {
         return !(exception instanceof IllegalArgumentException
                 || exception instanceof IllegalStateException
                 || exception instanceof SecurityException
-                || exception instanceof com.example.travel.exception.ToolApprovalRequiredException);
+                || exception instanceof ToolApprovalRequiredException);
     }
 
     private static boolean isCancellation(Throwable error) {

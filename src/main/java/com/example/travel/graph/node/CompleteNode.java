@@ -2,6 +2,7 @@ package com.example.travel.graph.node;
 
 import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
+import com.example.travel.model.GoalEvaluation;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +19,7 @@ public class CompleteNode implements NodeAction<TravelState> {
     public Map<String, Object> apply(TravelState state) {
         if (state == null
                 || state.goalEvaluation() == null
-                || state.goalEvaluation().getStatus() != com.example.travel.model.GoalEvaluation.Status.ACHIEVED) {
+                || state.goalEvaluation().getStatus() != GoalEvaluation.Status.ACHIEVED) {
             throw new IllegalStateException("Cannot complete before the goal is achieved.");
         }
 
@@ -29,9 +30,15 @@ public class CompleteNode implements NodeAction<TravelState> {
         // successful informational request fail in the terminal node.
         boolean tripPlanning = state.isTripPlanningWorkflow();
         boolean explicitlyApproved = "approve".equalsIgnoreCase(state.hitlDecision());
-        if (tripPlanning && !explicitlyApproved) {
+        boolean approvalStillRequired = state.awaitingApproval();
+
+        // Finalization may legitimately route a completed trip directly to
+        // COMPLETE when JEV returns AUTO_COMPLETE. In that path awaitingApproval
+        // is false and there is no human approval to wait for. A human APPROVE
+        // remains mandatory when the graph actually paused at the HITL boundary.
+        if (tripPlanning && approvalStillRequired && !explicitlyApproved) {
             throw new IllegalStateException(
-                    "Cannot complete a trip plan before it is explicitly approved.");
+                    "Cannot complete a trip plan while human approval is still pending.");
         }
 
         Map<String, Object> updates = new LinkedHashMap<>();

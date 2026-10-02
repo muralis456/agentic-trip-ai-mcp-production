@@ -8,6 +8,7 @@ import com.example.travel.agent.FlightAgentService;
 import com.example.travel.graph.GraphExecutionLogger;
 import com.example.travel.graph.NodeFailureSupport;
 import com.example.travel.support.ToolFailureClassifier;
+import com.example.travel.jev.JevProviderDecisionService;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 
@@ -19,9 +20,17 @@ import java.util.Map;
 public class FlightNode implements NodeAction<TravelState> {
 
     private final FlightAgentService flightAgentService;
+    private final java.util.Optional<JevProviderDecisionService> jevProviderDecision;
 
-    public FlightNode(FlightAgentService flightAgentService) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public FlightNode(FlightAgentService flightAgentService, java.util.Optional<JevProviderDecisionService> jevProviderDecision) {
         this.flightAgentService = flightAgentService;
+        this.jevProviderDecision = jevProviderDecision;
+    }
+
+    /** Backward-compatible constructor for existing tests. */
+    public FlightNode(FlightAgentService flightAgentService) {
+        this(flightAgentService, java.util.Optional.empty());
     }
 
     @Override
@@ -52,11 +61,23 @@ public class FlightNode implements NodeAction<TravelState> {
                     "flights", "AviationStack", "", 0, result.originIata() + "->" + result.destinationIata())));
             return updates;
         } catch (Exception ex) {
-            boolean retryable = ex instanceof McpFlightSearchClient.FlightProviderException providerException
-                    ? providerException.retryable()
-                    : ToolFailureClassifier.fromException(ex).isRetryable();
+            if (jevProviderDecision.isPresent()) {
+                var d = jevProviderDecision.get().choose(state, ex.getMessage());
+                Map<String,Object> failure = NodeFailureSupport.record(TravelGraphNodes.FLIGHT, state, ex, retryableFor(ex), state.nodeFailure().getNodeRetryCount());
+                failure.put(TravelState.FLIGHT_PROVIDER, d.accepted() ? d.provider() : "");
+                GraphExecutionLogger.specialistResult(TravelGraphNodes.FLIGHT, state, "provider-route",
+                        "jevProvider=" + d.provider() + " confidence=" + d.confidence() + " accepted=" + d.accepted());
+                return failure;
+            }
+            boolean retryable = retryableFor(ex);
             return NodeFailureSupport.record(TravelGraphNodes.FLIGHT, state, ex, retryable,
                     state.nodeFailure().getNodeRetryCount());
         }
+    }
+
+    private boolean retryableFor(Exception ex) {
+        return ex instanceof McpFlightSearchClient.FlightProviderException providerException
+                ? providerException.retryable()
+                : ToolFailureClassifier.fromException(ex).isRetryable();
     }
 }

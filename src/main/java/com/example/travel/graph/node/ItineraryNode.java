@@ -3,6 +3,7 @@ package com.example.travel.graph.node;
 import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
 import com.example.travel.agent.ItineraryAgentService;
+import com.example.travel.model.Itinerary;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +23,7 @@ public class ItineraryNode implements NodeAction<TravelState> {
     public Map<String, Object> apply(TravelState state) {
         if (!state.shouldExecuteTask("itinerary")) {
             Map<String, Object> skip = new LinkedHashMap<>();
-            skip.put(TravelState.ITINERARY, new com.example.travel.model.Itinerary());
+            skip.put(TravelState.ITINERARY, new Itinerary());
             skip.putAll(TravelState.trace(TravelGraphNodes.ITINERARY, "skip", "not requested"));
             return skip;
         }

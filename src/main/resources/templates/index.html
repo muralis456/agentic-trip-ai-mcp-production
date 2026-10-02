@@ -1468,6 +1468,8 @@
         .live-phase.done .live-phase-dot { background:#45d38b; }
         .live-phase.failed { color:#f0a2a2; border-color:rgba(255,90,90,.2); background:rgba(255,90,90,.045); }
         .live-phase.failed .live-phase-dot { background:#ff7777; }
+        .live-phase.skipped { color:#8097b3; border-color:rgba(255,255,255,.055); background:rgba(255,255,255,.018); }
+        .live-phase.skipped .live-phase-dot { background:#607995; }
         .live-activity { display:flex; align-items:center; gap:9px; margin-top:11px; padding:9px 11px; border:1px solid rgba(76,145,255,.16); border-radius:11px; background:rgba(59,139,255,.055); color:#d9e9ff; min-height:34px; }
         .live-activity-dot { width:7px; height:7px; border-radius:50%; background:#69a9ff; box-shadow:0 0 9px rgba(105,169,255,.7); flex:0 0 auto; animation:live-pulse 1.25s ease-in-out infinite; }
         .live-activity-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:700; }
@@ -4616,6 +4618,7 @@
         if (status === 'SUCCEEDED') el.classList.add('done');
         if (status === 'FAILED') el.classList.add('failed');
         if (status === 'STOPPED') el.classList.add('stopped');
+        if (status === 'SKIPPED') el.classList.add('skipped');
         const d = el.querySelector('.live-phase-detail');
         if (d) d.textContent = detail || (status === 'RUNNING' ? 'In progress' : status === 'SUCCEEDED' ? 'Complete' : status === 'STOPPED' ? 'Stopped' : 'Failed');
     };
@@ -4659,6 +4662,18 @@
         const id = String(node).toLowerCase().replace(/\s+/g,'_');
         const phaseId = phaseForNode(id);
         if (!phaseId) return;
+        // REPLAN is optional. Once the graph moves directly from EVALUATE to FINAL,
+        // explicitly mark the unused phase as skipped instead of leaving its initial
+        // "Waiting" state on screen.
+        if (phaseId === 'final') {
+            const replanEl = live.phases?.querySelector('[data-phase="replan"]');
+            if (replanEl && !replanEl.classList.contains('done')
+                    && !replanEl.classList.contains('active')
+                    && !replanEl.classList.contains('failed')
+                    && !replanEl.classList.contains('stopped')) {
+                setLivePhase(live, 'replan', 'SKIPPED', 'Not required');
+            }
+        }
         const status = phase === 'start' ? 'RUNNING' : 'SUCCEEDED';
 
         // Phase cards communicate workflow position only. They deliberately do
@@ -4785,10 +4800,12 @@
                 const rs = data.resumeState || data;
                 const next = String(rs.nextNode || '').toLowerCase();
                 const phaseRank = { intent: 0, plan: 1, execute: 2, evaluate: 3, replan: 4 };
+                const terminalNext = next === 'final' || next === 'complete' || next === 'hitl';
                 const nextRank = phaseRank[next] != null ? phaseRank[next] : 2;
                 ['intent','plan','execute','evaluate','replan'].forEach((id, idx) => {
                     if (idx < nextRank) setLivePhase(liveResponse, id, 'SUCCEEDED', 'Complete');
                     else if (idx === nextRank) setLivePhase(liveResponse, id, 'RUNNING', 'Resuming');
+                    else if (terminalNext && id === 'replan') setLivePhase(liveResponse, id, 'SKIPPED', 'Not required');
                     else setLivePhase(liveResponse, id, 'PENDING', 'Waiting');
                 });
                 const statuses = rs.taskStatuses || {};

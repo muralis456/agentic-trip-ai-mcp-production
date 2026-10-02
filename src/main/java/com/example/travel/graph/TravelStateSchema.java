@@ -38,6 +38,8 @@ import static com.example.travel.graph.TravelStateKeys.Preferences;
 import static com.example.travel.graph.TravelStateKeys.Request;
 import static com.example.travel.graph.TravelStateKeys.Results;
 import static com.example.travel.graph.TravelStateKeys.Rag;
+
+import com.example.travel.model.GoalEvaluation;
 import static com.example.travel.graph.TravelStateKeys.Trip;
 import static com.example.travel.graph.TravelStateKeys.Validation;
 
@@ -107,6 +109,7 @@ public final class TravelStateSchema {
         schema.put(Preferences.HOTEL_CHEAPER, Channels.base(() -> Boolean.FALSE));
         schema.put(Preferences.HOTEL_BUDGET, Channels.base(() -> TravelState.UNSET_BUDGET));
         schema.put(Preferences.FLIGHT_PREFERENCE, Channels.base(() -> "balanced"));
+        schema.put(Preferences.FLIGHT_PROVIDER, Channels.base(() -> ""));
         schema.put(Preferences.TRIP_REQUIREMENTS, Channels.base(TripRequirements::new));
         schema.put(Request.MODEL_POLICY, Channels.base(() -> "BALANCED"));
         schema.put(Request.INTENT_CONFIDENCE, Channels.base(() -> 1.0d));
@@ -115,7 +118,7 @@ public final class TravelStateSchema {
         schema.put(Control.SUPERVISOR_DECISION, Channels.base(() -> ""));
         schema.put(Request.GRAPH_THREAD_ID, Channels.base(() -> ""));
         schema.put(Request.AGENT_PLAN, Channels.base(AgentPlan::new));
-        schema.put(Request.GOAL_EVALUATION, Channels.base(com.example.travel.model.GoalEvaluation::new));
+        schema.put(Request.GOAL_EVALUATION, Channels.base(GoalEvaluation::new));
         schema.put(Request.PLAN_VERSION, Channels.base(() -> 1));
         schema.put(Validation.PLAN_QUALITY, Channels.base(PlanQualityScore::new));
         schema.put(Validation.SEMANTIC_VALIDATION, Channels.base(SemanticValidationResult::new));

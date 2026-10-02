@@ -150,6 +150,15 @@ public class AgentObservabilityService {
                 .record(Duration.ofMillis(Math.max(0, durationMs)));
     }
 
+    public void recordJevDecision(String decisionType, String outcome, String model, long durationMs) {
+        Counter.builder("agent.jev.decisions").description("Jev typed decisions")
+                .tag("type", normalize(decisionType)).tag("outcome", normalize(outcome)).tag("model", normalize(model))
+                .register(registry).increment();
+        Timer.builder("agent.jev.duration").description("Jev decision latency")
+                .tag("type", normalize(decisionType)).register(registry)
+                .record(Duration.ofMillis(Math.max(0, durationMs)));
+    }
+
     public void recordGoalOutcome(String outcome) {
         Counter.builder("agent.goal.outcomes")
                 .description("Agent goal outcomes")

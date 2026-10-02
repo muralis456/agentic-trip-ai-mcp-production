@@ -1,6 +1,7 @@
 package com.example.travel.graph.node;
 
 import com.example.travel.agent.FinalPlannerAgentService;
+import com.example.travel.jev.JevHitlDecisionService;
 import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
 import org.bsc.langgraph4j.action.NodeAction;
@@ -20,9 +21,17 @@ public class FinalizationNode implements NodeAction<TravelState> {
     private static final Logger log = LoggerFactory.getLogger(FinalizationNode.class);
 
     private final FinalPlannerAgentService finalPlannerAgentService;
+    private final java.util.Optional<JevHitlDecisionService> jevHitlDecision;
 
-    public FinalizationNode(FinalPlannerAgentService finalPlannerAgentService) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public FinalizationNode(FinalPlannerAgentService finalPlannerAgentService, java.util.Optional<JevHitlDecisionService> jevHitlDecision) {
         this.finalPlannerAgentService = finalPlannerAgentService;
+        this.jevHitlDecision = jevHitlDecision;
+    }
+
+    /** Backward-compatible constructor for existing tests. */
+    public FinalizationNode(FinalPlannerAgentService finalPlannerAgentService) {
+        this(finalPlannerAgentService, java.util.Optional.empty());
     }
 
     @Override
@@ -40,6 +49,11 @@ public class FinalizationNode implements NodeAction<TravelState> {
         // the generated plan instead of silently treating it as confirmed.
         boolean clarificationRequired = state != null && state.userInputRequired();
         boolean requiresApproval = clarificationRequired || (tripPlanning && !clarificationRequired);
+        if (jevHitlDecision.isPresent() && !clarificationRequired) {
+            var d = jevHitlDecision.get().decide(state);
+            requiresApproval = "ASK_USER".equals(d.route());
+            log.info("[HITL] Jev route={} confidence={} accepted={} reason={}", d.route(), d.confidence(), d.accepted(), d.reason());
+        }
 
         log.info(
                 "[HITL] finalization tripPlanning={} goalStatus={} itineraryDays={} clarificationRequired={} requiresApproval={} ",

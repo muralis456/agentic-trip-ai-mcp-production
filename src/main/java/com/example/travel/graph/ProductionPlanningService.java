@@ -1,5 +1,8 @@
 package com.example.travel.graph;
 
+import java.util.Set;
+import com.example.travel.service.AgentCapabilityRegistry;
+import com.example.travel.model.IntentPlan;
 import com.example.travel.config.TravelModelsProperties.AgentRole;
 import com.example.travel.model.AgentPlan;
 import com.example.travel.model.AgentTask;
@@ -94,7 +97,7 @@ public class ProductionPlanningService {
         for (PlanExtraction.PlannedTask p : raw) {
             String id = p.getId() == null ? "" : p.getId().trim().toLowerCase();
             String agent = p.getAgent() == null ? "" : p.getAgent().trim().toLowerCase();
-            if (!com.example.travel.service.AgentCapabilityRegistry.known(id)) continue;
+            if (!AgentCapabilityRegistry.known(id)) continue;
             if (tasks.containsKey(id)) continue;
             if (id.equals("knowledge")) agent = "rag";
             if (id.equals("flights")) agent = "flight";
@@ -108,7 +111,7 @@ public class ProductionPlanningService {
         // The planner may choose supporting tasks only from the semantic capability
         // contract of this user turn. This prevents an LLM hallucination from turning
         // a weather-only or hotel-only request into a full trip.
-        java.util.Set<String> requested = com.example.travel.service.AgentCapabilityRegistry.allowedFor(state);
+        Set<String> requested = AgentCapabilityRegistry.allowedFor(state);
         if (!"TRIP_PLANNING".equalsIgnoreCase(state.requestType())) {
             tasks.entrySet().removeIf(entry -> !requested.contains(entry.getKey()));
         }
@@ -138,7 +141,7 @@ public class ProductionPlanningService {
         // than converting them into an implicit success.
         for (AgentTask task : tasks.values()) {
             List<String> deps = task.getDependsOn();
-            java.util.Set<String> unique = new java.util.LinkedHashSet<>();
+            Set<String> unique = new java.util.LinkedHashSet<>();
             for (String dep : deps) {
                 if (dep == null || dep.isBlank() || dep.equals(task.getId()) || !tasks.containsKey(dep)) {
                     return List.of();
@@ -203,7 +206,7 @@ public class ProductionPlanningService {
     public AgentPlan fallback(TravelState state) {
         // Fallback must preserve the semantic scope of the current request.
         // Never turn an itinerary/hotel/weather-only request into a full trip.
-        com.example.travel.model.IntentPlan intent = new com.example.travel.model.IntentPlan();
+        IntentPlan intent = new IntentPlan();
         intent.setRequestType(first(state.requestType(), "GENERAL"));
         intent.setNeedsFlights(state.needsFlights());
         intent.setNeedsHotels(state.needsHotels());

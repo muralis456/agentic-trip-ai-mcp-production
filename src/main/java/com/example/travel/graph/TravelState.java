@@ -1,5 +1,8 @@
 package com.example.travel.graph;
 
+import com.example.travel.service.ModelRoutingContext;
+import com.example.travel.model.IntentPlan;
+import com.example.travel.model.GoalEvaluation;
 import com.example.travel.dto.TravelRequest;
 import com.example.travel.model.AgentDecision;
 import com.example.travel.model.AgentPlan;
@@ -105,6 +108,7 @@ public class TravelState extends AgentState {
     public static final String HOTEL_CHEAPER = TravelStateKeys.Preferences.HOTEL_CHEAPER;
     public static final String HOTEL_BUDGET = TravelStateKeys.Preferences.HOTEL_BUDGET;
     public static final String FLIGHT_PREFERENCE = TravelStateKeys.Preferences.FLIGHT_PREFERENCE;
+    public static final String FLIGHT_PROVIDER = TravelStateKeys.Preferences.FLIGHT_PROVIDER;
     public static final String TRIP_REQUIREMENTS = TravelStateKeys.Preferences.TRIP_REQUIREMENTS;
     public static final String MODEL_POLICY = TravelStateKeys.Request.MODEL_POLICY;
     public static final String INTENT_CONFIDENCE = TravelStateKeys.Request.INTENT_CONFIDENCE;
@@ -221,7 +225,7 @@ public class TravelState extends AgentState {
         input.put(BUDGET_LABEL, firstNonBlank(currentTurnBudget, request.getBudget(), "medium"));
         input.put(TRAVEL_STYLE, firstNonBlank(request.getTravelStyle(), "balanced"));
         input.put(RETRY_COUNT, 0);
-        input.put(GOAL_EVALUATION, new com.example.travel.model.GoalEvaluation());
+        input.put(GOAL_EVALUATION, new GoalEvaluation());
         input.put(PLAN_VERSION, 1);
         input.put(MAX_RETRIES, 2);
         input.put(COST_FACTOR, BigDecimal.ONE);
@@ -229,6 +233,7 @@ public class TravelState extends AgentState {
         input.put(HOTEL_BUDGET, UNSET_BUDGET);
         input.put(HOTEL_FALLBACK_EXHAUSTED, Boolean.FALSE);
         input.put(FLIGHT_PREFERENCE, "balanced");
+        input.put(FLIGHT_PROVIDER, "");
 
         // Every routing flag is explicitly initialized. Missing flags must never
         // default to true because that can accidentally execute old specialists.
@@ -246,7 +251,7 @@ public class TravelState extends AgentState {
         input.put(RUN_WEATHER, false);
         input.put(RUN_BUDGET, false);
         input.put(RUN_ITINERARY, false);
-        input.put(MODEL_POLICY, com.example.travel.service.ModelRoutingContext.normalize(request.getSelectedModel()));
+        input.put(MODEL_POLICY, ModelRoutingContext.normalize(request.getSelectedModel()));
         input.put(VALIDATION_ERRORS, new ArrayList<String>());
         input.put(PIPELINE, new ArrayList<AgentStep>());
         input.put(AWAITING_APPROVAL, Boolean.FALSE);
@@ -286,6 +291,8 @@ public class TravelState extends AgentState {
     public String ragDecision() {
         return this.<String>value(RAG_DECISION).orElse("skip");
     }
+
+    public String flightProvider() { return this.<String>value(FLIGHT_PROVIDER).orElse(""); }
 
     public String ragQuery() {
         return this.<String>value(RAG_QUERY).orElse("");
@@ -551,8 +558,8 @@ public class TravelState extends AgentState {
         return this.<AgentPlan>value(AGENT_PLAN).orElseGet(AgentPlan::new);
     }
 
-    public com.example.travel.model.GoalEvaluation goalEvaluation() {
-        return this.<com.example.travel.model.GoalEvaluation>value(GOAL_EVALUATION).orElseGet(com.example.travel.model.GoalEvaluation::new);
+    public GoalEvaluation goalEvaluation() {
+        return this.<GoalEvaluation>value(GOAL_EVALUATION).orElseGet(GoalEvaluation::new);
     }
 
     public String requestType() {
@@ -639,8 +646,8 @@ public class TravelState extends AgentState {
         return flag(RUN_ITINERARY);
     }
 
-    public static void applyIntentAndRun(Map<String, Object> updates, com.example.travel.model.IntentPlan intent) {
-        if (intent == null) intent = new com.example.travel.model.IntentPlan();
+    public static void applyIntentAndRun(Map<String, Object> updates, IntentPlan intent) {
+        if (intent == null) intent = new IntentPlan();
         // AgentPlan is the sole normalization boundary. It owns the semantic
         // trip-planning contract; legacy flags below are only a projection.
         AgentPlan plan = AgentPlan.fromIntent(intent);

@@ -31,3 +31,8 @@ travel:
     database: ${MAILPIT_DATABASE:./data/mailpit/mailpit.db}
     # 0 disables count-based message pruning.
     max-messages: ${MAILPIT_MAX_MESSAGES:0}
+
+
+  jev:
+    log-payloads: false
+    keep-alive: 30m

@@ -1,5 +1,6 @@
 package com.example.travel.graph.node;
 
+import com.example.travel.observability.AgentObservabilityService;
 import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
 import com.example.travel.agent.ReplanAgentService;
@@ -14,18 +15,18 @@ import java.util.Map;
 public class ReplanNode implements NodeAction<TravelState> {
 
     private final ReplanAgentService replanAgentService;
-    private final com.example.travel.observability.AgentObservabilityService observability;
+    private final AgentObservabilityService observability;
 
     @Autowired
     public ReplanNode(ReplanAgentService replanAgentService,
-                      com.example.travel.observability.AgentObservabilityService observability) {
+                      AgentObservabilityService observability) {
         this.replanAgentService = replanAgentService;
         this.observability = observability;
     }
 
     /** Backward-compatible constructor for deterministic graph unit tests. */
     public ReplanNode(ReplanAgentService replanAgentService) {
-        this(replanAgentService, new com.example.travel.observability.AgentObservabilityService(
+        this(replanAgentService, new AgentObservabilityService(
                 io.micrometer.core.instrument.Metrics.globalRegistry));
     }
 

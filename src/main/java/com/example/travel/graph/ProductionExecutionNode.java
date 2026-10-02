@@ -1,5 +1,8 @@
 package com.example.travel.graph;
 
+import com.example.travel.tool.ToolInvocationContext;
+import com.example.travel.support.ToolFailureClassifier;
+import com.example.travel.service.McpFlightSearchClient;
 import com.example.travel.agent.*;
 import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.model.*;
@@ -139,8 +142,8 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
         // The execution pool is shared by parallel specialist tasks, so identity
         // must be installed per task and removed in finally. The policy engine
         // reads this context immediately before every MCP invocation.
-        try (com.example.travel.tool.ToolInvocationContext.Scope ignored =
-                     com.example.travel.tool.ToolInvocationContext.open(
+        try (ToolInvocationContext.Scope ignored =
+                     ToolInvocationContext.open(
                              s.userId(), roleForUser(s.userId()))) {
             try {
                 Map<String,Object> u = new LinkedHashMap<>();
@@ -192,9 +195,9 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
                 throw new GraphStopRequestedException(e);
             }
             Map<String,Object> failureUpdates = new LinkedHashMap<>();
-            boolean retryable = e instanceof com.example.travel.service.McpFlightSearchClient.FlightProviderException providerException
+            boolean retryable = e instanceof McpFlightSearchClient.FlightProviderException providerException
                     ? providerException.retryable()
-                    : com.example.travel.support.ToolFailureClassifier.fromException(e).isRetryable();
+                    : ToolFailureClassifier.fromException(e).isRetryable();
             failureUpdates.putAll(NodeFailureSupport.record(id, s, e, retryable,
                     s.nodeFailure().getNodeRetryCount()));
                 return new TaskResult(false, failureUpdates,
