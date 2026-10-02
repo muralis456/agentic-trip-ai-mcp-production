@@ -212,3 +212,27 @@ Full Maven compilation was not run in this environment because Maven is not inst
 `/api/rag/reindex` is a destructive maintenance operation because it truncates and rebuilds the pgvector knowledge index. It is therefore restricted to authenticated users with the `ADMIN` role.
 
 Normal application users are created with the `USER` role. Promote a controlled maintenance account to `ADMIN` through your normal database administration process; do not expose an admin-registration flow to the public application.
+
+
+### Bootstrap the first ADMIN account
+
+Public registration always creates accounts with the `USER` role. The first `ADMIN` account can be created at application startup without exposing an admin-registration endpoint.
+
+Set both environment variables for the first deployment:
+
+```text
+BOOTSTRAP_ADMIN_USERNAME=admin
+BOOTSTRAP_ADMIN_PASSWORD=<strong-password-at-least-10-characters>
+```
+
+On startup:
+
+- If the username does not exist, the application creates it with role `ADMIN` and stores only a BCrypt password hash.
+- If the username already exists as `ADMIN`, startup makes no changes.
+- If the username already exists as a non-admin user, startup fails rather than silently escalating that account.
+- If only one of the two variables is configured, startup fails.
+- The bootstrap password is never logged or returned by an API.
+
+After the first successful startup, remove `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` from the deployment environment. The account remains an `ADMIN` user in PostgreSQL.
+
+This mechanism is intended for controlled deployment/bootstrap use, not routine role management.
