@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -44,7 +45,7 @@ public class JevProviderDecisionService {
                     "jev.provider.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",
                     result.provider(),
                     c,
-                    result.confidence(),
+                    fmt(result.confidence()),
                     result.accepted(),
                     result.reason(),
                     d.model());
@@ -56,6 +57,8 @@ public class JevProviderDecisionService {
             return new Decision("", 0, false, "jev unavailable: " + ex.getClass().getSimpleName());
         }
     }
+
+    private static String fmt(double value) { return String.format(Locale.ROOT, "%.2f", value); }
 
     public record Decision(String provider, double confidence, boolean accepted, String reason) { }
 }
