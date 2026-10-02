@@ -46,6 +46,7 @@ public class SecurityConfig {
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                                 request -> request.getServletPath() != null
                                         && request.getServletPath().startsWith("/api/")))
+                .httpBasic(httpBasic -> {})
                 .formLogin(form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/", true)
