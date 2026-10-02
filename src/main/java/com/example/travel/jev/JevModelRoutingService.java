@@ -14,7 +14,7 @@ public class JevModelRoutingService {
     public String choose(TravelState state){
         String fallback=ModelRoutingContext.normalize(state.modelPolicy());
         try{
-            var d=decisions.choose(Map.of("request",state.userRequest(),"currentPolicy",fallback,"complexity",ModelRoutingContext.getComplexity().name(),"tripPlanning",state.isTripPlanningWorkflow()),
+            var d=decisions.choose(Map.of("request",state.userRequest(),"currentPolicy",fallback,"complexity",ModelRoutingContext.getComplexity().name(),"tripPlanning",state.isTripPlanningWorkflow(),"requestType",state.requestType(),"needsFlights",state.needsFlights(),"needsHotels",state.needsHotels(),"needsResearch",state.needsResearch(),"needsItinerary",state.needsItinerary(),"needsKnowledge",state.needsKnowledge()),
                 "Choose the model policy for this graph turn. Prefer FAST for simple extraction, BALANCED for normal planning, and REASONING for complex multi-constraint recovery.",
                 Map.of("FAST","Simple, low-risk structured work.","BALANCED","Normal travel planning and synthesis.","REASONING","Complex constraints, recovery, or ambiguous multi-step decisions."));
             String c=d.choice().toUpperCase();
