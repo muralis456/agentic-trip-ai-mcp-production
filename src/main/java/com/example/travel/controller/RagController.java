@@ -3,6 +3,7 @@ package com.example.travel.controller;
 import com.example.travel.rag.RagKnowledgeLoader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 import com.example.travel.rag.eval.RagEvaluationCatalog;
 import com.example.travel.rag.eval.RagEvaluationRunner;
@@ -53,6 +54,7 @@ public class RagController {
 
     /** Rebuilds bundled knowledge and regenerates database-backed city/airport knowledge. */
     @PostMapping("/reindex")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> reindex() {
         try {
             return knowledgeLoader.reindex();
