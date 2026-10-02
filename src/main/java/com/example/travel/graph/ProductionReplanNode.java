@@ -15,6 +15,10 @@ public class ProductionReplanNode implements NodeAction<TravelState> {
     private final ProductionPlanningService planning;
     private final java.util.Optional<JevReplanDecisionService> jevReplanDecision;
     public ProductionReplanNode(ReplanningService replanning, com.example.travel.agent.IntentAgentService intentAgent, ProductionPlanningService planning, java.util.Optional<JevReplanDecisionService> jevReplanDecision){this.replanning=replanning;this.intentAgent=intentAgent;this.planning=planning;this.jevReplanDecision=jevReplanDecision;}
+    /** Backward-compatible constructor for existing tests. */
+    public ProductionReplanNode(ReplanningService replanning, com.example.travel.agent.IntentAgentService intentAgent, ProductionPlanningService planning){
+        this(replanning, intentAgent, planning, java.util.Optional.empty());
+    }
     @Override public Map<String,Object> apply(TravelState state){
         GoalEvaluation e=state.goalEvaluation();
         AgentPlan next;
