@@ -47,6 +47,7 @@ public class ToolGovernanceService {
     private final long circuitOpenMs;
     private final DistributedMcpCircuitState distributedCircuitState;
 
+    @Autowired
     public ToolGovernanceService(
             @Value("${travel.mcp.governance.enabled:true}") boolean enabled,
             @Value("${travel.mcp.governance.max-argument-bytes:16384}") int maxArgumentBytes,
@@ -78,7 +79,7 @@ public class ToolGovernanceService {
             int circuitFailureThreshold,
             long circuitOpenMs) {
         this(enabled, maxArgumentBytes, configuredUsers, configuredTools, configuredApprovalTools,
-                configuredRoles, circuitFailureThreshold, circuitOpenMs, ObjectProviderStub.empty());
+                configuredRoles, circuitFailureThreshold, circuitOpenMs, null);
     }
 
     public void authorize(String toolName, String agentPurpose, String argumentsJson) {
@@ -180,18 +181,6 @@ public class ToolGovernanceService {
         if (distributedCircuitState != null) {
             distributedCircuitState.recordFailure(key, circuitFailureThreshold, circuitOpenMs,
                     System.currentTimeMillis());
-        }
-    }
-
-    private static final class ObjectProviderStub {
-        static ObjectProvider<DistributedMcpCircuitState> empty() {
-            return new ObjectProvider<>() {
-                @Override public DistributedMcpCircuitState getObject(Object... args) { return null; }
-                @Override public DistributedMcpCircuitState getIfAvailable() { return null; }
-                @Override public DistributedMcpCircuitState getIfUnique() { return null; }
-                @Override public java.util.stream.Stream<DistributedMcpCircuitState> orderedStream() { return java.util.stream.Stream.empty(); }
-                @Override public java.util.stream.Stream<DistributedMcpCircuitState> stream() { return java.util.stream.Stream.empty(); }
-            };
         }
     }
 
