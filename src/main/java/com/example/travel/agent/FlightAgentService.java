@@ -85,7 +85,7 @@ public class FlightAgentService {
             var decision = jevProviderDecision.get().choose(state, "");
             preferredProvider = decision.accepted() ? decision.provider() : "";
             log.info("jev.flight-provider.route provider={} confidence={} accepted={} reason={}",
-                    preferredProvider, decision.confidence(), decision.accepted(), decision.reason());
+                    preferredProvider, String.format(java.util.Locale.ROOT, "%.2f", decision.confidence()), decision.accepted(), decision.reason());
         } else {
             log.info("jev.flight-provider.route skipped explicitProvider={} jevAvailable={}",
                     preferredProvider, jevProviderDecision.isPresent());
