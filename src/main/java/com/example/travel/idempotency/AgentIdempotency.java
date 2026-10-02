@@ -16,8 +16,7 @@ public class AgentIdempotency {
     @Column(name = "status", length = 32, nullable = false)
     private String status;
 
-    @Lob
-    @Column(name = "response_body")
+    @Column(name = "response_body", columnDefinition = "text")
     private String responseBody;
 
     @Column(name = "created_at", nullable = false)
