@@ -33,6 +33,11 @@ public class McpToolSelector {
     private final PromptInjectionGuard promptInjectionGuard;
     private final Optional<JevDecisionService> jevDecisionService;
 
+    /** Backward-compatible constructor for infrastructure tests. */
+    public McpToolSelector(RoutedLlm routedLlm, ObjectMapper objectMapper, PromptInjectionGuard promptInjectionGuard) {
+        this(routedLlm, objectMapper, promptInjectionGuard, Optional.empty());
+    }
+
     public McpToolSelector(
             RoutedLlm routedLlm,
             ObjectMapper objectMapper,
