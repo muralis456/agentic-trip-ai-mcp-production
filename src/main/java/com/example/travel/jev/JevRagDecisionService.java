@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import java.util.Locale;
-import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -44,7 +43,7 @@ public class JevRagDecisionService {
             String c = d.choice().toUpperCase();
             boolean valid = Map.of("RAG", 1, "WEB", 1, "BOTH", 1, "NONE", 1).containsKey(c);
             Decision result = d.accepted() && valid
-                    ? new Decision(c, fmt(d.confidence), true, "jev-policy-accepted")
+                    ? new Decision(c, d.confidence(), true, "jev-policy-accepted")
                     : new Decision(
                             fallback,
                             d.confidence(),
@@ -68,8 +67,6 @@ public class JevRagDecisionService {
             return new Decision(fallback, 0, false, "jev unavailable: " + ex.getClass().getSimpleName());
         }
     }
-
-    private static String fmt(double value) { return String.format(Locale.ROOT, "%.2f", value); }
 
     private static String fmt(double value) { return String.format(Locale.ROOT, "%.2f", value); }
 
