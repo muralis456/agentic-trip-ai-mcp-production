@@ -13,9 +13,9 @@ import java.util.Map;
  * recommendation is strong enough to influence the graph. The graph's
  * deterministic rules remain authoritative.</p>
  *
- * <p>Choice acceptance checks three signals: model-reported confidence
- * (distribution concentration), probability assigned to the selected option,
- * and margin over the runner-up.</p>
+ * <p>Choice acceptance is risk-aware. Low-risk routing decisions primarily use
+ * the selected probability and margin; model-reported confidence is retained
+ * as an additional gate for higher-risk decisions such as HITL.</p>
  */
 @Component
 public class JevDecisionPolicy {
@@ -31,22 +31,22 @@ public class JevDecisionPolicy {
     private final double scoreMinimumConfidence;
 
     public JevDecisionPolicy(
-            @Value("${travel.jev.policy.choice.min-confidence:0.75}") double choiceConfidence,
+            @Value("${travel.jev.policy.choice.min-confidence:0.0}") double choiceConfidence,
             @Value("${travel.jev.policy.choice.min-probability:0.75}") double choiceProbability,
             @Value("${travel.jev.policy.choice.min-margin:0.15}") double choiceMargin,
-            @Value("${travel.jev.policy.model-routing.min-confidence:0.75}") double modelConfidence,
-            @Value("${travel.jev.policy.model-routing.min-probability:0.70}") double modelProbability,
-            @Value("${travel.jev.policy.model-routing.min-margin:0.10}") double modelMargin,
-            @Value("${travel.jev.policy.rag.min-confidence:0.70}") double ragConfidence,
+            @Value("${travel.jev.policy.model-routing.min-confidence:0.0}") double modelConfidence,
+            @Value("${travel.jev.policy.model-routing.min-probability:0.60}") double modelProbability,
+            @Value("${travel.jev.policy.model-routing.min-margin:0.15}") double modelMargin,
+            @Value("${travel.jev.policy.rag.min-confidence:0.0}") double ragConfidence,
             @Value("${travel.jev.policy.rag.min-probability:0.70}") double ragProbability,
             @Value("${travel.jev.policy.rag.min-margin:0.15}") double ragMargin,
-            @Value("${travel.jev.policy.provider.min-confidence:0.75}") double providerConfidence,
+            @Value("${travel.jev.policy.provider.min-confidence:0.0}") double providerConfidence,
             @Value("${travel.jev.policy.provider.min-probability:0.75}") double providerProbability,
             @Value("${travel.jev.policy.provider.min-margin:0.10}") double providerMargin,
             @Value("${travel.jev.policy.goal.min-confidence:0.80}") double goalConfidence,
             @Value("${travel.jev.policy.goal.min-probability:0.80}") double goalProbability,
             @Value("${travel.jev.policy.goal.min-margin:0.20}") double goalMargin,
-            @Value("${travel.jev.policy.replan.min-confidence:0.75}") double replanConfidence,
+            @Value("${travel.jev.policy.replan.min-confidence:0.0}") double replanConfidence,
             @Value("${travel.jev.policy.replan.min-probability:0.75}") double replanProbability,
             @Value("${travel.jev.policy.replan.min-margin:0.15}") double replanMargin,
             @Value("${travel.jev.policy.hitl.min-confidence:0.75}") double hitlConfidence,
