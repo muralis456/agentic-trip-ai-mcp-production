@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
  * PostgreSQL-specific SQL is intentionally isolated here rather than in the RAG service.
  */
 @org.springframework.stereotype.Repository
-public interface RagKnowledgeRepository extends Repository<Object, String> {
+public interface RagKnowledgeRepository extends Repository<RagVectorStoreEntity, java.util.UUID> {
 
     @Query(value = "select count(*) from vector_store", nativeQuery = true)
     int countDocuments();
