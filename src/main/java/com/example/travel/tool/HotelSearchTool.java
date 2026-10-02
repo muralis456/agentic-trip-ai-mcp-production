@@ -2,9 +2,13 @@ package com.example.travel.tool;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Component;
+
+import com.example.travel.model.HotelOption;
+import com.example.travel.model.SearchHit;
 import com.example.travel.service.McpHotelSearchClient;
+
 
 @Component
 public class HotelSearchTool {
@@ -28,10 +32,10 @@ public class HotelSearchTool {
         String style = travelStyle == null || travelStyle.isBlank() ? "balanced" : travelStyle;
         var mcpHotels = mcpHotelSearchClient.getIfAvailable();
         if (mcpHotels != null) {
-            java.math.BigDecimal ceiling = hotelBudget == null ? null : java.math.BigDecimal.valueOf(hotelBudget);
+            BigDecimal ceiling = hotelBudget == null ? null : BigDecimal.valueOf(hotelBudget);
             return mcpHotels.search(destination, style, budget, null, null, 2, 0, ceiling).stream()
-                .map(com.example.travel.model.HotelOption::toDisplay)
-                .collect(java.util.stream.Collectors.joining("\n"));
+                .map(HotelOption::toDisplay)
+                .collect(Collectors.joining("\n"));
         }
         String query = (budget ? "Budget affordable hotels in " : "Best hotels in ") + destination
                 + " including location, price range, family suitability, and guest ratings. Style=" + style
@@ -39,11 +43,11 @@ public class HotelSearchTool {
         return tavilySearchTool.search(query);
     }
 
-    public java.util.List<com.example.travel.model.SearchHit> searchHits(String destination, String travelStyle, boolean cheaper) {
+    public List<SearchHit> searchHits(String destination, String travelStyle, boolean cheaper) {
         var mcpHotels = mcpHotelSearchClient.getIfAvailable();
         if (mcpHotels != null) {
             return mcpHotels.search(destination, travelStyle, cheaper).stream()
-                    .map(hotel -> new com.example.travel.model.SearchHit(hotel.getName(), hotel.getNotes(), ""))
+                    .map(hotel -> new SearchHit(hotel.getName(), hotel.getNotes(), ""))
                     .toList();
         }
         boolean budget = cheaper;
