@@ -1,5 +1,6 @@
 package com.example.travel.graph;
 
+import com.example.travel.model.GoalEvaluation;
 import com.example.travel.dto.TravelRequest;
 import com.example.travel.model.AgentDecision;
 import com.example.travel.model.AgentPlan;
@@ -222,7 +223,7 @@ public class TravelState extends AgentState {
         input.put(BUDGET_LABEL, firstNonBlank(currentTurnBudget, request.getBudget(), "medium"));
         input.put(TRAVEL_STYLE, firstNonBlank(request.getTravelStyle(), "balanced"));
         input.put(RETRY_COUNT, 0);
-        input.put(GOAL_EVALUATION, new com.example.travel.model.GoalEvaluation());
+        input.put(GOAL_EVALUATION, new GoalEvaluation());
         input.put(PLAN_VERSION, 1);
         input.put(MAX_RETRIES, 2);
         input.put(COST_FACTOR, BigDecimal.ONE);
