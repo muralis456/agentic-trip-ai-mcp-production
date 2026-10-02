@@ -39,8 +39,6 @@ public class RagNode implements NodeAction<TravelState> {
                     skipped.putAll(TravelState.trace(TravelGraphNodes.RAG, "skip", "jev decision=" + route.route()));
                     return skipped;
                 }
-                // AgenticRagService owns retrieval mechanics. Jev only chooses the evidence route.
-                state = new TravelState(new java.util.LinkedHashMap<>(state.data()));
             }
             AgenticRagService.RagResult result = agenticRagService.run(state);
             Map<String, Object> updates = new LinkedHashMap<>();
