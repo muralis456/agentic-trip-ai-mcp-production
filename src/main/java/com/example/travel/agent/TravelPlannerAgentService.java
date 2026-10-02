@@ -1,5 +1,8 @@
 package com.example.travel.agent;
 
+import com.example.travel.exception.GraphStopRequestedException;
+import com.example.travel.support.TripSlotHeuristics;
+import com.example.travel.service.TripHistoryService;
 import com.example.travel.model.GoalEvaluation;
 import com.example.travel.config.TravelModelsProperties;
 import com.example.travel.dto.AgentExecutionDetails;
@@ -14,7 +17,7 @@ import com.example.travel.graph.TravelState;
 import com.example.travel.model.ModificationRequest;
 import com.example.travel.model.StoppedRunActionDecision;
 import com.example.travel.model.AgentPlan;
-import com.example.travel.model.AgentTask;
+import AgentTask;
 import com.example.travel.model.IntentPlan;
 import com.example.travel.service.AgentExecutionBudget;
 import com.example.travel.service.ConversationMemoryService;
@@ -27,7 +30,7 @@ import com.example.travel.service.AgentRunAdmissionService;
 import com.example.travel.service.AgentRunControlService;
 import com.example.travel.service.ApiRateLimitService;
 import com.example.travel.exception.TooManyRequestsException;
-import com.example.travel.exception.GraphStopRequestedException;
+import GraphStopRequestedException;
 import com.example.travel.exception.ResourceNotFoundException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -83,7 +86,7 @@ public class TravelPlannerAgentService {
     private final ApiRateLimitService apiRateLimitService;
     private final ConversationMemoryService conversationMemoryService;
     private final TripPlanAssembler tripPlanAssembler;
-    private final com.example.travel.service.TripHistoryService tripHistoryService;
+    private final TripHistoryService tripHistoryService;
     private final ObjectMapper objectMapper;
     private final int maxRetries;
 
@@ -105,7 +108,7 @@ public class TravelPlannerAgentService {
             ApiRateLimitService apiRateLimitService,
             ConversationMemoryService conversationMemoryService,
             TripPlanAssembler tripPlanAssembler,
-            com.example.travel.service.TripHistoryService tripHistoryService,
+            TripHistoryService tripHistoryService,
             ObjectMapper objectMapper,
             @Value("${travel.graph.max-retries:2}") int maxRetries) {
 
@@ -703,8 +706,8 @@ public class TravelPlannerAgentService {
     private boolean isHighConfidenceFullTripRequest(String request) {
         if (request == null || request.isBlank()) return false;
         String text = request.toLowerCase(java.util.Locale.ROOT);
-        return com.example.travel.support.TripSlotHeuristics.hasRouteHint(request)
-                && com.example.travel.support.TripSlotHeuristics.hasDurationHint(request)
+        return TripSlotHeuristics.hasRouteHint(request)
+                && TripSlotHeuristics.hasDurationHint(request)
                 && text.matches(".*(?:under|below|within|budget|₹|rs\\.?|inr|usd|\\$|\\u20ac|\\u00a3)\\s*.*");
     }
 
@@ -1153,7 +1156,7 @@ public class TravelPlannerAgentService {
                 || "all".equals(requested)) {
             recoveryTasks = failedTasks;
         } else {
-            com.example.travel.model.AgentTask target = current.agentPlan().task(requested);
+            AgentTask target = current.agentPlan().task(requested);
             if (target == null || !target.isRequired()
                     || target.getStatus() != AgentTask.Status.FAILED) {
                 throw new IllegalArgumentException("Unknown or non-failed retry task: " + taskId);
@@ -1200,13 +1203,13 @@ public class TravelPlannerAgentService {
             Future<TravelPlanResponse> future = travelPlanExecutor.submit(() -> {
                 try {
                     if (runControlService.isStopRequested(key)) {
-                        throw new com.example.travel.exception.GraphStopRequestedException();
+                        throw new GraphStopRequestedException();
                     }
 
                     travelGraph.invoke(GraphInput.resume(decision), config);
 
                     if (runControlService.isStopRequested(key) || Thread.currentThread().isInterrupted()) {
-                        throw new com.example.travel.exception.GraphStopRequestedException();
+                        throw new GraphStopRequestedException();
                     }
 
                     TravelState state = requireCheckpointState(key);
@@ -1218,7 +1221,7 @@ public class TravelPlannerAgentService {
                     return response;
                 } catch (Exception ex) {
                     if (runControlService.isStopRequested(key)
-                            || ex instanceof com.example.travel.exception.GraphStopRequestedException
+                            || ex instanceof GraphStopRequestedException
                             || Thread.currentThread().isInterrupted()) {
                         try {
                             runControlService.markStopped(key);
