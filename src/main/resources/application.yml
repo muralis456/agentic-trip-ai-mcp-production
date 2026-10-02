@@ -95,6 +95,13 @@ spring:
         connection:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
+  jev:
+    # Disabled by default until a TypeSafe API key is configured.
+    enabled: ${TRAVEL_JEV_ENABLED:false}
+    base-url: ${TRAVEL_JEV_BASE_URL:https://api.typesafe.ai}
+    api-key: ${TRAVEL_JEV_API_KEY:}
+    model: ${TRAVEL_JEV_MODEL:jev-latest}
+    minimum-confidence: ${TRAVEL_JEV_MINIMUM_CONFIDENCE:0.75}
   security:
     bootstrap-admin:
       # Optional first-admin bootstrap. Set both environment variables together.
