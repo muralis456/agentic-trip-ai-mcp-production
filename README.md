@@ -116,7 +116,7 @@ Requests that semantically ask to recall/reopen a previous trip are classified b
 
 ## P0 production hardening
 
-See `P0-PRODUCTION-SECURITY.md` for the authentication, authorization, Flyway, bounded execution, rate limiting, and durable SSE changes included in this build.
+See `P0-PRODUCTION-SECURITY.md` for the authentication, authorization, bounded execution, rate limiting, and durable SSE changes included in this build.
 
 
 ### Security configuration
