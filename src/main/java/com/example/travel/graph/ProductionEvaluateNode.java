@@ -12,6 +12,7 @@ public class ProductionEvaluateNode implements NodeAction<TravelState> {
     private final GoalEvaluationService evaluator;
     private final com.example.travel.observability.AgentObservabilityService observability;
     private final java.util.Optional<JevGoalDecisionService> jevGoalDecision;
+    @org.springframework.beans.factory.annotation.Autowired
     public ProductionEvaluateNode(GoalEvaluationService evaluator,
                                   com.example.travel.observability.AgentObservabilityService observability,
                                   java.util.Optional<JevGoalDecisionService> jevGoalDecision){
