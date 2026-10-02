@@ -176,13 +176,30 @@ public class JevDecisionClient {
     }
 
     private static JsonNode validateAnswer(JsonNode response, String expectedType) {
-        JsonNode answer = response.path("answers").path("decision");
-        if (!expectedType.equals(answer.path("type").asString())) {
+        JsonNode answers = response.path("answers");
+        JsonNode answer = answers.path("decision");
+
+        if (answer.isMissingNode() || answer.isNull()) {
             throw new IllegalStateException(
-                    "Typed decision provider returned type '" +
-                    answer.path("type").asString("") +
-                    "', expected '" + expectedType + "'.");
+                    "Typed decision provider returned no answer for question 'decision'.");
         }
+
+        // TypeSafe/Ollama System One responses identify the question by name
+        // and return the type-specific answer fields directly. The response
+        // does not contain answers.decision.type.
+        String answerField = switch (expectedType) {
+            case "choice" -> "choice";
+            case "noul" -> "noul";
+            case "score" -> "score";
+            default -> throw new IllegalArgumentException("Unsupported decision type: " + expectedType);
+        };
+
+        if (answer.path(answerField).isMissingNode()) {
+            throw new IllegalStateException(
+                    "Typed decision provider returned an invalid " + expectedType +
+                    " answer for question 'decision'.");
+        }
+
         return answer;
     }
 
