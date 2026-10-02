@@ -27,6 +27,11 @@ public class FlightNode implements NodeAction<TravelState> {
         this.jevProviderDecision = jevProviderDecision;
     }
 
+    /** Backward-compatible constructor for existing tests. */
+    public FlightNode(FlightAgentService flightAgentService) {
+        this(flightAgentService, java.util.Optional.empty());
+    }
+
     @Override
     public Map<String, Object> apply(TravelState state) {
         if (!state.shouldExecuteTask("flights")) {
