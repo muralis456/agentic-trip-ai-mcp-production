@@ -83,7 +83,7 @@ public class FlightAgentService {
         }
         List<FlightOption> flights = mcpClient == null
                 ? flightSearchTool.search(originIata, destinationIata, outboundDate)
-                : mcpClient.search(originIata, destinationIata, outboundDate, state.travelers(), state.userRequest());
+                : mcpClient.search(originIata, destinationIata, outboundDate, state.travelers(), state.userRequest(), state.flightProvider());
         flights = normalizeResults(flights, "outbound", outboundDate, state.datesFlexible(), originIata, destinationIata);
 
         if (state.roundTrip()) {
@@ -109,7 +109,7 @@ public class FlightAgentService {
             List<FlightOption> returns = mcpClient == null
                     ? flightSearchTool.search(destinationIata, originIata, returnDate)
                     : mcpClient.search(destinationIata, originIata, returnDate, state.travelers(),
-                    state.userRequest() + " Return journey");
+                    state.userRequest() + " Return journey", state.flightProvider());
             // A provider may ignore the requested reverse route. Never relabel a
             // BLR->NRT result as a return NRT->BLR flight; discard route-mismatched
             // records instead of presenting incorrect round-trip data.
