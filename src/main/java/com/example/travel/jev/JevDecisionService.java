@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import com.example.travel.observability.AgentObservabilityService;
 
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -65,9 +66,9 @@ public class JevDecisionService {
                     "jev.choice decision kind={} choice={} confidence={} selectedProbability={} margin={} accepted={} model={} durationMs={}",
                     kind,
                     safe(decision.choice()),
-                    decision.confidence(),
-                    selectedProbability,
-                    margin,
+                    fmt(decision.confidence()),
+                    fmt(selectedProbability),
+                    fmt(margin),
                     accepted,
                     safe(decision.model()),
                     elapsedMs(started));
@@ -110,7 +111,7 @@ public class JevDecisionService {
                     elapsedMs(started));
             log.info(
                     "jev.noul decision probability={} accepted={} durationMs={}",
-                    d.probability(),
+                    fmt(d.probability()),
                     accepted,
                     elapsedMs(started));
             return new YesNoDecision(d.probability(), accepted);
@@ -140,8 +141,8 @@ public class JevDecisionService {
                     elapsedMs(started));
             log.info(
                     "jev.score decision score={} confidence={} accepted={} durationMs={}",
-                    d.score(),
-                    d.confidence(),
+                    fmt(d.score()),
+                    fmt(d.confidence()),
                     accepted,
                     elapsedMs(started));
             return new ScoreDecision(d.score(), d.confidence(), accepted);
@@ -157,6 +158,10 @@ public class JevDecisionService {
 
     private static String safe(String value) {
         return value == null ? "" : value.replace("\n", " ").trim();
+    }
+
+    private static String fmt(double value) {
+        return String.format(Locale.ROOT, "%.2f", value);
     }
 
     private static long elapsedMs(long started) {
