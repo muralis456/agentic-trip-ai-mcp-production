@@ -254,3 +254,37 @@ Authorization:
 The password is sent only as part of the HTTPS Basic Authentication exchange in production. Spring Security loads the account from `app_user`, converts its database role (for example `ADMIN`) into the `ROLE_ADMIN` authority, and `@PreAuthorize("hasRole('ADMIN')")` enforces the authorization check.
 
 Do not send `role` in the request body or accept a client-supplied role as an authorization decision.
+
+
+## Jev decision layer
+
+This branch introduces an optional TypeSafe Jev decision layer. Jev is used for bounded, typed decisions rather than free-form generation. TypeSafe's System One API accepts application state plus typed questions such as Choice, Noul, and Score and returns structured answers with probabilities/confidence. See the official API documentation for the current request/response schema.
+
+The first integration is MCP tool selection:
+
+```text
+User task
+   ↓
+Jev Choice decision
+   ↓
+high confidence → selected MCP tool
+   ↓
+ToolGovernanceService
+   ↓
+MCP invocation
+
+low confidence / Jev unavailable
+   ↓
+existing LLM selector fallback
+```
+
+Jev is disabled by default. To enable it:
+
+```text
+TRAVEL_JEV_ENABLED=true
+TRAVEL_JEV_API_KEY=<TypeSafe API key>
+TRAVEL_JEV_MODEL=jev-latest
+TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
+```
+
+The application remains authoritative for policy, authorization, tool allow-lists, confidence thresholds, retries, and execution. Jev only supplies a typed decision. The next planned integrations are goal evaluation, replan-action selection, model routing, and human-review decisions.
