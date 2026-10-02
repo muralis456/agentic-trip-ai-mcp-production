@@ -17,7 +17,7 @@ public class JevGoalDecisionService {
         if(evaluation.getStatus()==GoalEvaluation.Status.NEEDS_USER) return new Decision("HITL",1,true,"user input is required");
         String fallback=evaluation.isRecoverable()?"REPLAN":"HITL";
         try {
-            var d=decisions.choose(Map.of("goal",state.agentPlan().getGoal(),"status",evaluation.getStatus().name(),"reason",evaluation.getReason(),"unmet",evaluation.getUnmetCriteria(),"blocking",evaluation.getBlockingIssues()),
+            var d=decisions.choose(Map.of("goal",state.agentPlan().getGoal(),"status",evaluation.getStatus().name(),"reason",evaluation.getReason(),"unmet",evaluation.getUnmetCriteria(),"blocking",evaluation.getBlockingIssues()==null?java.util.List.of():evaluation.getBlockingIssues()),
                 "Choose the next lifecycle route. Do not claim success when required outcomes are missing.",
                 Map.of("REPLAN","Missing outcomes are recoverable through a changed execution strategy.","HITL","Automation cannot safely recover; ask the user for a decision or clarification.","ACHIEVED","All required outcomes are already satisfied."));
             String choice=d.choice().toUpperCase();
