@@ -60,6 +60,7 @@ public final class TravelStateKeys {
         public static final String HOTEL_CHEAPER = "hotelCheaper";
         public static final String HOTEL_BUDGET = "hotelBudget";
         public static final String FLIGHT_PREFERENCE = "flightPreference";
+        public static final String FLIGHT_PROVIDER = "flightProvider";
         public static final String TRIP_REQUIREMENTS = "tripRequirements";
 
         private Preferences() {
