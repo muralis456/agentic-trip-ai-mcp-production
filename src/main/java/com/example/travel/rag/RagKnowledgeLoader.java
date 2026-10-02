@@ -14,8 +14,6 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.core.annotation.Order;
 
 import java.nio.charset.StandardCharsets;
@@ -38,16 +36,17 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
     private static final Logger log = LoggerFactory.getLogger(RagKnowledgeLoader.class);
 
     private final VectorStore vectorStore;
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final RagKnowledgeRepository knowledgeRepository;
     private final AirportLocationRepository airportRepository;
     private final ResourcePatternResolver resourceResolver;
     private final boolean seedOnEmpty;
 
     public RagKnowledgeLoader(VectorStore vectorStore,
+                              RagKnowledgeRepository knowledgeRepository,
                               AirportLocationRepository airportRepository,
                               @Value("${travel.rag.seed-on-empty:true}") boolean seedOnEmpty) {
         this.vectorStore = vectorStore;
+        this.knowledgeRepository = knowledgeRepository;
         this.airportRepository = airportRepository;
         this.resourceResolver = new PathMatchingResourcePatternResolver();
         this.seedOnEmpty = seedOnEmpty;
@@ -67,12 +66,11 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
 
     private synchronized Map<String, Object> syncKnowledge(boolean forceReindex) {
         try {
-            Number countResult = (Number) entityManager.createNativeQuery("select count(*) from vector_store").getSingleResult();
-            int count = countResult.intValue();
+            int count = knowledgeRepository.countDocuments();
             boolean empty = count == 0;
 
             if (forceReindex) {
-                entityManager.createNativeQuery("truncate table vector_store").executeUpdate();
+                knowledgeRepository.truncateVectorStore();
                 empty = true;
             }
 
@@ -95,8 +93,7 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
 
             // City/airport data is dynamic application data, so synchronize it on every startup.
             int cityDocuments = syncAirportCityKnowledge();
-            Number totalResult = (Number) entityManager.createNativeQuery("select count(*) from vector_store").getSingleResult();
-            int total = totalResult.intValue();
+            int total = knowledgeRepository.countDocuments();
             return Map.of(
                     "bundledDocuments", bundledDocuments,
                     "bundledChunks", bundledChunks,
@@ -112,9 +109,7 @@ public class RagKnowledgeLoader implements org.springframework.boot.CommandLineR
 
     private int syncAirportCityKnowledge() {
         // Remove only generated city records; never touch hand-authored travel/project knowledge.
-        entityManager.createNativeQuery("delete from vector_store where metadata ->> 'type' = :type")
-                .setParameter("type", AIRPORT_CITY_TYPE)
-                .executeUpdate();
+        knowledgeRepository.deleteGeneratedAirportCityKnowledge(AIRPORT_CITY_TYPE);
 
         List<AirportLocation> airports = airportRepository.findAll();
         if (airports.isEmpty()) {
