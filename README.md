@@ -205,3 +205,10 @@ This build hardens user Stop as a control-flow operation rather than a provider/
 - SSE exposes `stop_requested` followed by `stopped` so the UI transitions cleanly from Working → Stopping → Stopped.
 
 Full Maven compilation was not run in this environment because Maven is not installed. The embedded JavaScript was syntax-checked with Node.js and the distribution ZIP was integrity-checked with `unzip -t`.
+
+
+### RAG reindex authorization
+
+`/api/rag/reindex` is a destructive maintenance operation because it truncates and rebuilds the pgvector knowledge index. It is therefore restricted to authenticated users with the `ADMIN` role.
+
+Normal application users are created with the `USER` role. Promote a controlled maintenance account to `ADMIN` through your normal database administration process; do not expose an admin-registration flow to the public application.
