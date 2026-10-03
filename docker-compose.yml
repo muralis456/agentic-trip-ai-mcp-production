@@ -38,6 +38,10 @@ services:
         condition: service_started
     ports:
       - "8081:8081"
+    # Force the Docker profile at the JVM command line as well as via environment.
+    # This prevents Spring Boot's spring.profiles.default=dev from being selected
+    # when the container is recreated by Docker Desktop.
+    command: ["java", "-jar", "/app/app.jar", "--spring.profiles.active=docker"]
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_URL: jdbc:postgresql://postgres:5432/travel_agent
@@ -54,6 +58,7 @@ services:
 
       TRAVEL_MCP_CLIENT_ENABLED: ${TRAVEL_MCP_CLIENT_ENABLED:-true}
       TRAVEL_MCP_SERVER_URL: ${TRAVEL_MCP_SERVER_URL:-http://host.docker.internal:8090}
+      TRAVEL_MCP_SERVER_ENDPOINT: ${TRAVEL_MCP_SERVER_ENDPOINT:-/mcp}
 
       # Ollama remains installed/running on the Windows host.
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
