@@ -1,0 +1,32 @@
+server:
+  port: 8081
+
+spring:
+  thymeleaf:
+    cache: true
+  mail:
+    host: ${MAIL_HOST:mailpit}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/travel_agent}
+    username: ${DB_USERNAME:travel_app}
+    password: ${DB_PASSWORD:travel_app_local}
+
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
+
+travel:
+  auth:
+    reset-base-url: ${TRAVEL_AUTH_RESET_BASE_URL:http://localhost:8081}
+    mail-from: ${TRAVEL_AUTH_MAIL_FROM:noreply@agentictrip.local}
+  jev:
+    base-url: ${TRAVEL_JEV_BASE_URL:http://ollama:11434}
+  mailpit:
+    enabled: false
