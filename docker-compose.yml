@@ -25,15 +25,6 @@ services:
       - "1025:1025"
       - "8025:8025"
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: agentic-trip-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-
   app:
     build:
       context: .
@@ -43,8 +34,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      ollama:
-        condition: service_started
       mailpit:
         condition: service_started
     ports:
@@ -55,20 +44,25 @@ services:
       DB_USERNAME: travel_app
       DB_PASSWORD: ${DB_PASSWORD:-travel_app_local}
       SESSION_COOKIE_SECURE: "false"
+
       MAIL_HOST: mailpit
       MAIL_PORT: "1025"
       MAIL_SMTP_AUTH: "false"
       MAIL_SMTP_STARTTLS: "false"
       TRAVEL_AUTH_MAIL_FROM: noreply@agentictrip.local
       TRAVEL_AUTH_RESET_BASE_URL: http://localhost:8081
+
       TRAVEL_MCP_CLIENT_ENABLED: ${TRAVEL_MCP_CLIENT_ENABLED:-true}
       TRAVEL_MCP_SERVER_URL: ${TRAVEL_MCP_SERVER_URL:-http://host.docker.internal:8090}
-      OLLAMA_BASE_URL: http://ollama:11434
-      TRAVEL_JEV_BASE_URL: http://ollama:11434
+
+      # Ollama remains installed/running on the Windows host.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      TRAVEL_JEV_BASE_URL: ${TRAVEL_JEV_BASE_URL:-http://host.docker.internal:11434}
       TRAVEL_JEV_ENABLED: ${TRAVEL_JEV_ENABLED:-true}
       TRAVEL_JEV_PROVIDER: ${TRAVEL_JEV_PROVIDER:-ollama}
       TRAVEL_JEV_API_KEY: ${TRAVEL_JEV_API_KEY:-ollama}
       TRAVEL_JEV_MODEL: ${TRAVEL_JEV_MODEL:-tev1:4b}
+
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       AVIATIONSTACK_API_KEY: ${AVIATIONSTACK_API_KEY:-}
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
@@ -81,4 +75,3 @@ services:
 
 volumes:
   postgres-data:
-  ollama-data:
