@@ -1,6 +1,6 @@
 spring:
   config:
-    import: vault:///agentic-trip-ai
+    import: vault://secret/agentic-trip-ai
 
   cloud:
     vault:
