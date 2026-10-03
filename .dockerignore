@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.vscode
+*.iml
+target/
+data/
+*.log
+*.bak
+node_modules/
+README.md
+snippet.txt
+tgc.txt
+css.txt
+extracted.js
+script.js
