@@ -1,3 +1,9 @@
+secrets:
+  vault_role_id:
+    file: ../vault/credentials/agentic-trip-ai-role-id
+  vault_secret_id:
+    file: ../vault/credentials/agentic-trip-ai-secret-id
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -38,15 +44,15 @@ services:
         condition: service_started
     ports:
       - "8081:8081"
-    # Force the Docker profile at the JVM command line as well as via environment.
-    # This prevents Spring Boot's spring.profiles.default=dev from being selected
-    # when the container is recreated by Docker Desktop.
-    command: ["java", "-jar", "/app/app.jar", "--spring.profiles.active=docker"]
+    secrets:
+      - vault_role_id
+      - vault_secret_id
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      VAULT_URI: ${VAULT_URI:-http://host.docker.internal:8200}
+
       DB_URL: jdbc:postgresql://postgres:5432/travel_agent
       DB_USERNAME: travel_app
-      DB_PASSWORD: ${DB_PASSWORD:-travel_app_local}
       SESSION_COOKIE_SECURE: "false"
 
       MAIL_HOST: mailpit
@@ -60,17 +66,12 @@ services:
       TRAVEL_MCP_SERVER_URL: ${TRAVEL_MCP_SERVER_URL:-http://host.docker.internal:8090}
       TRAVEL_MCP_SERVER_ENDPOINT: ${TRAVEL_MCP_SERVER_ENDPOINT:-/mcp}
 
-      # Ollama remains installed/running on the Windows host.
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       TRAVEL_JEV_BASE_URL: ${TRAVEL_JEV_BASE_URL:-http://host.docker.internal:11434}
       TRAVEL_JEV_ENABLED: ${TRAVEL_JEV_ENABLED:-true}
       TRAVEL_JEV_PROVIDER: ${TRAVEL_JEV_PROVIDER:-ollama}
       TRAVEL_JEV_API_KEY: ${TRAVEL_JEV_API_KEY:-ollama}
       TRAVEL_JEV_MODEL: ${TRAVEL_JEV_MODEL:-tev1:4b}
-
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      AVIATIONSTACK_API_KEY: ${AVIATIONSTACK_API_KEY:-}
-      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health >/dev/null 2>&1 || exit 1"]
       interval: 10s
