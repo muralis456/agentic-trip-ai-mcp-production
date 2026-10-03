@@ -51,9 +51,10 @@ public class JevDecisionService {
         long started = System.nanoTime();
         try {
             JevDecisionClient.JevChoiceDecision decision = client.choose(state, instructions, criteria);
-            boolean accepted = policy.accepts(kind, decision);
-            double selectedProbability = policy.selectedProbability(decision);
-            double margin = policy.margin(decision);
+            JevDecisionPolicy.Acceptance acceptance = policy.acceptanceReason(kind, decision);
+            boolean accepted = acceptance.accepted();
+            double selectedProbability = acceptance.selectedProbability();
+            double margin = acceptance.margin();
             String outcome = accepted ? "accepted" : "rejected_policy";
 
             observability.recordJevDecision(
@@ -63,13 +64,14 @@ public class JevDecisionService {
                     elapsedMs(started));
 
             log.info(
-                    "jev.choice decision kind={} choice={} confidence={} selectedProbability={} margin={} accepted={} model={} durationMs={}",
+                    "jev.choice decision kind={} choice={} confidence={} selectedProbability={} margin={} accepted={} acceptanceReason={} model={} durationMs={}",
                     kind,
                     safe(decision.choice()),
                     fmt(decision.confidence()),
                     fmt(selectedProbability),
                     fmt(margin),
                     accepted,
+                    acceptance.reason(),
                     safe(decision.model()),
                     elapsedMs(started));
 
