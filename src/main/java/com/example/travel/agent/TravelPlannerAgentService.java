@@ -1327,7 +1327,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 key,
                 executionBudget.capture(),
-                previousPolicy(key));
+                previousPolicy(key),
+                userId);
 
         TravelState state;
 
