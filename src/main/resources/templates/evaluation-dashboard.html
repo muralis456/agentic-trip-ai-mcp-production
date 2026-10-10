@@ -35,7 +35,7 @@
   </section>
   <section class="card" style="margin-top:14px"><h2 class="section-title">Recent evaluation traces <span class="pill">LATEST 50 · CLICK A ROW FOR EVIDENCE</span></h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Goal / destination</th><th>Status</th><th>Score</th></tr></thead><tbody id="traces"><tr><td colspan="5" class="empty">Loading traces…</td></tr></tbody></table></div></section>
   <section class="card detail" id="detail"><h2 class="section-title">Evaluation evidence <button class="btn" id="closeDetail">Close</button></h2><div id="detailSummary" class="sub"></div><div class="criteria" style="margin-top:15px"><div><h4>SATISFIED CRITERIA</h4><ul id="satisfied"></ul></div><div><h4>UNMET CRITERIA</h4><ul id="unmet"></ul></div><div><h4>BLOCKING ISSUES</h4><ul id="blockers"></ul></div></div></section>
-  <div class="footer"><span>Recent evaluation traces are bounded and process-local; they reset on restart.</span><span id="updated">Not refreshed yet</span></div>
+  <div class="footer"><span>Evaluation history is stored in PostgreSQL and survives application restarts.</span><span id="updated">Not refreshed yet</span></div>
 </div>
 <script>
 (() => {
