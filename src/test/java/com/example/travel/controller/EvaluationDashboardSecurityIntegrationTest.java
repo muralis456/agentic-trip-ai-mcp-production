@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Import;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
@@ -85,6 +86,7 @@ class EvaluationDashboardSecurityIntegrationTest {
     }
 
     @TestConfiguration(proxyBeanMethods = false)
+    @EnableWebSecurity
     static class TestUsers {
         @Bean
         MeterRegistry meterRegistry() {
