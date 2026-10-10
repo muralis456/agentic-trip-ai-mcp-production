@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
@@ -28,7 +29,11 @@ public class AgentEvaluationLedger {
         this.objectMapper = objectMapper;
     }
 
-    @Transactional
+    /**
+     * Run outside any caller transaction so a telemetry write failure cannot mark the
+     * travel-planning transaction rollback-only. Repository writes use their own transaction.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void record(TravelState state, GoalEvaluation evaluation) {
         if (evaluation == null) return;
         String userId = safe(state == null ? null : state.userId(), 120);
@@ -59,7 +64,13 @@ public class AgentEvaluationLedger {
         row.setSatisfiedCriteriaJson(writeJson(evaluation.getSatisfiedCriteria()));
         row.setUnmetCriteriaJson(writeJson(evaluation.getUnmetCriteria()));
         row.setBlockingIssuesJson(writeJson(evaluation.getBlockingIssues()));
-        repository.save(row);
+        try {
+            repository.save(row);
+        } catch (RuntimeException ex) {
+            // Evaluation history is observability; a DB outage must not fail trip execution.
+            log.warn("Could not persist goal evaluation telemetry; continuing without durable event ({})",
+                    ex.getClass().getSimpleName());
+        }
     }
 
     @Transactional(readOnly = true)
