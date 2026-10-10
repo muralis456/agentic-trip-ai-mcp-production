@@ -30,9 +30,10 @@
     <article class="card"><h2 class="section-title">Model usage <span class="pill">METER REGISTRY</span></h2><div class="table-wrap"><table><thead><tr><th>Model</th><th>Calls</th><th>Input tokens</th><th>Output tokens</th><th>Cost</th></tr></thead><tbody id="models"><tr><td colspan="5" class="empty">Loading usage…</td></tr></tbody></table></div><div class="notice" id="costNotice">Model cost is shown only when provider/model pricing is configured. This dashboard will not invent prices.</div></article>
   </section>
   <section class="grid two" style="margin-top:14px">
-    <article class="card"><h2 class="section-title">Recent evaluation traces <span class="pill">LATEST 50</span></h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Goal / destination</th><th>Status</th><th>Score</th></tr></thead><tbody id="traces"><tr><td colspan="5" class="empty">Loading traces…</td></tr></tbody></table></div></article>
-    <article class="card"><h2 class="section-title">Runtime signals <span class="pill">SINCE STARTUP</span></h2><div class="table-wrap"><table><tbody id="runtime"><tr><td class="empty">Loading runtime signals…</td></tr></tbody></table></div><div class="sub" style="margin-top:10px">These counters are operational metrics; they do not prove that a trip met its requirements.</div></article>
+    <article class="card"><h2 class="section-title">Goal score trend <span class="pill">LATEST EVALUATIONS</span></h2><div class="chart"><svg id="scoreChart" viewBox="0 0 600 220" role="img" aria-label="Goal evaluation scores over time" style="width:100%;height:100%"><text x="300" y="110" text-anchor="middle" fill="#93a5bd">Waiting for evaluation data…</text></svg></div><div class="legend"><span><i class="dot"></i>Evaluation score (0–1)</span></div></article>
+    <article class="card"><h2 class="section-title">Runtime signals <span class="pill">SINCE STARTUP</span></h2><div class="table-wrap"><table><tbody id="runtime"><tr><td class="empty">Loading runtime signals…</td></tr></tbody></table></div><div class="sub" style="margin-top:10px">Operational counters do not prove that a trip met its requirements.</div></article>
   </section>
+  <section class="card" style="margin-top:14px"><h2 class="section-title">Recent evaluation traces <span class="pill">LATEST 50 · CLICK A ROW FOR EVIDENCE</span></h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Goal / destination</th><th>Status</th><th>Score</th></tr></thead><tbody id="traces"><tr><td colspan="5" class="empty">Loading traces…</td></tr></tbody></table></div></section>
   <section class="card detail" id="detail"><h2 class="section-title">Evaluation evidence <button class="btn" id="closeDetail">Close</button></h2><div id="detailSummary" class="sub"></div><div class="criteria" style="margin-top:15px"><div><h4>SATISFIED CRITERIA</h4><ul id="satisfied"></ul></div><div><h4>UNMET CRITERIA</h4><ul id="unmet"></ul></div><div><h4>BLOCKING ISSUES</h4><ul id="blockers"></ul></div></div></section>
   <div class="footer"><span>Recent evaluation traces are bounded and process-local; they reset on restart.</span><span id="updated">Not refreshed yet</span></div>
 </div>
@@ -58,6 +59,24 @@
     const max = Math.max(1,...outcomes.map(x=>Number(x[1]||0)));
     $('outcomeBars').innerHTML = outcomes.map(x=>'<div class="bar-group"><div class="bar" title="'+esc(x[0]+': '+x[1])+'" style="height:'+Math.max(2,Number(x[1]||0)/max*100)+'%;background:'+x[2]+'"></div></div>').join('');
     $('outcomeLabels').innerHTML = outcomes.map(x=>'<span>'+esc(x[0])+'<br>'+fmt(x[1])+'</span>').join('');
+    const scoreRows = (data.traces || []).slice().reverse();
+    if (!scoreRows.length) {
+      $('scoreChart').innerHTML = '<text x="300" y="110" text-anchor="middle" fill="#93a5bd">No goal evaluations recorded yet</text>';
+    } else {
+      const left=34, right=580, top=18, bottom=184;
+      const points=scoreRows.map((t,i)=> {
+        const x=scoreRows.length===1 ? (left+right)/2 : left+i*(right-left)/(scoreRows.length-1);
+        const score=Math.max(0,Math.min(1,Number(t.score||0)));
+        return {x,y:bottom-score*(bottom-top),score,t};
+      });
+      const grid=[0,0.25,0.5,0.75,1].map(v=>{
+        const y=bottom-v*(bottom-top);
+        return '<line x1="'+left+'" y1="'+y+'" x2="'+right+'" y2="'+y+'" stroke="#243249" stroke-width="1"/><text x="24" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="#93a5bd">'+v.toFixed(2)+'</text>';
+      }).join('');
+      const poly=points.map(p=>p.x+','+p.y).join(' ');
+      const dots=points.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="#4a9cff"><title>'+esc(p.t.status)+' · '+p.score.toFixed(3)+' · '+esc(p.t.timestamp)+'</title></circle>').join('');
+      $('scoreChart').innerHTML=grid+'<polyline points="'+poly+'" fill="none" stroke="#4a9cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'+dots+'<text x="'+left+'" y="207" font-size="10" fill="#93a5bd">'+esc(time(points[0].t.timestamp))+'</text><text x="'+right+'" y="207" text-anchor="end" font-size="10" fill="#93a5bd">'+esc(time(points[points.length-1].t.timestamp))+'</text>';
+    }
     const models = data.modelUsage || [];
     $('models').innerHTML = models.length ? models.map(m=>'<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+(m.estimatedCostUsd == null ? '<span class="sub">Not configured</span>' : '$'+Number(m.estimatedCostUsd).toFixed(5))+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">No LLM usage recorded yet</td></tr>';
     $('costNotice').textContent = data.costNotice || 'Estimated cost requires provider-specific model pricing.';
