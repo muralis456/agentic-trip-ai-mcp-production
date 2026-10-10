@@ -217,18 +217,19 @@ class GraphTransitionTest {
     void addingDestinationInvalidatesAllDestinationDependentResults() {
         var modification = com.example.travel.agent.ModificationAgentService.heuristic("Add destination Kyoto");
         modification.setDestination("Kyoto");
-        TravelState state = state(Map.of(
-                TravelState.COST_FACTOR, BigDecimal.ONE,
-                TravelState.TRAVEL_STYLE, "balanced",
-                TravelState.HOTEL_CHEAPER, Boolean.FALSE,
-                TravelState.FLIGHT_PREFERENCE, "balanced",
-                TravelState.MODIFICATION, modification,
-                TravelState.NEEDS_FLIGHTS, Boolean.TRUE,
-                TravelState.NEEDS_HOTELS, Boolean.TRUE,
-                TravelState.NEEDS_RESEARCH, Boolean.TRUE,
-                TravelState.NEEDS_WEATHER, Boolean.TRUE,
-                TravelState.NEEDS_BUDGET, Boolean.TRUE,
-                TravelState.NEEDS_ITINERARY, Boolean.TRUE));
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put(TravelState.COST_FACTOR, BigDecimal.ONE);
+        values.put(TravelState.TRAVEL_STYLE, "balanced");
+        values.put(TravelState.HOTEL_CHEAPER, Boolean.FALSE);
+        values.put(TravelState.FLIGHT_PREFERENCE, "balanced");
+        values.put(TravelState.MODIFICATION, modification);
+        values.put(TravelState.NEEDS_FLIGHTS, Boolean.TRUE);
+        values.put(TravelState.NEEDS_HOTELS, Boolean.TRUE);
+        values.put(TravelState.NEEDS_RESEARCH, Boolean.TRUE);
+        values.put(TravelState.NEEDS_WEATHER, Boolean.TRUE);
+        values.put(TravelState.NEEDS_BUDGET, Boolean.TRUE);
+        values.put(TravelState.NEEDS_ITINERARY, Boolean.TRUE);
+        TravelState state = state(values);
         ReplanStrategy strategy = new ReplanStrategy();
         strategy.setActions(List.of("add_destination"));
 
