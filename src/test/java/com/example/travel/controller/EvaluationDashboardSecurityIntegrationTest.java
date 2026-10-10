@@ -70,7 +70,7 @@ class EvaluationDashboardSecurityIntegrationTest {
         when(usage.aggregateForUser("alice", 30)).thenReturn(List.of());
 
         mvc.perform(get("/api/observability/dashboard")
-                        .with(user("alice").roles("USER"))
+                        .with(user("alice").roles("USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.evaluations").value(0))
                 .andExpect(jsonPath("$.modelUsageWindowDays").value(30));
