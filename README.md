@@ -327,7 +327,7 @@ Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP serv
 
 Open `/evaluation` after signing in, or use **Evaluation & Observability** in the main sidebar. The dashboard displays structured goal-evaluation outcomes, scores, satisfied/unmet criteria, blocking issues, recent evaluation traces, LLM/MCP call counts, and per-model token usage. It refreshes every 15 seconds and reads actual application metrics rather than sample/demo values.
 
-Recent evaluation trace retention is deliberately bounded (up to 200 entries) and process-local. It resets on application restart; it is not a durable audit ledger. The dashboard does not display raw prompts or tool arguments. For durable cross-restart analytics, persist evaluation events to PostgreSQL in a future migration.
+Evaluation history is persisted in PostgreSQL through a JPA entity and repository, so it survives application restarts. Records and aggregate counts are scoped to the signed-in user. The dashboard does not store raw prompts or tool arguments. The table/index DDL is in `src/main/resources/db/migration/V11__agent_goal_evaluation_history.sql`. Flyway is not currently enabled in this application, so apply this SQL migration to the target PostgreSQL database before deploying this change; it is intentionally not run automatically.
 
 Model token usage is measured. Monetary cost remains **unavailable unless provider/model pricing is explicitly configured**; the dashboard does not fabricate prices. Configure rates in USD per million tokens under `travel.observability.model-pricing` using the normalized model key (for example, `llama3.2_3b`):
 
