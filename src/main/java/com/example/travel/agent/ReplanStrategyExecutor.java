@@ -371,14 +371,30 @@ public class ReplanStrategyExecutor {
                         needsFlights = true;
                     }
                     case CHEAPER_FLIGHT -> {
+                        // Flight price/selection feeds both the budget and the
+                        // itinerary. Rebuild those derived artifacts after the
+                        // new flight options have been checkpointed.
                         runFlights = true;
                         runBudget = true;
+                        runItinerary = true;
                         needsFlights = true;
                         needsBudget = true;
+                        needsItinerary = true;
                     }
-                    case GET_HOTEL_DETAILS, HOTEL_UPGRADE -> {
+                    case GET_HOTEL_DETAILS -> {
                         runHotels = true;
                         needsHotels = true;
+                    }
+                    case HOTEL_UPGRADE -> {
+                        // An upgraded hotel changes the cost and can change the
+                        // itinerary's accommodation assumptions, so refresh all
+                        // downstream artifacts rather than returning stale totals.
+                        runHotels = true;
+                        runBudget = true;
+                        runItinerary = true;
+                        needsHotels = true;
+                        needsBudget = true;
+                        needsItinerary = true;
                     }
                     case GET_WEATHER_DETAILS -> {
                         runWeather = true;
@@ -400,13 +416,28 @@ public class ReplanStrategyExecutor {
                         needsItinerary = true;
                     }
                     case REMOVE_EXPENSIVE_ATTRACTIONS -> {
-                        runResearch = true;
-                        needsResearch = true;
+                        // The executor already prunes the existing attraction
+                        // list. Re-running research would repopulate the removed
+                        // attractions; rebuild only the itinerary from the pruned
+                        // checkpoint state.
+                        runItinerary = true;
+                        needsItinerary = true;
                     }
                     case ADD_DESTINATION -> {
+                        // A new destination affects every destination-dependent
+                        // result. Recompute source options and then their derived
+                        // budget/itinerary instead of mixing old and new cities.
+                        runFlights = true;
+                        runHotels = true;
                         runResearch = true;
+                        runWeather = true;
+                        runBudget = true;
                         runItinerary = true;
+                        needsFlights = true;
+                        needsHotels = true;
                         needsResearch = true;
+                        needsWeather = true;
+                        needsBudget = true;
                         needsItinerary = true;
                     }
                     case ADJUST_ITINERARY -> {
