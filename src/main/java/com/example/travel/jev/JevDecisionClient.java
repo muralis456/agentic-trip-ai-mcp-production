@@ -114,35 +114,38 @@ public class JevDecisionClient {
         question.put("instructions", instructions);
         question.put("criteria", criteria);
 
-        ProviderResponse response = callWithFallback(request(state, Map.of("decision", question)));
-        JsonNode answer = validateAnswer(response.response(), "choice");
+        return callWithFallback(request(state, Map.of("decision", question)), response -> {
+            JsonNode answer = validateAnswer(response.response(), "choice");
 
-        String choice = answer.path("choice").asString("").trim();
-        double confidence = answer.path("confidence").asDouble(Double.NaN);
-        if (choice.isBlank()) {
-            throw new IllegalStateException("Typed decision provider returned an empty choice.");
-        }
-        validateProbability("confidence", confidence);
+            String choice = answer.path("choice").asString("").trim();
+            double confidence = answer.path("confidence").asDouble(Double.NaN);
+            if (choice.isBlank()) {
+                throw new IllegalStateException("Typed decision provider returned an empty choice.");
+            }
+            validateProbability("confidence", confidence);
 
-        Map<String, Double> probabilities = new LinkedHashMap<>();
-        answer.path("probabilities").properties().forEach(entry -> {
-            double probability = entry.getValue().asDouble(Double.NaN);
-            validateProbability("probability[" + entry.getKey() + "]", probability);
-            probabilities.put(entry.getKey(), probability);
+            Map<String, Double> probabilities = new LinkedHashMap<>();
+            answer.path("probabilities").properties().forEach(entry -> {
+                double probability = entry.getValue().asDouble(Double.NaN);
+                validateProbability("probability[" + entry.getKey() + "]", probability);
+                probabilities.put(entry.getKey(), probability);
+            });
+            boolean selectedChoicePresent = probabilities.keySet().stream()
+                    .anyMatch(key -> key.equalsIgnoreCase(choice));
+            if (!selectedChoicePresent) {
+                throw new IllegalStateException("Typed decision provider returned a choice not present in probabilities: " + choice);
+            }
+            double probabilitySum = probabilities.values().stream().mapToDouble(Double::doubleValue).sum();
+            if (!Double.isFinite(probabilitySum) || Math.abs(probabilitySum - 1.0) > 0.05) {
+                throw new IllegalStateException("Typed decision provider returned invalid probability distribution sum=" + probabilitySum);
+            }
+
+            return new JevChoiceDecision(
+                    response.response().path("model").asString(response.model()),
+                    choice,
+                    confidence,
+                    probabilities);
         });
-        if (!probabilities.containsKey(choice)) {
-            throw new IllegalStateException("Typed decision provider returned a choice not present in probabilities: " + choice);
-        }
-        double probabilitySum = probabilities.values().stream().mapToDouble(Double::doubleValue).sum();
-        if (Math.abs(probabilitySum - 1.0) > 0.05) {
-            throw new IllegalStateException("Typed decision provider returned invalid probability distribution sum=" + probabilitySum);
-        }
-
-        return new JevChoiceDecision(
-                response.response().path("model").asString(response.model()),
-                choice,
-                confidence,
-                probabilities);
     }
 
     public JevNoulDecision yesNo(
@@ -156,13 +159,12 @@ public class JevDecisionClient {
         question.put("instructions", instructions);
         question.put("criteria", Map.of("true", trueCriteria, "false", falseCriteria));
 
-        JsonNode answer = validateAnswer(
-                callWithFallback(request(state, Map.of("decision", question))).response(),
-                "noul");
-
-        double probability = answer.path("noul").asDouble(Double.NaN);
-        validateProbability("noul", probability);
-        return new JevNoulDecision(probability);
+        return callWithFallback(request(state, Map.of("decision", question)), response -> {
+            JsonNode answer = validateAnswer(response.response(), "noul");
+            double probability = answer.path("noul").asDouble(Double.NaN);
+            validateProbability("noul", probability);
+            return new JevNoulDecision(probability);
+        });
     }
 
     public JevScoreDecision score(
@@ -175,15 +177,14 @@ public class JevDecisionClient {
         question.put("instructions", instructions);
         question.put("criteria", criteria);
 
-        JsonNode answer = validateAnswer(
-                callWithFallback(request(state, Map.of("decision", question))).response(),
-                "score");
-
-        double score = answer.path("score").asDouble(Double.NaN);
-        double confidence = answer.path("confidence").asDouble(Double.NaN);
-        validateProbability("score", score);
-        validateProbability("confidence", confidence);
-        return new JevScoreDecision(score, confidence);
+        return callWithFallback(request(state, Map.of("decision", question)), response -> {
+            JsonNode answer = validateAnswer(response.response(), "score");
+            double score = answer.path("score").asDouble(Double.NaN);
+            double confidence = answer.path("confidence").asDouble(Double.NaN);
+            validateProbability("score", score);
+            validateProbability("confidence", confidence);
+            return new JevScoreDecision(score, confidence);
+        });
     }
 
     private Map<String, Object> request(Object state, Map<String, Object> questions) {
@@ -193,13 +194,18 @@ public class JevDecisionClient {
         return request;
     }
 
-    private ProviderResponse callWithFallback(Map<String, Object> request) {
+    private <T> T callWithFallback(
+            Map<String, Object> request,
+            java.util.function.Function<ProviderResponse, T> decoder) {
         RuntimeException primaryFailure = null;
 
         if (primaryAvailable) {
             try {
                 log.debug("jev.provider.primary-attempt provider={} model={}", primaryProvider, primaryModel);
-                return invoke(primaryClient, primaryModel, request, primaryProvider);
+                ProviderResponse response = invoke(primaryClient, primaryModel, request, primaryProvider);
+                // Decode and validate inside the provider attempt. A malformed
+                // primary answer must trigger fallback just like an HTTP failure.
+                return decoder.apply(response);
             } catch (RuntimeException ex) {
                 primaryFailure = ex;
                 log.warn("jev.provider.primary-failed provider={} model={} reason={}",
@@ -210,7 +216,8 @@ public class JevDecisionClient {
         if (fallbackAvailable) {
             try {
                 log.info("jev.provider.fallback-attempt provider={} model={}", fallbackProvider, fallbackModel);
-                return invoke(fallbackClient, fallbackModel, request, fallbackProvider);
+                ProviderResponse response = invoke(fallbackClient, fallbackModel, request, fallbackProvider);
+                return decoder.apply(response);
             } catch (RuntimeException fallbackFailure) {
                 if (primaryFailure != null) {
                     fallbackFailure.addSuppressed(primaryFailure);
@@ -218,14 +225,14 @@ public class JevDecisionClient {
                 log.error("jev.provider.fallback-failed provider={} model={} reason={}",
                         fallbackProvider, fallbackModel, fallbackFailure.getClass().getSimpleName());
                 throw new JevUnavailableException(
-                        "Typed decision providers are unavailable. Primary=" +
+                        "Typed decision providers are unavailable or returned invalid decisions. Primary=" +
                                 primaryProvider + ", fallback=" + fallbackProvider,
                         fallbackFailure);
             }
         }
 
         throw new JevUnavailableException(
-                "No typed decision provider is configured. Configure TypeSafe or a local Ollama fallback.",
+                "No typed decision provider is configured or the primary provider returned an invalid decision. Configure TypeSafe or a local Ollama fallback.",
                 primaryFailure);
     }
 
