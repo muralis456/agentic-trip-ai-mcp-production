@@ -45,8 +45,14 @@ public class AgentEvaluationLedger {
         String goal = "";
         if (state != null && state.agentPlan() != null) goal = safe(state.agentPlan().getGoal(), 200);
         row.setGoal(goal);
-        row.setStatus(evaluation.getStatus().name());
-        row.setScore(evaluation.getScore());
+        GoalEvaluation.Status status = evaluation.getStatus();
+        if (status == null) {
+            log.warn("Skipping goal evaluation persistence because status is absent");
+            return;
+        }
+        row.setStatus(status.name());
+        double score = evaluation.getScore();
+        row.setScore(Double.isFinite(score) ? score : 0.0);
         row.setReason(safe(evaluation.getReason(), 500));
         row.setRecoverable(evaluation.isRecoverable());
         row.setCreatedAt(Instant.now());
@@ -83,7 +89,8 @@ public class AgentEvaluationLedger {
     }
 
     private EvaluationRecord toRecord(AgentGoalEvaluation row) {
-        return new EvaluationRecord(row.getCreatedAt().toString(), row.getThreadId(), row.getGoal(),
+        Instant createdAt = row.getCreatedAt() == null ? Instant.EPOCH : row.getCreatedAt();
+        return new EvaluationRecord(createdAt.toString(), row.getThreadId(), row.getGoal(),
                 row.getDestination(), row.getBudget(), row.getStatus(), row.getScore(), row.getReason(),
                 readJson(row.getSatisfiedCriteriaJson()), readJson(row.getUnmetCriteriaJson()),
                 readJson(row.getBlockingIssuesJson()), row.isRecoverable());
