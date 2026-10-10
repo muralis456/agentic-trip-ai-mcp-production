@@ -158,8 +158,7 @@ public class McpToolSelector {
         // User tasks are part of the key; cap retained task variants to avoid
         // unbounded growth in a long-running service.
         if (selectionCache.size() > 256) {
-            String oldestAvailableKey = selectionCache.keys().nextElement();
-            selectionCache.remove(oldestAvailableKey);
+            selectionCache.keySet().stream().findFirst().ifPresent(selectionCache::remove);
         }
     }
 
