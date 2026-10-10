@@ -137,6 +137,18 @@ public class RoutedLlm {
         throw new RuntimeException(lastFailure);
     }
 
+    private void recordUsageSafely(String model, String operation, boolean success,
+                                   int inputTokens, int outputTokens, long durationMs) {
+        try {
+            modelUsageLedger.record(ModelRoutingContext.userId(), ModelRoutingContext.threadId(),
+                    model, operation, success, inputTokens, outputTokens, durationMs);
+        } catch (RuntimeException ex) {
+            // A telemetry write failure must not turn a successful model response into a failed trip.
+            log.warn("Model usage persistence failed; continuing execution ({})",
+                    ex.getClass().getSimpleName());
+        }
+    }
+
     private static boolean isInterruptedCause(Throwable error) {
         Throwable current = error;
         int depth = 0;
