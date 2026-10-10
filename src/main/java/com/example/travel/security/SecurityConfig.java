@@ -45,12 +45,16 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .defaultAuthenticationEntryPointFor(
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                                request -> request.getServletPath() != null
+                                request -> (request.getServletPath() != null
                                         && request.getServletPath().startsWith("/api/"))
+                                        || (request.getRequestURI() != null
+                                        && request.getRequestURI().startsWith("/api/")))
                         .defaultAuthenticationEntryPointFor(
                                 new LoginUrlAuthenticationEntryPoint("/login"),
-                                request -> request.getServletPath() == null
-                                        || !request.getServletPath().startsWith("/api/")))
+                                request -> !((request.getServletPath() != null
+                                        && request.getServletPath().startsWith("/api/"))
+                                        || (request.getRequestURI() != null
+                                        && request.getRequestURI().startsWith("/api/")))))
                 .httpBasic(httpBasic -> {})
                 .formLogin(form -> form
                         .loginPage("/login")
