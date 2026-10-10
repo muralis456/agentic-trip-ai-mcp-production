@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -22,7 +23,11 @@ public class AgentModelUsageLedger {
         this.repository = repository;
     }
 
-    @Transactional
+    /**
+     * Run outside any caller transaction so a failed telemetry write cannot mark the
+     * travel-planning transaction rollback-only. Repository writes use their own transaction.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void record(String userId, String threadId, String model, String operation,
                        boolean success, int inputTokens, int outputTokens, long durationMs) {
         if (userId == null || userId.isBlank()) {
