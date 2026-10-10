@@ -20,10 +20,13 @@ import java.util.TreeMap;
 public class EvaluationDashboardController {
     private final AgentEvaluationLedger ledger;
     private final MeterRegistry meters;
+    private final com.example.travel.observability.ModelPricingProperties pricing;
 
-    public EvaluationDashboardController(AgentEvaluationLedger ledger, MeterRegistry meters) {
+    public EvaluationDashboardController(AgentEvaluationLedger ledger, MeterRegistry meters,
+                                         com.example.travel.observability.ModelPricingProperties pricing) {
         this.ledger = ledger;
         this.meters = meters;
+        this.pricing = pricing;
     }
 
     @GetMapping("/evaluation")
@@ -59,7 +62,7 @@ public class EvaluationDashboardController {
         }
         List<Map<String, Object>> modelUsage = models.values().stream()
                 .sorted(Comparator.comparingLong((ModelUsage m) -> m.inputTokens + m.outputTokens).reversed())
-                .map(ModelUsage::asMap).toList();
+                .map(m -> m.asMap(pricing)).toList();
 
         return Map.of(
                 "summary", summary,
@@ -86,15 +89,27 @@ public class EvaluationDashboardController {
 
         private ModelUsage(String model) { this.model = model; }
 
-        private Map<String, Object> asMap() {
+        private Map<String, Object> asMap(com.example.travel.observability.ModelPricingProperties pricing) {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("model", model);
             result.put("calls", calls);
             result.put("inputTokens", inputTokens);
             result.put("outputTokens", outputTokens);
             result.put("totalTokens", inputTokens + outputTokens);
-            result.put("estimatedCostUsd", null);
+            var rate = pricing.getModelPricing().get(model);
+            if (rate == null) {
+                rate = pricing.getModelPricing().entrySet().stream()
+                        .filter(e -> normalizeModel(e.getKey()).equals(model))
+                        .map(Map.Entry::getValue).findFirst().orElse(null);
+            }
+            Double cost = rate == null ? null :
+                    (inputTokens * rate.getInputUsdPerMillion() + outputTokens * rate.getOutputUsdPerMillion()) / 1_000_000.0;
+            result.put("estimatedCostUsd", cost);
             return result;
+        }
+
+        private static String normalizeModel(String value) {
+            return value == null ? "" : value.trim().toLowerCase().replaceAll("[^a-z0-9_.-]", "_");
         }
     }
 }
