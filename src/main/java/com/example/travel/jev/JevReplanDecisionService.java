@@ -36,8 +36,8 @@ public class JevReplanDecisionService {
             var d = decisions.choose(
                     JevDecisionPolicy.DecisionKind.REPLAN,
                     Map.of(
-                            "request", state.userRequest(),
-                            "unmet", evaluation == null ? List.of() : evaluation.getUnmetCriteria(),
+                            "request", state == null || state.userRequest() == null ? "" : state.userRequest(),
+                            "unmet", unmetCriteria(evaluation),
                             "blocking", evaluation == null || evaluation.getBlockingIssues() == null
                                     ? List.of() : evaluation.getBlockingIssues(),
                             "proposedActions", proposed == null ? List.of() : proposed),
@@ -60,17 +60,26 @@ public class JevReplanDecisionService {
     }
 
     private String deterministic(GoalEvaluation evaluation, TravelState state) {
-        String unmet = String.join(
-                " ",
-                evaluation == null ? List.of() : evaluation.getUnmetCriteria()).toLowerCase();
+        String unmet = String.join(" ", unmetCriteria(evaluation)).toLowerCase();
 
         if (unmet.contains("flight")) return "FLIGHT";
         if (unmet.contains("hotel")) return "HOTEL";
-        if (unmet.contains("budget") || state.overBudget()) return "BUDGET";
+        if (unmet.contains("budget") || (state != null && state.overBudget())) return "BUDGET";
         if (unmet.contains("itinerary")) return "ITINERARY";
         if (unmet.contains("weather")) return "WEATHER";
         if (unmet.contains("research") || unmet.contains("knowledge")) return "RESEARCH";
         return "ASK_USER";
+    }
+
+    private static List<String> unmetCriteria(GoalEvaluation evaluation) {
+        if (evaluation == null || evaluation.getUnmetCriteria() == null) {
+            return List.of();
+        }
+        return evaluation.getUnmetCriteria().stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
     }
 
     private String description(String action) {
