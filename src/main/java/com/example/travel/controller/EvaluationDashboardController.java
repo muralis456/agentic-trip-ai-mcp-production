@@ -1,6 +1,6 @@
 package com.example.travel.controller;
 
-import com.example.travel.entity.AgentModelUsageEvent;
+import com.example.travel.repository.AgentModelUsageAggregate;
 import com.example.travel.observability.AgentEvaluationLedger;
 import com.example.travel.observability.AgentModelUsageLedger;
 import com.example.travel.observability.ModelPricingProperties;
@@ -52,21 +52,21 @@ public class EvaluationDashboardController {
         Map<String, Object> summary = new LinkedHashMap<>(evaluationLedger.summary(userId));
 
         // Durable model usage is scoped to the authenticated account and selected time window.
-        List<AgentModelUsageEvent> usageEvents = modelUsageLedger.recentForUser(userId, days, 5000);
+        List<AgentModelUsageAggregate> usageAggregates = modelUsageLedger.aggregateForUser(userId, days);
         Map<String, ModelUsage> models = new TreeMap<>();
         long inputTokens = 0;
         long outputTokens = 0;
         long llmCalls = 0;
         long llmErrors = 0;
         long durationMs = 0;
-        for (AgentModelUsageEvent event : usageEvents) {
-            ModelUsage usage = models.computeIfAbsent(event.getModel(), ModelUsage::new);
-            usage.add(event);
-            inputTokens += event.getInputTokens();
-            outputTokens += event.getOutputTokens();
-            llmCalls++;
-            if ("ERROR".equals(event.getStatus())) llmErrors++;
-            durationMs += event.getDurationMs();
+        for (AgentModelUsageAggregate aggregate : usageAggregates) {
+            ModelUsage usage = new ModelUsage(aggregate);
+            models.put(aggregate.getModel(), usage);
+            inputTokens += usage.inputTokens;
+            outputTokens += usage.outputTokens;
+            llmCalls += usage.calls;
+            llmErrors += usage.errors;
+            durationMs += usage.durationMs;
         }
         summary.put("llmCalls", llmCalls);
         summary.put("inputTokens", inputTokens);
@@ -92,7 +92,7 @@ public class EvaluationDashboardController {
                 "modelUsage", modelUsage,
                 "refreshedAt", Instant.now().toString(),
                 "modelUsageWindowDays", days,
-                "costNotice", "Model usage is durable and account-scoped for the selected window. Cost is estimated only when provider/model pricing is explicitly configured.");
+                "costNotice", "Model usage is durably aggregated in PostgreSQL and account-scoped for the selected window. Cost is estimated only when provider/model pricing is explicitly configured.");
     }
 
     private double counterSum(String name) {
@@ -112,14 +112,13 @@ public class EvaluationDashboardController {
         private long errors;
         private long durationMs;
 
-        private ModelUsage(String model) { this.model = model; }
-
-        private void add(AgentModelUsageEvent event) {
-            calls++;
-            inputTokens += event.getInputTokens();
-            outputTokens += event.getOutputTokens();
-            durationMs += event.getDurationMs();
-            if ("ERROR".equals(event.getStatus())) errors++;
+        private ModelUsage(AgentModelUsageAggregate aggregate) {
+            this.model = aggregate.getModel();
+            this.calls = aggregate.getCalls() == null ? 0 : aggregate.getCalls();
+            this.errors = aggregate.getErrors() == null ? 0 : aggregate.getErrors();
+            this.inputTokens = aggregate.getInputTokens() == null ? 0 : aggregate.getInputTokens();
+            this.outputTokens = aggregate.getOutputTokens() == null ? 0 : aggregate.getOutputTokens();
+            this.durationMs = aggregate.getDurationMs() == null ? 0 : aggregate.getDurationMs();
         }
 
         private Map<String, Object> asMap(ModelPricingProperties pricing) {
