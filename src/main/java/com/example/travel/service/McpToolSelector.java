@@ -64,7 +64,7 @@ public class McpToolSelector {
         // intent decision. Cache a selection for the same purpose/catalog so a
         // graph that resolves two airports or performs outbound+return searches
         // does not burn one LLM call for every identical tool-selection decision.
-        String cacheKey = safe(agentPurpose) + "\n" + tools;
+        String cacheKey = safe(agentPurpose) + "\n" + safe(userInput) + "\n" + tools;
         String cachedName = selectionCache.get(cacheKey);
         if (cachedName != null && candidates.stream().anyMatch(c ->
                 c.getToolDefinition().name().equals(cachedName))) {
@@ -104,7 +104,7 @@ public class McpToolSelector {
                             .orElse(null);
 
                     if (selected != null) {
-                        selectionCache.put(cacheKey, decision.choice());
+                        cacheSelection(cacheKey, decision.choice());
                         log.info(
                                 "mcp.client.jev-selection purpose='{}' userInput='{}' selectedTool='{}' confidence={} model={}",
                                 abbreviate(agentPurpose), abbreviate(userInput), decision.choice(),
@@ -145,10 +145,20 @@ public class McpToolSelector {
                         "LLM selected an unavailable MCP tool '" + selectedName + "'. Available: "
                                 + candidates.stream().map(c -> c.getToolDefinition().name()).collect(Collectors.joining(", "))));
 
-        selectionCache.put(cacheKey, selectedName);
+        cacheSelection(cacheKey, selectedName);
         log.info("mcp.client.llm-selection purpose='{}' userInput='{}' selectedTool='{}' model={}",
                 abbreviate(agentPurpose), abbreviate(userInput), selectedName, result.model());
         return selected;
+    }
+
+    private void cacheSelection(String key, String toolName) {
+        selectionCache.put(key, toolName);
+        // User tasks are part of the key; cap retained task variants to avoid
+        // unbounded growth in a long-running service.
+        if (selectionCache.size() > 256) {
+            String oldestAvailableKey = selectionCache.keys().nextElement();
+            selectionCache.remove(oldestAvailableKey);
+        }
     }
 
     private String parseToolName(String content) throws Exception {
