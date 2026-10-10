@@ -22,7 +22,7 @@ public class GraphRunContext {
         if (threadId == null || threadId.isBlank()) {
             return;
         }
-        active.put(threadId, new RunContext(budget, policy, userId, threadId));
+        active.put(threadId, new RunContext(budget, policy, userId, threadId));\n        ModelRoutingContext.setRunIdentity(userId, threadId);
         GraphExecutionLogger.runContext("open", threadId, policy);
     }
 
