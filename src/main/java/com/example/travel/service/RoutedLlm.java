@@ -23,7 +23,8 @@ public class RoutedLlm {
     private final ChatClient chatClient;
     private final TravelModelsProperties models;
     private final AgentExecutionBudget executionBudget;
-    private final com.example.travel.observability.AgentObservabilityService observability;\n    private final com.example.travel.observability.AgentModelUsageLedger modelUsageLedger;
+    private final com.example.travel.observability.AgentObservabilityService observability;
+    private final com.example.travel.observability.AgentModelUsageLedger modelUsageLedger;
     private final int extractionMaxTokens;
     private final int plannerMaxTokens;
     private final int itineraryMaxTokens;
@@ -32,7 +33,8 @@ public class RoutedLlm {
     public RoutedLlm(ChatClient chatClient,
                      TravelModelsProperties models,
                      AgentExecutionBudget executionBudget,
-                     com.example.travel.observability.AgentObservabilityService observability,\n                     com.example.travel.observability.AgentModelUsageLedger modelUsageLedger,
+                     com.example.travel.observability.AgentObservabilityService observability,
+                     com.example.travel.observability.AgentModelUsageLedger modelUsageLedger,
                      @Value("${travel.models.max-tokens.extraction:384}") int extractionMaxTokens,
                      @Value("${travel.models.max-tokens.planner:512}") int plannerMaxTokens,
                      @Value("${travel.models.max-tokens.itinerary:1400}") int itineraryMaxTokens,
@@ -40,7 +42,8 @@ public class RoutedLlm {
         this.chatClient = chatClient;
         this.models = models;
         this.executionBudget = executionBudget;
-        this.observability = observability;\n        this.modelUsageLedger = modelUsageLedger;
+        this.observability = observability;
+        this.modelUsageLedger = modelUsageLedger;
         this.extractionMaxTokens = Math.max(128, extractionMaxTokens);
         this.plannerMaxTokens = Math.max(128, plannerMaxTokens);
         this.itineraryMaxTokens = Math.max(256, itineraryMaxTokens);
@@ -117,7 +120,8 @@ public class RoutedLlm {
                     }
                 } catch (Exception ignored) { }
                 LlmExecutionResult result = new LlmExecutionResult(content, candidateModel, toolNames, durationMs, inputTokens, outputTokens);
-                observability.recordLlmCall(role.name(), candidateModel, inputTokens, outputTokens, durationMs, true);\n                modelUsageLedger.record(ModelRoutingContext.userId(), ModelRoutingContext.threadId(),\n                        candidateModel, role.name(), true, inputTokens, outputTokens, durationMs);
+                observability.recordLlmCall(role.name(), candidateModel, inputTokens, outputTokens, durationMs, true);
+                recordUsageSafely(candidateModel, role.name(), true, inputTokens, outputTokens, durationMs);
                 LlmCallContext.record(result);
                 return result;
             } catch (Exception ex) {
@@ -129,7 +133,8 @@ public class RoutedLlm {
                     throw new GraphStopRequestedException(ex);
                 }
                 lastFailure = ex;
-                observability.recordLlmCall(role.name(), candidateModel, 0, 0, durationMs, false);\n                modelUsageLedger.record(ModelRoutingContext.userId(), ModelRoutingContext.threadId(),\n                        candidateModel, role.name(), false, 0, 0, durationMs);
+                observability.recordLlmCall(role.name(), candidateModel, 0, 0, durationMs, false);
+                recordUsageSafely(candidateModel, role.name(), false, 0, 0, durationMs);
                 log.warn("[RoutedLLM] phase={} decision=LLM_FAILED model={} durationMs={} errorType={} message={}", role, candidateModel, durationMs, ex.getClass().getSimpleName(), sanitizeLogMessage(ex.getMessage()));
             }
         }
