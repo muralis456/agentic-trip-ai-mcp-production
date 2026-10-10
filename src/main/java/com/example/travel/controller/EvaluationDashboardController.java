@@ -1,16 +1,18 @@
 package com.example.travel.controller;
 
+import com.example.travel.entity.AgentModelUsageEvent;
 import com.example.travel.observability.AgentEvaluationLedger;
+import com.example.travel.observability.AgentModelUsageLedger;
+import com.example.travel.observability.ModelPricingProperties;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.springframework.stereotype.Controller;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.ArrayList;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,13 +21,17 @@ import java.util.TreeMap;
 
 @Controller
 public class EvaluationDashboardController {
-    private final AgentEvaluationLedger ledger;
+    private final AgentEvaluationLedger evaluationLedger;
+    private final AgentModelUsageLedger modelUsageLedger;
     private final MeterRegistry meters;
-    private final com.example.travel.observability.ModelPricingProperties pricing;
+    private final ModelPricingProperties pricing;
 
-    public EvaluationDashboardController(AgentEvaluationLedger ledger, MeterRegistry meters,
-                                         com.example.travel.observability.ModelPricingProperties pricing) {
-        this.ledger = ledger;
+    public EvaluationDashboardController(AgentEvaluationLedger evaluationLedger,
+                                         AgentModelUsageLedger modelUsageLedger,
+                                         MeterRegistry meters,
+                                         ModelPricingProperties pricing) {
+        this.evaluationLedger = evaluationLedger;
+        this.modelUsageLedger = modelUsageLedger;
         this.meters = meters;
         this.pricing = pricing;
     }
@@ -38,31 +44,44 @@ public class EvaluationDashboardController {
     @ResponseBody
     @GetMapping("/api/observability/dashboard")
     public Map<String, Object> dashboard(@RequestParam(defaultValue = "50") int limit,
-                                          Authentication authentication) {
+                                         @RequestParam(defaultValue = "30") int windowDays,
+                                         Authentication authentication) {
         String userId = authentication == null ? "" : authentication.getName();
-        List<AgentEvaluationLedger.EvaluationRecord> recent = ledger.recent(userId, limit);
-        Map<String, Object> summary = new LinkedHashMap<>(ledger.summary(userId));
-        summary.put("llmCalls", counterSum("agent.llm.calls"));
-        summary.put("inputTokens", counterSum("agent.llm.tokens.input"));
-        summary.put("outputTokens", counterSum("agent.llm.tokens.output"));
+        int days = Math.max(1, Math.min(365, windowDays));
+        List<AgentEvaluationLedger.EvaluationRecord> recent = evaluationLedger.recent(userId, limit);
+        Map<String, Object> summary = new LinkedHashMap<>(evaluationLedger.summary(userId));
+
+        // Durable model usage is scoped to the authenticated account and selected time window.
+        List<AgentModelUsageEvent> usageEvents = modelUsageLedger.recentForUser(userId, days, 5000);
+        Map<String, ModelUsage> models = new TreeMap<>();
+        long inputTokens = 0;
+        long outputTokens = 0;
+        long llmCalls = 0;
+        long llmErrors = 0;
+        long durationMs = 0;
+        for (AgentModelUsageEvent event : usageEvents) {
+            ModelUsage usage = models.computeIfAbsent(event.getModel(), ModelUsage::new);
+            usage.add(event);
+            inputTokens += event.getInputTokens();
+            outputTokens += event.getOutputTokens();
+            llmCalls++;
+            if ("ERROR".equals(event.getStatus())) llmErrors++;
+            durationMs += event.getDurationMs();
+        }
+        summary.put("llmCalls", llmCalls);
+        summary.put("inputTokens", inputTokens);
+        summary.put("outputTokens", outputTokens);
+        summary.put("llmErrors", llmErrors);
+        summary.put("llmErrorRate", llmCalls == 0 ? 0.0 : (double) llmErrors / llmCalls);
+        summary.put("averageLlmDurationMs", llmCalls == 0 ? 0L : durationMs / llmCalls);
+        summary.put("modelUsageWindowDays", days);
+        summary.put("modelUsageRetention", "durable PostgreSQL events scoped to your account");
+
+        // MCP/replan/node counters currently have no user identity and remain explicitly process-wide.
         summary.put("mcpCalls", counterSum("agent.mcp.calls"));
         summary.put("replans", counterSum("agent.replans"));
         summary.put("nodeExecutions", counterSum("agent.nodes"));
 
-        Map<String, ModelUsage> models = new TreeMap<>();
-        for (Meter meter : meters.getMeters()) {
-            String name = meter.getId().getName();
-            String model = meter.getId().getTag("model");
-            if (model == null) continue;
-            ModelUsage usage = models.computeIfAbsent(model, ModelUsage::new);
-            if ("agent.llm.tokens.input".equals(name) && meter instanceof io.micrometer.core.instrument.Counter c) {
-                usage.inputTokens += (long) c.count();
-            } else if ("agent.llm.tokens.output".equals(name) && meter instanceof io.micrometer.core.instrument.Counter c) {
-                usage.outputTokens += (long) c.count();
-            } else if ("agent.llm.calls".equals(name) && meter instanceof io.micrometer.core.instrument.Counter c) {
-                usage.calls += (long) c.count();
-            }
-        }
         List<Map<String, Object>> modelUsage = models.values().stream()
                 .sorted(Comparator.comparingLong((ModelUsage m) -> m.inputTokens + m.outputTokens).reversed())
                 .map(m -> m.asMap(pricing)).toList();
@@ -71,8 +90,9 @@ public class EvaluationDashboardController {
                 "summary", summary,
                 "traces", recent,
                 "modelUsage", modelUsage,
-                "refreshedAt", java.time.Instant.now().toString(),
-                "costNotice", "Token usage is measured. Monetary cost is not estimated until provider/model-specific pricing is configured.");
+                "refreshedAt", Instant.now().toString(),
+                "modelUsageWindowDays", days,
+                "costNotice", "Model usage is durable and account-scoped for the selected window. Cost is estimated only when provider/model pricing is explicitly configured.");
     }
 
     private double counterSum(String name) {
@@ -89,13 +109,26 @@ public class EvaluationDashboardController {
         private long inputTokens;
         private long outputTokens;
         private long calls;
+        private long errors;
+        private long durationMs;
 
         private ModelUsage(String model) { this.model = model; }
 
-        private Map<String, Object> asMap(com.example.travel.observability.ModelPricingProperties pricing) {
+        private void add(AgentModelUsageEvent event) {
+            calls++;
+            inputTokens += event.getInputTokens();
+            outputTokens += event.getOutputTokens();
+            durationMs += event.getDurationMs();
+            if ("ERROR".equals(event.getStatus())) errors++;
+        }
+
+        private Map<String, Object> asMap(ModelPricingProperties pricing) {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("model", model);
             result.put("calls", calls);
+            result.put("errors", errors);
+            result.put("errorRate", calls == 0 ? 0.0 : (double) errors / calls);
+            result.put("averageDurationMs", calls == 0 ? 0L : durationMs / calls);
             result.put("inputTokens", inputTokens);
             result.put("outputTokens", outputTokens);
             result.put("totalTokens", inputTokens + outputTokens);
