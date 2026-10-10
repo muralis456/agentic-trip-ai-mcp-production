@@ -27,17 +27,17 @@ public class ProductionEvaluateNode implements NodeAction<TravelState> {
     public ProductionEvaluateNode(GoalEvaluationService evaluator,
                                   com.example.travel.observability.AgentObservabilityService observability,
                                   java.util.Optional<JevGoalDecisionService> jevGoalDecision) {
-        this(evaluator, observability, jevGoalDecision, new com.example.travel.observability.AgentEvaluationLedger());
+        this.evaluator=evaluator; this.observability=observability; this.jevGoalDecision=jevGoalDecision; this.evaluationLedger=null;
     }
 
     /** Backward-compatible constructor for unit tests and infrastructure wiring. */
     public ProductionEvaluateNode(GoalEvaluationService evaluator, com.example.travel.observability.AgentObservabilityService observability){
-        this(evaluator, observability, java.util.Optional.empty(), new com.example.travel.observability.AgentEvaluationLedger());
+        this.evaluator=evaluator; this.observability=observability; this.jevGoalDecision=java.util.Optional.empty(); this.evaluationLedger=null;
     }
     @Override public Map<String,Object> apply(TravelState state){
         GoalEvaluation e=evaluator.evaluate(state);
         observability.recordGoalOutcome(e.getStatus().name());
-        evaluationLedger.record(state, e);
+        if (evaluationLedger != null) evaluationLedger.record(state, e);
         Map<String,Object> u=new LinkedHashMap<>();
         u.put(TravelState.GOAL_EVALUATION,e);
         String route = e.getStatus().name();
