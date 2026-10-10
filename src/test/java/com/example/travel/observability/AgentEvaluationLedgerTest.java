@@ -89,4 +89,21 @@ class AgentEvaluationLedgerTest {
         verify(repository).findByUserIdOrderByCreatedAtDesc(eq("alice"), any(Pageable.class));
         verify(repository, never()).findByUserIdOrderByCreatedAtDesc(eq("bob"), any(Pageable.class));
     }
+
+    @Test
+    void evaluationPersistenceFailureDoesNotEscapeIntoTravelExecution() {
+        AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
+        ObjectMapper mapper = mock(ObjectMapper.class);
+        when(mapper.writeValueAsString(any())).thenReturn("[]");
+        when(repository.save(any(AgentGoalEvaluation.class)))
+                .thenThrow(new IllegalStateException("database unavailable"));
+        AgentEvaluationLedger ledger = new AgentEvaluationLedger(repository, mapper);
+
+        TravelState state = new TravelState(java.util.Map.of(TravelState.USER_ID, "alice"));
+        GoalEvaluation evaluation = new GoalEvaluation();
+        evaluation.setStatus(GoalEvaluation.Status.PARTIAL);
+
+        assertDoesNotThrow(() -> ledger.record(state, evaluation));
+        verify(repository).save(any(AgentGoalEvaluation.class));
+    }
 }
