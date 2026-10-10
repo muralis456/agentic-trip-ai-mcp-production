@@ -344,3 +344,5 @@ travel:
 ```
 
 Replace example rates with the current rates from your provider. The dashboard is authenticated using the application's existing security rules.
+
+Model telemetry is stored in `agent_model_usage_event` with the authenticated user id, graph thread id, model, operation, success/error status, token counts, duration, and timestamp. The dashboard defaults to the last 30 days and supports 7/30/90-day windows. Model usage and estimated cost are user-scoped and survive restarts; no prompt, completion text, or tool arguments are persisted. Apply `src/main/resources/db/migration/V12__agent_model_usage_telemetry.sql` manually after V11 because Flyway is not enabled. MCP/replan/node counters are still process-wide runtime metrics and reset on restart.
