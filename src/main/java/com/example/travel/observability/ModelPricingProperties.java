@@ -22,8 +22,8 @@ public class ModelPricingProperties {
         private double outputUsdPerMillion;
 
         public double getInputUsdPerMillion() { return inputUsdPerMillion; }
-        public void setInputUsdPerMillion(double value) { inputUsdPerMillion = Math.max(0, value); }
+        public void setInputUsdPerMillion(double value) { inputUsdPerMillion = Double.isFinite(value) ? Math.max(0, value) : 0; }
         public double getOutputUsdPerMillion() { return outputUsdPerMillion; }
-        public void setOutputUsdPerMillion(double value) { outputUsdPerMillion = Math.max(0, value); }
+        public void setOutputUsdPerMillion(double value) { outputUsdPerMillion = Double.isFinite(value) ? Math.max(0, value) : 0; }
     }
 }
