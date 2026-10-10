@@ -60,10 +60,8 @@ public class McpToolSelector {
                         + "\n  description: " + promptInjectionGuard.wrapUntrusted("MCP_TOOL_DESCRIPTION", callback.getToolDefinition().description()))
                 .collect(Collectors.joining("\n"));
 
-        // MCP tool selection is infrastructure, not the application's semantic
-        // intent decision. Cache a selection for the same purpose/catalog so a
-        // graph that resolves two airports or performs outbound+return searches
-        // does not burn one LLM call for every identical tool-selection decision.
+        // Cache only identical tasks and identical catalogs. A purpose/catalog-only
+        // cache can reuse the wrong tool when the user's actual task changes.
         String cacheKey = safe(agentPurpose) + "\n" + safe(userInput) + "\n" + tools;
         String cachedName = selectionCache.get(cacheKey);
         if (cachedName != null && candidates.stream().anyMatch(c ->
