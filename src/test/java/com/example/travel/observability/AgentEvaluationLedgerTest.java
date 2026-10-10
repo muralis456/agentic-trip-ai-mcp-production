@@ -1,31 +1,75 @@
 package com.example.travel.observability;
 
+import com.example.travel.entity.AgentGoalEvaluation;
+import com.example.travel.graph.TravelState;
 import com.example.travel.model.GoalEvaluation;
+import com.example.travel.repository.AgentGoalEvaluationRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Pageable;
+import tools.jackson.databind.ObjectMapper;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class AgentEvaluationLedgerTest {
     @Test
-    void recordsGoalOutcomeAndKeepsBoundedRecentHistory() {
-        AgentEvaluationLedger ledger = new AgentEvaluationLedger();
-        GoalEvaluation achieved = new GoalEvaluation();
-        achieved.setStatus(GoalEvaluation.Status.ACHIEVED);
-        achieved.setScore(1.0);
-        achieved.setReason("All mandatory constraints satisfied");
+    void persistsStructuredEvaluationWithOwnerAndCriteria() throws Exception {
+        AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
+        ObjectMapper mapper = mock(ObjectMapper.class);
+        when(mapper.writeValueAsString(any())).thenReturn("[\"flight options available\"]");
+        AgentEvaluationLedger ledger = new AgentEvaluationLedger(repository, mapper);
 
-        ledger.record(null, achieved);
-        assertEquals(1, ledger.summary().get("evaluations"));
-        assertEquals(1L, ledger.summary().get("achieved"));
-        assertEquals(1.0, ledger.summary().get("averageScore"));
+        TravelState state = new TravelState(java.util.Map.of(
+                TravelState.USER_ID, "alice",
+                TravelState.GRAPH_THREAD_ID, "thread-123",
+                TravelState.DESTINATION, "Tokyo"));
+        GoalEvaluation evaluation = new GoalEvaluation();
+        evaluation.setStatus(GoalEvaluation.Status.PARTIAL);
+        evaluation.setScore(0.65);
+        evaluation.setReason("One requirement is still unmet");
+        evaluation.setSatisfiedCriteria(List.of("flight options available"));
+        evaluation.setUnmetCriteria(List.of("hotel within budget"));
 
-        GoalEvaluation partial = new GoalEvaluation();
-        partial.setStatus(GoalEvaluation.Status.PARTIAL);
-        partial.setScore(0.5);
-        for (int i = 0; i < 205; i++) ledger.record(null, partial);
+        ledger.record(state, evaluation);
 
-        assertEquals(200, ledger.summary().get("evaluations"));
-        assertEquals(100, ledger.recent(100).size());
-        assertEquals("PARTIAL", ledger.recent(1).getFirst().status());
+        var captor = org.mockito.ArgumentCaptor.forClass(AgentGoalEvaluation.class);
+        verify(repository).save(captor.capture());
+        AgentGoalEvaluation saved = captor.getValue();
+        assertEquals("alice", saved.getUserId());
+        assertEquals("thread-123", saved.getThreadId());
+        assertEquals("Tokyo", saved.getDestination());
+        assertEquals("PARTIAL", saved.getStatus());
+        assertEquals(0.65, saved.getScore(), 0.0001);
+        assertEquals("[\"flight options available\"]", saved.getSatisfiedCriteriaJson());
+        assertNotNull(saved.getCreatedAt());
+    }
+
+    @Test
+    void queriesRecentHistoryAndAggregateSummaryOnlyForRequestedUser() {
+        AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
+        ObjectMapper mapper = mock(ObjectMapper.class);
+        AgentEvaluationLedger ledger = new AgentEvaluationLedger(repository, mapper);
+
+        AgentGoalEvaluation row = new AgentGoalEvaluation();
+        row.setUserId("alice");
+        row.setThreadId("thread-1");
+        row.setStatus("ACHIEVED");
+        row.setScore(1.0);
+        row.setCreatedAt(java.time.Instant.parse("2026-10-10T10:00:00Z"));
+        when(repository.findByUserIdOrderByCreatedAtDesc(eq("alice"), any(Pageable.class))).thenReturn(List.of(row));
+        when(repository.averageScoreByUserId("alice")).thenReturn(1.0);
+        when(repository.countByUserId("alice")).thenReturn(1L);
+        when(repository.countByUserIdAndStatus("alice", "ACHIEVED")).thenReturn(1L);
+        when(repository.countByUserIdAndStatus("alice", "PARTIAL")).thenReturn(0L);
+        when(repository.countByUserIdAndStatus("alice", "FAILED")).thenReturn(0L);
+        when(repository.countByUserIdAndStatus("alice", "NEEDS_USER")).thenReturn(0L);
+
+        assertEquals("ACHIEVED", ledger.recent("alice", 50).getFirst().status());
+        assertEquals(1L, ledger.summary("alice").get("evaluations"));
+        verify(repository).findByUserIdOrderByCreatedAtDesc(eq("alice"), any(Pageable.class));
+        verify(repository, never()).findByUserIdOrderByCreatedAtDesc(eq("bob"), any(Pageable.class));
     }
 }
