@@ -95,6 +95,10 @@ spring:
         connection:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
+  observability:
+    # Keys are normalized model names (for example llama3.2_3b).
+    # Rates are USD per million tokens. Leave empty rather than inventing prices.
+    model-pricing: {}
   jev:
     # Local development defaults to Ollama Tev1. Production can override these
     # with TRAVEL_JEV_* environment variables.
