@@ -8,6 +8,8 @@ public final class ModelRoutingContext {
 
     private static final InheritableThreadLocal<String> POLICY = new InheritableThreadLocal<>();
     private static final InheritableThreadLocal<Complexity> COMPLEXITY = new InheritableThreadLocal<>();
+    private static final InheritableThreadLocal<String> USER_ID = new InheritableThreadLocal<>();
+    private static final InheritableThreadLocal<String> THREAD_ID = new InheritableThreadLocal<>();
 
     private ModelRoutingContext() {
     }
