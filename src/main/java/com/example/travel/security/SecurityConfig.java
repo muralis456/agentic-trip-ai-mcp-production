@@ -9,6 +9,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
 @Configuration
 @EnableMethodSecurity
@@ -46,6 +47,7 @@ public class SecurityConfig {
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                                 request -> request.getServletPath() != null
                                         && request.getServletPath().startsWith("/api/")))
+                .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/login"), request -> request.getServletPath() == null || !request.getServletPath().startsWith("/api/")))
                 .httpBasic(httpBasic -> {})
                 .formLogin(form -> form
                         .loginPage("/login")
