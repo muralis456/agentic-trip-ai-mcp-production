@@ -94,6 +94,15 @@ public class JevDecisionPolicy {
             return new Acceptance(false, "missing_choice", 0.0, 0.0, 0.0);
         }
 
+        if (kind == null) {
+            return new Acceptance(false, "missing_decision_kind", decision.confidence(), 0.0, 0.0);
+        }
+
+        String distributionError = validateDistribution(decision.probabilities(), decision.choice());
+        if (distributionError != null) {
+            return new Acceptance(false, distributionError, decision.confidence(), 0.0, 0.0);
+        }
+
         Threshold threshold = thresholdFor(kind, decision.choice());
         double selectedProbability = probabilityOf(decision.probabilities(), decision.choice());
         double decisionMargin = margin(decision.probabilities(), decision.choice());
@@ -181,11 +190,46 @@ public class JevDecisionPolicy {
                 bounded(margin, "min margin"));
     }
 
+    private static String validateDistribution(Map<String, Double> probabilities, String choice) {
+        if (probabilities == null || probabilities.isEmpty()) {
+            return "missing_probabilities";
+        }
+
+        boolean choicePresent = false;
+        double sum = 0.0;
+        for (Map.Entry<String, Double> entry : probabilities.entrySet()) {
+            String key = entry.getKey();
+            Double value = entry.getValue();
+            if (key == null || key.isBlank()) {
+                return "invalid_probability_label";
+            }
+            if (key.equalsIgnoreCase(choice)) {
+                choicePresent = true;
+            }
+            if (value == null || !Double.isFinite(value) || value < 0.0 || value > 1.0) {
+                return "invalid_probability_distribution";
+            }
+            sum += value;
+        }
+        if (!choicePresent) {
+            return "choice_missing_from_probabilities";
+        }
+        if (!Double.isFinite(sum) || Math.abs(sum - 1.0) > 0.05) {
+            return "invalid_probability_distribution";
+        }
+        return null;
+    }
+
     private static double probabilityOf(Map<String, Double> probabilities, String choice) {
         if (probabilities == null || probabilities.isEmpty() || choice == null) {
             return 0.0;
         }
-        return probabilities.getOrDefault(choice, 0.0);
+        return probabilities.entrySet().stream()
+                .filter(entry -> entry.getKey() != null && entry.getKey().equalsIgnoreCase(choice))
+                .map(Map.Entry::getValue)
+                .filter(value -> value != null && Double.isFinite(value))
+                .findFirst()
+                .orElse(0.0);
     }
 
     private static double margin(Map<String, Double> probabilities, String choice) {
@@ -195,7 +239,7 @@ public class JevDecisionPolicy {
 
         double selected = probabilityOf(probabilities, choice);
         double runnerUp = probabilities.entrySet().stream()
-                .filter(entry -> !entry.getKey().equals(choice))
+                .filter(entry -> entry.getKey() != null && !entry.getKey().equalsIgnoreCase(choice))
                 .map(Map.Entry::getValue)
                 .filter(value -> value != null && Double.isFinite(value))
                 .max(Comparator.naturalOrder())

@@ -97,6 +97,23 @@ class JevSafeFallbackTest {
     }
 
     @Test
+    void replanDecisionHandlesMissingUnmetCriteriaWithoutThrowing() {
+        JevDecisionService decisions = mock(JevDecisionService.class);
+        when(decisions.choose(any(), anyString(), anyMap()))
+                .thenThrow(new JevDecisionClient.JevUnavailableException("no credits"));
+
+        JevReplanDecisionService service = new JevReplanDecisionService(decisions);
+        GoalEvaluation evaluation = new GoalEvaluation();
+        evaluation.setUnmetCriteria(null);
+
+        JevReplanDecisionService.Decision result =
+                service.choose(new TravelState(Map.of()), evaluation, List.of());
+
+        assertEquals("ASK_USER", result.action());
+        assertFalse(result.accepted());
+    }
+
+    @Test
     void modelRoutingFallsBackToExistingJavaPolicy() {
         JevDecisionService decisions = mock(JevDecisionService.class);
         when(decisions.choose(any(), anyString(), anyMap()))
