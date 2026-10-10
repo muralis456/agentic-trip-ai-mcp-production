@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Shares LLM/Tavily budget counters and model policy with LangGraph parallel worker threads.
+ * Shares LLM/Tavily budget counters and model identity with LangGraph worker threads.
  */
 @Component
 public class GraphRunContext {
@@ -18,11 +18,16 @@ public class GraphRunContext {
         this.executionBudget = executionBudget;
     }
 
-    public void open(String threadId, AgentExecutionBudget.Counters budget, String policy) {\n        open(threadId, budget, policy, null);\n    }\n\n    public void open(String threadId, AgentExecutionBudget.Counters budget, String policy, String userId) {
+    public void open(String threadId, AgentExecutionBudget.Counters budget, String policy) {
+        open(threadId, budget, policy, null);
+    }
+
+    public void open(String threadId, AgentExecutionBudget.Counters budget, String policy, String userId) {
         if (threadId == null || threadId.isBlank()) {
             return;
         }
-        active.put(threadId, new RunContext(budget, policy, userId, threadId));\n        ModelRoutingContext.setRunIdentity(userId, threadId);
+        active.put(threadId, new RunContext(budget, policy, userId, threadId));
+        ModelRoutingContext.setRunIdentity(userId, threadId);
         GraphExecutionLogger.runContext("open", threadId, policy);
     }
 
@@ -34,7 +39,8 @@ public class GraphRunContext {
         if (context.budget != null) {
             executionBudget.use(context.budget);
         }
-        ModelRoutingContext.set(context.policy);\n        ModelRoutingContext.setRunIdentity(context.userId, context.threadId);
+        ModelRoutingContext.set(context.policy);
+        ModelRoutingContext.setRunIdentity(context.userId, context.threadId);
     }
 
     public void detach() {
@@ -49,6 +55,7 @@ public class GraphRunContext {
         }
     }
 
-    private record RunContext(AgentExecutionBudget.Counters budget, String policy, String userId, String threadId) {
+    private record RunContext(AgentExecutionBudget.Counters budget, String policy,
+                              String userId, String threadId) {
     }
 }
