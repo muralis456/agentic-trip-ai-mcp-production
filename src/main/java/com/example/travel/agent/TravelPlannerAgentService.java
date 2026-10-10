@@ -296,7 +296,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 threadId,
                 executionBudget.capture(),
-                policy);
+                policy,
+                userId);
 
         long runStarted = System.currentTimeMillis();
         GraphExecutionLogger.runStart(threadId, userId,
