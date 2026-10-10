@@ -48,7 +48,7 @@ class AgentEvaluationLedgerTest {
     }
 
     @Test
-    void skipsPersistenceWhenEvaluationStatusIsMissing() {
+    void nullStatusIsNormalizedByEvaluationModelBeforePersistence() {
         AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
         ObjectMapper mapper = mock(ObjectMapper.class);
         AgentEvaluationLedger ledger = new AgentEvaluationLedger(repository, mapper);
@@ -59,7 +59,9 @@ class AgentEvaluationLedgerTest {
 
         ledger.record(state, evaluation);
 
-        verify(repository, never()).save(any());
+        var captor = org.mockito.ArgumentCaptor.forClass(AgentGoalEvaluation.class);
+        verify(repository).save(captor.capture());
+        assertEquals("PARTIAL", captor.getValue().getStatus());
     }
 
     @Test
