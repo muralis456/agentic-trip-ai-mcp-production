@@ -4,6 +4,7 @@ import com.example.travel.observability.AgentEvaluationLedger;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Controller;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,9 +37,11 @@ public class EvaluationDashboardController {
 
     @ResponseBody
     @GetMapping("/api/observability/dashboard")
-    public Map<String, Object> dashboard(@RequestParam(defaultValue = "50") int limit) {
-        List<AgentEvaluationLedger.EvaluationRecord> recent = ledger.recent(limit);
-        Map<String, Object> summary = new LinkedHashMap<>(ledger.summary());
+    public Map<String, Object> dashboard(@RequestParam(defaultValue = "50") int limit,
+                                          Authentication authentication) {
+        String userId = authentication == null ? "" : authentication.getName();
+        List<AgentEvaluationLedger.EvaluationRecord> recent = ledger.recent(userId, limit);
+        Map<String, Object> summary = new LinkedHashMap<>(ledger.summary(userId));
         summary.put("llmCalls", counterSum("agent.llm.calls"));
         summary.put("inputTokens", counterSum("agent.llm.tokens.input"));
         summary.put("outputTokens", counterSum("agent.llm.tokens.output"));
