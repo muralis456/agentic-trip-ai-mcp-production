@@ -321,3 +321,26 @@ The optional TypeSafe Jev layer adds bounded typed decisions at seven control po
 Jev never executes tools. Java remains authoritative for validation, authorization, confidence thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `tev1:4b`). Low-confidence decisions are rejected by the application policy; provider failures fall through to the next configured provider and finally to deterministic Java behavior.
 
 Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP server exposes AviationStack and Ignav flight providers. A preferred provider is attempted first when enabled and healthy; normal server-side fallback remains active. Duffel is not selected until a Duffel provider is actually exposed by the MCP server.
+
+
+## Goal evaluation and observability dashboard
+
+Open `/evaluation` after signing in, or use **Evaluation & Observability** in the main sidebar. The dashboard displays structured goal-evaluation outcomes, scores, satisfied/unmet criteria, blocking issues, recent evaluation traces, LLM/MCP call counts, and per-model token usage. It refreshes every 15 seconds and reads actual application metrics rather than sample/demo values.
+
+Recent evaluation trace retention is deliberately bounded (up to 200 entries) and process-local. It resets on application restart; it is not a durable audit ledger. The dashboard does not display raw prompts or tool arguments. For durable cross-restart analytics, persist evaluation events to PostgreSQL in a future migration.
+
+Model token usage is measured. Monetary cost remains **unavailable unless provider/model pricing is explicitly configured**; the dashboard does not fabricate prices. Configure rates in USD per million tokens under `travel.observability.model-pricing` using the normalized model key (for example, `llama3.2_3b`):
+
+```yaml
+travel:
+  observability:
+    model-pricing:
+      llama3.2_3b:
+        input-usd-per-million: 0.0
+        output-usd-per-million: 0.0
+      gpt-4o-mini:
+        input-usd-per-million: 0.15
+        output-usd-per-million: 0.60
+```
+
+Replace example rates with the current rates from your provider. The dashboard is authenticated using the application's existing security rules.
