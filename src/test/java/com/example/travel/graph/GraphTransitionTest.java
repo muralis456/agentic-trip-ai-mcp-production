@@ -136,8 +136,9 @@ class GraphTransitionTest {
         Map<String, Object> updates = replanExecutor.apply(state, strategy);
         assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_FLIGHTS));
         assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_BUDGET));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_ITINERARY));
         assertEquals(Boolean.FALSE, updates.get(TravelState.RUN_HOTELS));
-        assertEquals(Boolean.FALSE, updates.get(TravelState.RUN_ITINERARY));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.NEEDS_ITINERARY));
         assertEquals(Boolean.TRUE, state.needsHotels());
     }
 
@@ -170,6 +171,75 @@ class GraphTransitionTest {
         assertEquals(Boolean.FALSE, updates.get(TravelState.RUN_FLIGHTS));
         assertEquals(Boolean.FALSE, updates.get(TravelState.RUN_RESEARCH));
         assertEquals(Boolean.FALSE, updates.get(TravelState.RUN_WEATHER));
+    }
+
+    @Test
+    void hotelUpgradeRecomputesBudgetAndItinerary() {
+        TravelState state = state(Map.of(
+                TravelState.COST_FACTOR, BigDecimal.ONE,
+                TravelState.TRAVEL_STYLE, "balanced",
+                TravelState.HOTEL_CHEAPER, Boolean.FALSE,
+                TravelState.FLIGHT_PREFERENCE, "balanced",
+                TravelState.NEEDS_HOTELS, Boolean.TRUE,
+                TravelState.NEEDS_BUDGET, Boolean.TRUE,
+                TravelState.NEEDS_ITINERARY, Boolean.TRUE));
+        ReplanStrategy strategy = new ReplanStrategy();
+        strategy.setActions(List.of("hotel_upgrade"));
+
+        Map<String, Object> updates = replanExecutor.apply(state, strategy);
+
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_HOTELS));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_BUDGET));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_ITINERARY));
+        assertEquals(Boolean.FALSE, updates.get(TravelState.RUN_FLIGHTS));
+    }
+
+    @Test
+    void removingExpensiveAttractionsRebuildsItineraryWithoutRerunningResearch() {
+        TravelState state = state(Map.of(
+                TravelState.COST_FACTOR, BigDecimal.ONE,
+                TravelState.TRAVEL_STYLE, "balanced",
+                TravelState.HOTEL_CHEAPER, Boolean.FALSE,
+                TravelState.FLIGHT_PREFERENCE, "balanced",
+                TravelState.NEEDS_RESEARCH, Boolean.TRUE,
+                TravelState.NEEDS_ITINERARY, Boolean.TRUE));
+        ReplanStrategy strategy = new ReplanStrategy();
+        strategy.setActions(List.of("remove_expensive_attractions"));
+
+        Map<String, Object> updates = replanExecutor.apply(state, strategy);
+
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_ITINERARY));
+        assertEquals(Boolean.FALSE, updates.get(TravelState.RUN_RESEARCH));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.NEEDS_ITINERARY));
+    }
+
+    @Test
+    void addingDestinationInvalidatesAllDestinationDependentResults() {
+        var modification = com.example.travel.agent.ModificationAgentService.heuristic("Add destination Kyoto");
+        modification.setDestination("Kyoto");
+        TravelState state = state(Map.of(
+                TravelState.COST_FACTOR, BigDecimal.ONE,
+                TravelState.TRAVEL_STYLE, "balanced",
+                TravelState.HOTEL_CHEAPER, Boolean.FALSE,
+                TravelState.FLIGHT_PREFERENCE, "balanced",
+                TravelState.MODIFICATION, modification,
+                TravelState.NEEDS_FLIGHTS, Boolean.TRUE,
+                TravelState.NEEDS_HOTELS, Boolean.TRUE,
+                TravelState.NEEDS_RESEARCH, Boolean.TRUE,
+                TravelState.NEEDS_WEATHER, Boolean.TRUE,
+                TravelState.NEEDS_BUDGET, Boolean.TRUE,
+                TravelState.NEEDS_ITINERARY, Boolean.TRUE));
+        ReplanStrategy strategy = new ReplanStrategy();
+        strategy.setActions(List.of("add_destination"));
+
+        Map<String, Object> updates = replanExecutor.apply(state, strategy);
+
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_FLIGHTS));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_HOTELS));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_RESEARCH));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_WEATHER));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_BUDGET));
+        assertEquals(Boolean.TRUE, updates.get(TravelState.RUN_ITINERARY));
     }
 
     @Test
