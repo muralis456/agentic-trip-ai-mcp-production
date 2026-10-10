@@ -23,6 +23,13 @@ public class ProductionEvaluateNode implements NodeAction<TravelState> {
         this.jevGoalDecision=jevGoalDecision;
         this.evaluationLedger=evaluationLedger;
     }
+    /** Compatibility constructor retained for existing tests and wiring. */
+    public ProductionEvaluateNode(GoalEvaluationService evaluator,
+                                  com.example.travel.observability.AgentObservabilityService observability,
+                                  java.util.Optional<JevGoalDecisionService> jevGoalDecision) {
+        this(evaluator, observability, jevGoalDecision, new com.example.travel.observability.AgentEvaluationLedger());
+    }
+
     /** Backward-compatible constructor for unit tests and infrastructure wiring. */
     public ProductionEvaluateNode(GoalEvaluationService evaluator, com.example.travel.observability.AgentObservabilityService observability){
         this(evaluator, observability, java.util.Optional.empty(), new com.example.travel.observability.AgentEvaluationLedger());
