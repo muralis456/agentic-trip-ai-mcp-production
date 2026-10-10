@@ -179,7 +179,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 threadId,
                 executionBudget.capture(),
-                policy);
+                policy,
+                userId);
 
         long runStarted = System.currentTimeMillis();
         GraphExecutionLogger.runStart(threadId, userId,
@@ -606,7 +607,7 @@ public class TravelPlannerAgentService {
         RunnableConfig config = configFor(threadId);
         ModelRoutingContext.set(policy);
         executionBudget.begin();
-        graphRunContext.open(threadId, executionBudget.capture(), policy);
+        graphRunContext.open(threadId, executionBudget.capture(), policy, userId);
         long runStarted = System.currentTimeMillis();
         try {
             TravelState checkpoint = requireCheckpointState(threadId);
@@ -759,7 +760,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 key,
                 executionBudget.capture(),
-                previousPolicy(key));
+                previousPolicy(key),
+                userId);
 
         TravelState state;
 
@@ -1103,7 +1105,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 key,
                 executionBudget.capture(),
-                previous.modelPolicy());
+                previous.modelPolicy(),
+                userId);
 
         try {
 
@@ -1192,7 +1195,7 @@ public class TravelPlannerAgentService {
 
         ModelRoutingContext.set(policy);
         executionBudget.begin();
-        graphRunContext.open(key, executionBudget.capture(), policy);
+        graphRunContext.open(key, executionBudget.capture(), policy, userId);
         graphProgressHub.emit(key, "started", Map.of(
                 "threadId", key,
                 "node", "RETRY",
