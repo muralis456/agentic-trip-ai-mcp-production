@@ -2,6 +2,7 @@ package com.example.travel.observability;
 
 import com.example.travel.entity.AgentModelUsageEvent;
 import com.example.travel.repository.AgentModelUsageEventRepository;
+import com.example.travel.repository.AgentModelUsageAggregate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -39,6 +40,14 @@ public class AgentModelUsageLedger {
             log.warn("Could not persist model usage telemetry; continuing without durable event ({})",
                     ex.getClass().getSimpleName());
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgentModelUsageAggregate> aggregateForUser(String userId, int days) {
+        if (userId == null || userId.isBlank()) return List.of();
+        int safeDays = Math.max(1, Math.min(365, days));
+        return repository.aggregateByUserAndCreatedAtAfter(
+                userId, Instant.now().minusSeconds(safeDays * 86400L));
     }
 
     @Transactional(readOnly = true)
