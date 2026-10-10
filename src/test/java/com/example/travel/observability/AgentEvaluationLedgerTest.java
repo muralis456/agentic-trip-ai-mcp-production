@@ -48,6 +48,21 @@ class AgentEvaluationLedgerTest {
     }
 
     @Test
+    void skipsPersistenceWhenEvaluationStatusIsMissing() {
+        AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
+        ObjectMapper mapper = mock(ObjectMapper.class);
+        AgentEvaluationLedger ledger = new AgentEvaluationLedger(repository, mapper);
+
+        TravelState state = new TravelState(java.util.Map.of(TravelState.USER_ID, "alice"));
+        GoalEvaluation evaluation = new GoalEvaluation();
+        evaluation.setStatus(null);
+
+        ledger.record(state, evaluation);
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void queriesRecentHistoryAndAggregateSummaryOnlyForRequestedUser() {
         AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
         ObjectMapper mapper = mock(ObjectMapper.class);
