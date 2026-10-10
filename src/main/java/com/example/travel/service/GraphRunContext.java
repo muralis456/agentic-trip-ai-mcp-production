@@ -18,11 +18,11 @@ public class GraphRunContext {
         this.executionBudget = executionBudget;
     }
 
-    public void open(String threadId, AgentExecutionBudget.Counters budget, String policy) {
+    public void open(String threadId, AgentExecutionBudget.Counters budget, String policy) {\n        open(threadId, budget, policy, null);\n    }\n\n    public void open(String threadId, AgentExecutionBudget.Counters budget, String policy, String userId) {
         if (threadId == null || threadId.isBlank()) {
             return;
         }
-        active.put(threadId, new RunContext(budget, policy));
+        active.put(threadId, new RunContext(budget, policy, userId, threadId));
         GraphExecutionLogger.runContext("open", threadId, policy);
     }
 
@@ -34,7 +34,7 @@ public class GraphRunContext {
         if (context.budget != null) {
             executionBudget.use(context.budget);
         }
-        ModelRoutingContext.set(context.policy);
+        ModelRoutingContext.set(context.policy);\n        ModelRoutingContext.setRunIdentity(context.userId, context.threadId);
     }
 
     public void detach() {
@@ -49,6 +49,6 @@ public class GraphRunContext {
         }
     }
 
-    private record RunContext(AgentExecutionBudget.Counters budget, String policy) {
+    private record RunContext(AgentExecutionBudget.Counters budget, String policy, String userId, String threadId) {
     }
 }
