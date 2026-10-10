@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(EvaluationDashboardController.class)
@@ -69,7 +70,7 @@ class EvaluationDashboardSecurityIntegrationTest {
         when(usage.aggregateForUser("alice", 30)).thenReturn(List.of());
 
         mvc.perform(get("/api/observability/dashboard")
-                        .header("Authorization", basic("alice", "alice-password")))
+                        .with(user("alice").roles("USER"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.evaluations").value(0))
                 .andExpect(jsonPath("$.modelUsageWindowDays").value(30));
