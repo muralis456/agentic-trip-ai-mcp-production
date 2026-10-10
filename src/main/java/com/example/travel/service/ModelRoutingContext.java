@@ -32,9 +32,19 @@ public final class ModelRoutingContext {
         return value == null ? Complexity.SIMPLE : value;
     }
 
+    public static void setRunIdentity(String userId, String threadId) {
+        USER_ID.set(userId);
+        THREAD_ID.set(threadId);
+    }
+
+    public static String userId() { return USER_ID.get(); }
+    public static String threadId() { return THREAD_ID.get(); }
+
     public static void clear() {
         POLICY.remove();
         COMPLEXITY.remove();
+        USER_ID.remove();
+        THREAD_ID.remove();
     }
 
     public enum Complexity {
