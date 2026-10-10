@@ -79,9 +79,11 @@ public class McpToolSelector {
             try {
                 Map<String, String> criteria = candidates.stream().collect(Collectors.toMap(
                         callback -> callback.getToolDefinition().name(),
-                        callback -> callback.getToolDefinition().description() == null
-                                ? "Use this tool when its capability matches the requested task."
-                                : callback.getToolDefinition().description(),
+                        callback -> promptInjectionGuard.wrapUntrusted(
+                                "MCP_TOOL_DESCRIPTION",
+                                callback.getToolDefinition().description() == null
+                                        ? "Use this tool when its capability matches the requested task."
+                                        : callback.getToolDefinition().description()),
                         (left, right) -> left,
                         java.util.LinkedHashMap::new));
 
