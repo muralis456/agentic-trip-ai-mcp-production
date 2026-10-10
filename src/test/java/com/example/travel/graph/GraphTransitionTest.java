@@ -120,7 +120,7 @@ class GraphTransitionTest {
     }
 
     @Test
-    void replanCheaperFlightSelectsOnlyFlightAndBudget() {
+    void replanCheaperFlightRecomputesBudgetAndItinerary() {
         TravelState state = state(Map.of(
                 TravelState.COST_FACTOR, BigDecimal.ONE,
                 TravelState.TRAVEL_STYLE, "balanced",
