@@ -133,8 +133,9 @@ public class EvaluationDashboardController {
             result.put("totalTokens", inputTokens + outputTokens);
             var rate = pricing.getModelPricing().get(model);
             if (rate == null) {
+                String normalizedModel = normalizeModel(model);
                 rate = pricing.getModelPricing().entrySet().stream()
-                        .filter(e -> normalizeModel(e.getKey()).equals(model))
+                        .filter(e -> normalizeModel(e.getKey()).equals(normalizedModel))
                         .map(Map.Entry::getValue).findFirst().orElse(null);
             }
             Double cost = rate == null ? null :
