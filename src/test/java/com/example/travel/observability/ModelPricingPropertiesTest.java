@@ -45,6 +45,16 @@ class ModelPricingPropertiesTest {
     }
 
     @Test
+    void providerPerCallEstimateRequiresExplicitRateAndSupportsProviderFallback() {
+        ModelPricingProperties pricing = new ModelPricingProperties();
+        assertNull(pricing.estimateProviderCallCostUsd("serpapi:flight_search"));
+        pricing.setProviderCallPricing(Map.of("serpapi:*", 0.0125, "tavily:search", 0.002));
+        assertEquals(0.0125, pricing.estimateProviderCallCostUsd("SerpApi:flight_search"), 0.000001);
+        assertEquals(0.002, pricing.estimateProviderCallCostUsd("tavily:search"), 0.000001);
+        assertNull(pricing.estimateProviderCallCostUsd("openweather:forecast"));
+    }
+
+    @Test
     void doesNotInventLocalComputeCostWhenNoRateIsConfigured() {
         ModelPricingProperties pricing = new ModelPricingProperties();
         pricing.setLocalModels(Set.of("local-model"));
