@@ -38,7 +38,7 @@
   <section class="card detail" id="detail"><h2 class="section-title">Evaluation evidence <button class="btn" id="closeDetail">Close</button></h2><div id="detailSummary" class="sub"></div><div class="criteria" style="margin-top:15px"><div><h4>SATISFIED CRITERIA</h4><ul id="satisfied"></ul></div><div><h4>UNMET CRITERIA</h4><ul id="unmet"></ul></div><div><h4>BLOCKING ISSUES</h4><ul id="blockers"></ul></div></div></section>
   <div class="footer"><span>Evaluation history is stored in PostgreSQL and survives application restarts. MCP/replan/node counters reset when the application restarts and are shared across users. Model telemetry is persisted and scoped to your account.</span><span id="updated">Not refreshed yet</span></div>
 </div>
-<script>
+<script th:inline="none">
 (() => {
   /* Disable Thymeleaf JavaScript inlining for this plain client-side dashboard script. */
   const $ = id => document.getElementById(id);
