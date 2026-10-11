@@ -4,6 +4,7 @@ import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.support.TripSlotHeuristics;
 import com.example.travel.service.TripHistoryService;
 import com.example.travel.model.GoalEvaluation;
+import com.example.travel.observability.AgentEvaluationLedger;
 import com.example.travel.config.TravelModelsProperties;
 import com.example.travel.dto.AgentExecutionDetails;
 import com.example.travel.dto.TripPlanResult;
@@ -45,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -89,6 +91,10 @@ public class TravelPlannerAgentService {
     private final TripHistoryService tripHistoryService;
     private final ObjectMapper objectMapper;
     private final int maxRetries;
+
+    // Optional telemetry dependency is field-injected to keep existing test constructors compatible.
+    @Autowired
+    private AgentEvaluationLedger evaluationLedger;
 
     public TravelPlannerAgentService(
             CompiledGraph<TravelState> travelGraph,
@@ -396,7 +402,10 @@ public class TravelPlannerAgentService {
                 Map<String, Object> stopped = new LinkedHashMap<>();
                 stopped.put("threadId", threadId);
                 stopped.put("message", "Stopped. Your current checkpoint is saved. Say Continue to resume this request.");
-                if (checkpoint != null) stopped.put("pipeline", checkpoint.pipeline());
+                if (checkpoint != null) {
+                    stopped.put("pipeline", checkpoint.pipeline());
+                    if (evaluationLedger != null) evaluationLedger.recordStopped(checkpoint, threadId);
+                }
                 graphProgressHub.emit(threadId, "stopped", stopped);
                 runControlService.markStopped(threadId);
                 log.info("Graph stopped threadId={} at persisted checkpoint", threadId);
