@@ -517,6 +517,11 @@ public class TravelPlannerAgentService {
         AgentRunControl run = stopped.get();
         String threadId = run.getThreadId();
         TravelState checkpoint = requireCheckpointState(threadId);
+        // "Continue" is an explicit control command, not a new natural-language
+        // planning request. Do not let the LLM action resolver reinterpret it as NEW.
+        if (isContinueCommand(prompt)) {
+            return java.util.Optional.of(resumeLatestStoppedInfo(userId, conversationId, threadId));
+        }
         StoppedRunActionDecision action = stoppedRunActionResolver.resolve(checkpoint, prompt);
         log.info("Stopped-run routing action={} confidence={} threadId={} prompt={}",
                 action.getAction(), action.getConfidence(), threadId, prompt);
