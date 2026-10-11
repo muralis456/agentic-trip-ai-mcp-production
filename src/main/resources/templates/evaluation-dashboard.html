@@ -30,10 +30,11 @@
     <article class="card"><h2 class="section-title">Goal outcomes <span class="pill">ACTUAL EVALUATOR EVENTS</span></h2><div class="chart"><div class="bars" id="outcomeBars"></div><div class="labels" id="outcomeLabels"></div></div><div class="legend"><span><i class="dot green"></i>Achieved</span><span><i class="dot"></i>Partial</span><span><i class="dot purple"></i>Needs user</span><span style="color:var(--red)">Failed</span></div></article>
     <article class="card"><h2 class="section-title">Goal score trend <span class="pill">LATEST EVALUATIONS</span></h2><div class="chart"><svg id="scoreChart" viewBox="0 0 600 220" role="img" aria-label="Goal evaluation scores over time" style="width:100%;height:100%"><text x="300" y="110" text-anchor="middle" fill="#93a5bd">Waiting for evaluation data…</text></svg></div><div class="legend"><span><i class="dot"></i>Evaluation score (0–1)</span></div></article>
   </section>
-  <section class="card" style="margin-top:14px"><h2 class="section-title">Model usage <span class="pill">YOUR ACCOUNT · PERSISTED</span></h2><label class="sub" for="usageWindow">Window: </label><select id="usageWindow" aria-label="Model usage time window"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select><div class="table-wrap"><table><thead><tr><th>Model</th><th>Calls</th><th>Errors</th><th>Avg latency</th><th>Input tokens</th><th>Output tokens</th><th>Paid API</th><th>Local infra</th><th>Total</th></tr></thead><tbody id="models"><tr><td colspan="9" class="empty">Loading usage…</td></tr></tbody></table></div><div class="notice" id="costNotice">Cost estimates separate local compute allocation from paid model API charges. Unpriced paid models are never treated as $0.</div></section>
-  <section class="card" style="margin-top:14px"><h2 class="section-title">Trip cost breakdown <span class="pill">PER THREAD / TRIP</span></h2><div class="table-wrap"><table><thead><tr><th>Trip / thread</th><th>Model calls</th><th>Input tokens</th><th>Output tokens</th><th>Local infra</th><th>Paid API</th><th>Total</th></tr></thead><tbody id="tripCosts"><tr><td colspan="7" class="empty">Loading trip costs…</td></tr></tbody></table></div></section>
+  <section class="card" style="margin-top:14px"><h2 class="section-title">Model usage <span class="pill">YOUR ACCOUNT · PERSISTED</span></h2><label class="sub" for="usageWindow">Window: </label><select id="usageWindow" aria-label="Dashboard time window"><option value="1">Last 24 hours</option><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="365">365 days</option><option value="0">All time</option></select><div class="table-wrap"><table><thead><tr><th>Model</th><th>Calls</th><th>Errors</th><th>Avg latency</th><th>Input tokens</th><th>Output tokens</th><th>Estimated API</th><th>Local compute</th><th>Estimated total</th></tr></thead><tbody id="models"><tr><td colspan="9" class="empty">Loading usage…</td></tr></tbody></table></div><div class="sub" id="costSummary" style="margin-top:12px">Cost totals are loading…</div><div class="notice" id="costNotice">API values are estimates based on configured token rates, not invoices. Local compute is unavailable unless a rate is configured.</div></section>
+  <section class="card" style="margin-top:14px"><h2 class="section-title">Trip cost breakdown <span class="pill">PER THREAD / TRIP</span></h2><div class="table-wrap"><table><thead><tr><th>Trip / goal</th><th>Model calls</th><th>Input tokens</th><th>Output tokens</th><th>Local infra</th><th>Paid API</th><th>Total</th></tr></thead><tbody id="tripCosts"><tr><td colspan="7" class="empty">Loading trip costs…</td></tr></tbody></table></div></section>
   <section class="card" style="margin-top:14px"><h2 class="section-title">Runtime signals <span class="pill">MIXED SCOPE</span></h2><div class="table-wrap"><table><tbody id="runtime"><tr><td class="empty">Loading runtime signals…</td></tr></tbody></table></div><div class="sub" style="margin-top:10px">Operational counters do not prove that a trip met its requirements.</div></section>
-  <section class="card" style="margin-top:14px"><h2 class="section-title">Evaluation history <span class="pill">LATEST 50 · CLICK A ROW FOR EVIDENCE</span></h2><div class="trace-controls"><input id="traceSearch" type="search" placeholder="Search goal, destination, thread or reason" aria-label="Search evaluation history"><select id="statusFilter" aria-label="Filter evaluation status"><option value="">All outcomes</option><option value="ACHIEVED">Achieved</option><option value="PARTIAL">Partial</option><option value="FAILED">Failed</option><option value="NEEDS_USER">Needs user</option></select><span class="sub" id="traceCount">0 records</span></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Goal / destination</th><th>Status</th><th>Score</th></tr></thead><tbody id="traces"><tr><td colspan="5" class="empty">Loading traces…</td></tr></tbody></table></div></section>
+  <section class="card" style="margin-top:14px"><h2 class="section-title">Evaluation history <span class="pill">FILTERED · CLICK A ROW FOR EVIDENCE</span></h2><div class="trace-controls"><input id="traceSearch" type="search" placeholder="Search goal, destination, thread or reason" aria-label="Search evaluation history"><select id="statusFilter" aria-label="Filter evaluation status"><option value="">All outcomes</option><option value="ACHIEVED">Achieved</option><option value="PARTIAL">Partial</option><option value="FAILED">Failed</option><option value="NEEDS_USER">Needs user</option></select><select id="sortFilter" aria-label="Sort evaluation history"><option value="createdAt:DESC">Newest first</option><option value="createdAt:ASC">Oldest first</option><option value="score:DESC">Highest score</option><option value="score:ASC">Lowest score</option><option value="status:ASC">Outcome</option></select><button class="btn" id="exportCsv" type="button">Export current page CSV</button><span class="sub" id="traceCount">0 records</span></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Goal / destination</th><th>Status</th><th>Score</th></tr></thead><tbody id="traces"><tr><td colspan="5" class="empty">Loading traces…</td></tr></tbody></table></div><div class="actions" style="justify-content:flex-end;margin-top:12px"><button class="btn" id="prevPage" type="button">← Previous</button><span class="sub" id="pageInfo">Page 1</span><button class="btn" id="nextPage" type="button">Next →</button></div></section>
+  <section class="card" style="margin-top:14px"><h2 class="section-title">Durable runtime events <span class="pill">ACCOUNT + THREAD SCOPED</span></h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Event</th><th>Component</th><th>Status</th><th>Duration</th><th>Attempt</th></tr></thead><tbody id="runtimeEvents"><tr><td colspan="7" class="empty">Loading runtime events…</td></tr></tbody></table></div><div class="sub" style="margin-top:10px">Only events with an authenticated user and active thread context can be persisted. Process-wide counters remain separate.</div></section>
   <section class="card detail" id="detail"><h2 class="section-title">Evaluation evidence <button class="btn" id="closeDetail">Close</button></h2><div id="detailSummary" class="sub"></div><div class="criteria" style="margin-top:15px"><div><h4>SATISFIED CRITERIA</h4><ul id="satisfied"></ul></div><div><h4>UNMET CRITERIA</h4><ul id="unmet"></ul></div><div><h4>BLOCKING ISSUES</h4><ul id="blockers"></ul></div></div></section>
   <div class="footer"><span>Evaluation history is stored in PostgreSQL and survives application restarts. MCP/replan/node counters reset when the application restarts and are shared across users. Model telemetry is persisted and scoped to your account.</span><span id="updated">Not refreshed yet</span></div>
 </div>
@@ -43,6 +44,8 @@
   const $ = id => document.getElementById(id);
   let snapshot = null;
   let refreshInFlight = false;
+  let pageIndex = 0;
+  let searchTimer = null;
   const fmt = n => Number(n || 0).toLocaleString();
   const pct = n => (Number(n || 0) * 100).toFixed(1) + '%';
   const time = value => { try { return new Date(value).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); } catch (_) { return '—'; } };
@@ -81,7 +84,422 @@
       $('scoreChart').innerHTML=grid+'<polyline points="'+poly+'" fill="none" stroke="#4a9cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'+dots+'<text x="'+left+'" y="207" font-size="10" fill="#93a5bd">'+esc(time(points[0].t.timestamp))+'</text><text x="'+right+'" y="207" text-anchor="end" font-size="10" fill="#93a5bd">'+esc(time(points[points.length-1].t.timestamp))+'</text>';
     }
     const models = data.modelUsage || [];
-    const money = value => value == null ? '<span class="sub">Unpriced</span>' : '$' + Number(value).toFixed(5);
+    const money = value => value == null ? '<span class="sub">Unavailable</span>' : '
+    $('models').innerHTML = models.length ? models.map(m => {
+      const apiCost = m.providerApiCostUsd ?? m.estimatedCostUsd;
+      return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+money(apiCost)+'</td><td>'+money(m.localInfrastructureCostUsd)+'</td><td>'+money(m.totalCostUsd)+'</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">No model usage recorded for this window</td></tr>';
+    const tripCosts = data.tripCosts || [];
+    $('tripCosts').innerHTML = tripCosts.length ? tripCosts.map(t => '<tr><td title="'+esc(t.threadId)+'">'+esc(t.label || 'Trip')+'<div class="sub">'+esc((t.threadId && t.threadId.length > 12 ? '…' + t.threadId.slice(-8) : (t.threadId || 'untracked')))+'</div></td><td>'+fmt(t.calls)+'</td><td>'+fmt(t.inputTokens)+'</td><td>'+fmt(t.outputTokens)+'</td><td>'+money(t.localInfrastructureCostUsd)+'</td><td>'+money(t.providerApiCostUsd)+'</td><td>'+money(t.totalCostUsd)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No trip cost records in this window</td></tr>';
+    $('costNotice').textContent = data.costNotice || 'API prices are estimates, not invoices. Unknown costs are unavailable.';
+    const cs = data.costSummary || {};
+    $('costSummary').textContent = 'Trips: '+fmt(cs.trips)+' · Estimated API: '+(cs.providerApiCostUsd == null ? 'Unavailable' : '
+    const traces = data.traces || [];
+    renderTraces();
+    function renderTraces() {
+      const pg = data.tracePagination || {page:0,pageSize:50,totalElements:traces.length,totalPages:traces.length ? 1 : 0,hasNext:false,hasPrevious:false};
+      $('traceCount').textContent = fmt(pg.totalElements)+' evaluations';
+      $('pageInfo').textContent = 'Page '+(pg.totalPages ? pg.page+1 : 0)+' of '+pg.totalPages;
+      $('prevPage').disabled = !pg.hasPrevious;
+      $('nextPage').disabled = !pg.hasNext;
+      $('traces').innerHTML = traces.length ? traces.map((t,i)=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(new Date(t.timestamp).toLocaleString())+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">No evaluations match these filters. Try another time range or outcome.</td></tr>';
+      document.querySelectorAll('.trace-row').forEach(row => {
+        row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
+        row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showTrace(Number(row.dataset.index));}});
+      });
+    }
+    const pr = data.processRuntime || {};
+    $('runtime').innerHTML = [['Node executions · process-wide / resets on restart',pr.nodeExecutions],['Replan decisions · process-wide / resets on restart',pr.replans],['MCP tool calls · process-wide / resets on restart',pr.mcpCalls],['MCP retries · process-wide',pr.mcpRetries],['External provider calls · process-wide',pr.providerCalls],['Agent retries · process-wide',pr.agentRetries],['Average node duration · ms / process-wide',Math.round(pr.averageNodeDurationMs||0)],['Average MCP duration · ms / process-wide',Math.round(pr.averageMcpDurationMs||0)],['Average provider duration · ms / process-wide',Math.round(pr.averageProviderDurationMs||0)],['LLM calls · your account / selected window',s.llmCalls],['Input tokens · your account / selected window',s.inputTokens],['Output tokens · your account / selected window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
+    const events = data.runtimeEvents || [];
+    $('runtimeEvents').innerHTML = events.length ? events.map(e=>'<tr><td>'+esc(new Date(e.timestamp).toLocaleString())+'</td><td title="'+esc(e.threadId)+'">'+esc((e.threadId||'').slice(-8))+'</td><td>'+esc(e.eventType)+'</td><td>'+esc(e.component)+'</td><td><span class="badge '+(e.status==='SUCCESS'?'ACHIEVED':'FAILED')+'">'+esc(e.status)+'</span></td><td>'+fmt(e.durationMs)+' ms</td><td>'+fmt(e.attempt)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No durable runtime events for this account and time window. Events require a valid user/thread context.</td></tr>';
+    $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
+    $('live').textContent = '● Live';
+    $('live').style.color = 'var(--green)';
+  }
+  function showTrace(index) {
+    if (!snapshot || !snapshot.traces[index]) return;
+    const t = snapshot.traces[index];
+    $('detail').classList.add('show');
+    $('detailSummary').textContent = [t.timestamp, 'thread '+t.threadId, t.status, 'score '+Number(t.score||0).toFixed(3), t.recoverable ? 'recoverable' : 'not marked recoverable', t.reason].filter(Boolean).join(' · ');
+    list('satisfied',t.satisfiedCriteria); list('unmet',t.unmetCriteria); list('blockers',t.blockingIssues);
+    $('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    $('live').textContent = 'Refreshing…';
+    try {
+      const [sortBy, sortDirection] = ($('sortFilter').value || 'createdAt:DESC').split(':');
+      const params = new URLSearchParams({limit:'50',page:String(pageIndex),pageSize:'50',windowDays:$('usageWindow').value || '30',q:$('traceSearch').value || '',status:$('statusFilter').value || '',sortBy,sortDirection});
+      const response = await fetch('/api/observability/dashboard?'+params.toString(),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
+      if (!response.ok) throw new Error('Dashboard API returned '+response.status);
+      render(await response.json());
+    } catch (e) { $('live').textContent='Unavailable'; $('live').style.color='var(--red)'; }
+    finally { refreshInFlight = false; }
+  }
+  $('traceSearch').addEventListener('input',()=>{ pageIndex=0; window.clearTimeout(searchTimer); searchTimer=window.setTimeout(refresh,250); });
+  $('statusFilter').addEventListener('change',()=>{pageIndex=0;refresh();});
+  $('sortFilter').addEventListener('change',()=>{pageIndex=0;refresh();});
+  $('usageWindow').addEventListener('change',()=>{pageIndex=0;refresh();});
+  $('prevPage').addEventListener('click',()=>{if(pageIndex>0){pageIndex--;refresh();}});
+  $('nextPage').addEventListener('click',()=>{pageIndex++;refresh();});
+  $('exportCsv').addEventListener('click',()=>{
+    const rows=(snapshot?.traces||[]);
+    const cols=['timestamp','threadId','destination','goal','budget','status','score','reason','satisfiedCriteria','unmetCriteria','blockingIssues'];
+    const quote=v=>'"'+String(Array.isArray(v)?v.join('; '):(v??'')).replace(/"/g,'""')+'"';
+    const csv=[cols.join(','),...rows.map(row=>cols.map(key=>quote(row[key])).join(','))].join('\\r\\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='agent-evaluations-page-'+(pageIndex+1)+'.csv';a.click();URL.revokeObjectURL(url);
+  });
+  $('refresh').addEventListener('click',refresh);
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('show'));
+  refresh();
+  window.setInterval(refresh,15000);
+})();
+</script>
+</body>
+</html>
+ + Number(value).toFixed(5);
+    $('models').innerHTML = models.length ? models.map(m => {
+      const apiCost = m.providerApiCostUsd ?? m.estimatedCostUsd;
+      return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+money(apiCost)+'</td><td>'+money(m.localInfrastructureCostUsd)+'</td><td>'+money(m.totalCostUsd)+'</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">No model usage recorded for this window</td></tr>';
+    const tripCosts = data.tripCosts || [];
+    $('tripCosts').innerHTML = tripCosts.length ? tripCosts.map(t => '<tr><td title="'+esc(t.threadId)+'">'+esc((t.threadId && t.threadId.length > 12 ? '…' + t.threadId.slice(-8) : (t.threadId || 'untracked')))+'</td><td>'+fmt(t.calls)+'</td><td>'+fmt(t.inputTokens)+'</td><td>'+fmt(t.outputTokens)+'</td><td>'+money(t.localInfrastructureCostUsd)+'</td><td>'+money(t.providerApiCostUsd)+'</td><td>'+money(t.totalCostUsd)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No trip cost records in this window</td></tr>';
+    $('costNotice').textContent = data.costNotice || 'Cost estimates use configured model pricing and local execution-time allocation. Unknown paid-model rates show as Unpriced.';
+    const traces = data.traces || [];
+    renderTraces();
+    function renderTraces() {
+      const query = ($('traceSearch')?.value || '').trim().toLowerCase();
+      const status = $('statusFilter')?.value || '';
+      const filtered = traces.map((t,i)=>({t,i})).filter(({t}) =>
+        (!status || t.status === status) &&
+        (!query || [t.goal,t.destination,t.threadId,t.reason,t.budget,...(t.satisfiedCriteria||[]),...(t.unmetCriteria||[]),...(t.blockingIssues||[])].some(v=>String(v||'').toLowerCase().includes(query)))
+      );
+      $('traceCount').textContent = filtered.length+' of '+traces.length+' records';
+      $('traces').innerHTML = filtered.length ? filtered.map(({t,i})=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(time(t.timestamp))+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">'+(traces.length ? 'No evaluations match these filters.' : 'No goal evaluations recorded yet. Run a trip to populate this dashboard.')+'</td></tr>';
+      document.querySelectorAll('.trace-row').forEach(row => {
+        row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
+        row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showTrace(Number(row.dataset.index));}});
+      });
+    }
+    $('runtime').innerHTML = [['Node executions · process-wide',s.nodeExecutions],['Replan decisions · process-wide',s.replans],['MCP tool calls · process-wide',s.mcpCalls],['LLM calls · your account/window',s.llmCalls],['Input tokens · your account/window',s.inputTokens],['Output tokens · your account/window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
+    $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
+    $('live').textContent = '● Live';
+    $('live').style.color = 'var(--green)';
+  }
+  function showTrace(index) {
+    if (!snapshot || !snapshot.traces[index]) return;
+    const t = snapshot.traces[index];
+    $('detail').classList.add('show');
+    $('detailSummary').textContent = [t.timestamp, 'thread '+t.threadId, t.status, 'score '+Number(t.score||0).toFixed(3), t.recoverable ? 'recoverable' : 'not marked recoverable', t.reason].filter(Boolean).join(' · ');
+    list('satisfied',t.satisfiedCriteria); list('unmet',t.unmetCriteria); list('blockers',t.blockingIssues);
+    $('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    $('live').textContent = 'Refreshing…';
+    try {
+      const response = await fetch('/api/observability/dashboard?limit=50&windowDays='+encodeURIComponent($('usageWindow').value || '30'),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
+      if (!response.ok) throw new Error('Dashboard API returned '+response.status);
+      render(await response.json());
+    } catch (e) { $('live').textContent='Unavailable'; $('live').style.color='var(--red)'; }
+    finally { refreshInFlight = false; }
+  }
+  $('traceSearch').addEventListener('input',()=>{ if(snapshot) { /* rerender using current snapshot */ render(snapshot); } });
+  $('statusFilter').addEventListener('change',()=>{ if(snapshot) render(snapshot); });
+  $('usageWindow').addEventListener('change',refresh);
+  $('refresh').addEventListener('click',refresh);
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('show'));
+  refresh();
+  window.setInterval(refresh,15000);
+})();
+</script>
+</body>
+</html>
++Number(cs.providerApiCostUsd).toFixed(5))+' · Local compute: '+(cs.localInfrastructureCostUsd == null ? 'Unavailable' : '
+    const traces = data.traces || [];
+    renderTraces();
+    function renderTraces() {
+      const query = ($('traceSearch')?.value || '').trim().toLowerCase();
+      const status = $('statusFilter')?.value || '';
+      const filtered = traces.map((t,i)=>({t,i})).filter(({t}) =>
+        (!status || t.status === status) &&
+        (!query || [t.goal,t.destination,t.threadId,t.reason,t.budget,...(t.satisfiedCriteria||[]),...(t.unmetCriteria||[]),...(t.blockingIssues||[])].some(v=>String(v||'').toLowerCase().includes(query)))
+      );
+      $('traceCount').textContent = filtered.length+' of '+traces.length+' records';
+      $('traces').innerHTML = filtered.length ? filtered.map(({t,i})=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(time(t.timestamp))+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">'+(traces.length ? 'No evaluations match these filters.' : 'No goal evaluations recorded yet. Run a trip to populate this dashboard.')+'</td></tr>';
+      document.querySelectorAll('.trace-row').forEach(row => {
+        row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
+        row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showTrace(Number(row.dataset.index));}});
+      });
+    }
+    $('runtime').innerHTML = [['Node executions · process-wide',s.nodeExecutions],['Replan decisions · process-wide',s.replans],['MCP tool calls · process-wide',s.mcpCalls],['LLM calls · your account/window',s.llmCalls],['Input tokens · your account/window',s.inputTokens],['Output tokens · your account/window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
+    $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
+    $('live').textContent = '● Live';
+    $('live').style.color = 'var(--green)';
+  }
+  function showTrace(index) {
+    if (!snapshot || !snapshot.traces[index]) return;
+    const t = snapshot.traces[index];
+    $('detail').classList.add('show');
+    $('detailSummary').textContent = [t.timestamp, 'thread '+t.threadId, t.status, 'score '+Number(t.score||0).toFixed(3), t.recoverable ? 'recoverable' : 'not marked recoverable', t.reason].filter(Boolean).join(' · ');
+    list('satisfied',t.satisfiedCriteria); list('unmet',t.unmetCriteria); list('blockers',t.blockingIssues);
+    $('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    $('live').textContent = 'Refreshing…';
+    try {
+      const response = await fetch('/api/observability/dashboard?limit=50&windowDays='+encodeURIComponent($('usageWindow').value || '30'),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
+      if (!response.ok) throw new Error('Dashboard API returned '+response.status);
+      render(await response.json());
+    } catch (e) { $('live').textContent='Unavailable'; $('live').style.color='var(--red)'; }
+    finally { refreshInFlight = false; }
+  }
+  $('traceSearch').addEventListener('input',()=>{ if(snapshot) { /* rerender using current snapshot */ render(snapshot); } });
+  $('statusFilter').addEventListener('change',()=>{ if(snapshot) render(snapshot); });
+  $('usageWindow').addEventListener('change',refresh);
+  $('refresh').addEventListener('click',refresh);
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('show'));
+  refresh();
+  window.setInterval(refresh,15000);
+})();
+</script>
+</body>
+</html>
+ + Number(value).toFixed(5);
+    $('models').innerHTML = models.length ? models.map(m => {
+      const apiCost = m.providerApiCostUsd ?? m.estimatedCostUsd;
+      return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+money(apiCost)+'</td><td>'+money(m.localInfrastructureCostUsd)+'</td><td>'+money(m.totalCostUsd)+'</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">No model usage recorded for this window</td></tr>';
+    const tripCosts = data.tripCosts || [];
+    $('tripCosts').innerHTML = tripCosts.length ? tripCosts.map(t => '<tr><td title="'+esc(t.threadId)+'">'+esc((t.threadId && t.threadId.length > 12 ? '…' + t.threadId.slice(-8) : (t.threadId || 'untracked')))+'</td><td>'+fmt(t.calls)+'</td><td>'+fmt(t.inputTokens)+'</td><td>'+fmt(t.outputTokens)+'</td><td>'+money(t.localInfrastructureCostUsd)+'</td><td>'+money(t.providerApiCostUsd)+'</td><td>'+money(t.totalCostUsd)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No trip cost records in this window</td></tr>';
+    $('costNotice').textContent = data.costNotice || 'Cost estimates use configured model pricing and local execution-time allocation. Unknown paid-model rates show as Unpriced.';
+    const traces = data.traces || [];
+    renderTraces();
+    function renderTraces() {
+      const query = ($('traceSearch')?.value || '').trim().toLowerCase();
+      const status = $('statusFilter')?.value || '';
+      const filtered = traces.map((t,i)=>({t,i})).filter(({t}) =>
+        (!status || t.status === status) &&
+        (!query || [t.goal,t.destination,t.threadId,t.reason,t.budget,...(t.satisfiedCriteria||[]),...(t.unmetCriteria||[]),...(t.blockingIssues||[])].some(v=>String(v||'').toLowerCase().includes(query)))
+      );
+      $('traceCount').textContent = filtered.length+' of '+traces.length+' records';
+      $('traces').innerHTML = filtered.length ? filtered.map(({t,i})=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(time(t.timestamp))+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">'+(traces.length ? 'No evaluations match these filters.' : 'No goal evaluations recorded yet. Run a trip to populate this dashboard.')+'</td></tr>';
+      document.querySelectorAll('.trace-row').forEach(row => {
+        row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
+        row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showTrace(Number(row.dataset.index));}});
+      });
+    }
+    $('runtime').innerHTML = [['Node executions · process-wide',s.nodeExecutions],['Replan decisions · process-wide',s.replans],['MCP tool calls · process-wide',s.mcpCalls],['LLM calls · your account/window',s.llmCalls],['Input tokens · your account/window',s.inputTokens],['Output tokens · your account/window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
+    $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
+    $('live').textContent = '● Live';
+    $('live').style.color = 'var(--green)';
+  }
+  function showTrace(index) {
+    if (!snapshot || !snapshot.traces[index]) return;
+    const t = snapshot.traces[index];
+    $('detail').classList.add('show');
+    $('detailSummary').textContent = [t.timestamp, 'thread '+t.threadId, t.status, 'score '+Number(t.score||0).toFixed(3), t.recoverable ? 'recoverable' : 'not marked recoverable', t.reason].filter(Boolean).join(' · ');
+    list('satisfied',t.satisfiedCriteria); list('unmet',t.unmetCriteria); list('blockers',t.blockingIssues);
+    $('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    $('live').textContent = 'Refreshing…';
+    try {
+      const response = await fetch('/api/observability/dashboard?limit=50&windowDays='+encodeURIComponent($('usageWindow').value || '30'),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
+      if (!response.ok) throw new Error('Dashboard API returned '+response.status);
+      render(await response.json());
+    } catch (e) { $('live').textContent='Unavailable'; $('live').style.color='var(--red)'; }
+    finally { refreshInFlight = false; }
+  }
+  $('traceSearch').addEventListener('input',()=>{ if(snapshot) { /* rerender using current snapshot */ render(snapshot); } });
+  $('statusFilter').addEventListener('change',()=>{ if(snapshot) render(snapshot); });
+  $('usageWindow').addEventListener('change',refresh);
+  $('refresh').addEventListener('click',refresh);
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('show'));
+  refresh();
+  window.setInterval(refresh,15000);
+})();
+</script>
+</body>
+</html>
++Number(cs.localInfrastructureCostUsd).toFixed(5))+' · Estimated total: '+(cs.totalCostUsd == null ? 'Unavailable until all required rates are configured' : '
+    const traces = data.traces || [];
+    renderTraces();
+    function renderTraces() {
+      const query = ($('traceSearch')?.value || '').trim().toLowerCase();
+      const status = $('statusFilter')?.value || '';
+      const filtered = traces.map((t,i)=>({t,i})).filter(({t}) =>
+        (!status || t.status === status) &&
+        (!query || [t.goal,t.destination,t.threadId,t.reason,t.budget,...(t.satisfiedCriteria||[]),...(t.unmetCriteria||[]),...(t.blockingIssues||[])].some(v=>String(v||'').toLowerCase().includes(query)))
+      );
+      $('traceCount').textContent = filtered.length+' of '+traces.length+' records';
+      $('traces').innerHTML = filtered.length ? filtered.map(({t,i})=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(time(t.timestamp))+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">'+(traces.length ? 'No evaluations match these filters.' : 'No goal evaluations recorded yet. Run a trip to populate this dashboard.')+'</td></tr>';
+      document.querySelectorAll('.trace-row').forEach(row => {
+        row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
+        row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showTrace(Number(row.dataset.index));}});
+      });
+    }
+    $('runtime').innerHTML = [['Node executions · process-wide',s.nodeExecutions],['Replan decisions · process-wide',s.replans],['MCP tool calls · process-wide',s.mcpCalls],['LLM calls · your account/window',s.llmCalls],['Input tokens · your account/window',s.inputTokens],['Output tokens · your account/window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
+    $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
+    $('live').textContent = '● Live';
+    $('live').style.color = 'var(--green)';
+  }
+  function showTrace(index) {
+    if (!snapshot || !snapshot.traces[index]) return;
+    const t = snapshot.traces[index];
+    $('detail').classList.add('show');
+    $('detailSummary').textContent = [t.timestamp, 'thread '+t.threadId, t.status, 'score '+Number(t.score||0).toFixed(3), t.recoverable ? 'recoverable' : 'not marked recoverable', t.reason].filter(Boolean).join(' · ');
+    list('satisfied',t.satisfiedCriteria); list('unmet',t.unmetCriteria); list('blockers',t.blockingIssues);
+    $('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    $('live').textContent = 'Refreshing…';
+    try {
+      const response = await fetch('/api/observability/dashboard?limit=50&windowDays='+encodeURIComponent($('usageWindow').value || '30'),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
+      if (!response.ok) throw new Error('Dashboard API returned '+response.status);
+      render(await response.json());
+    } catch (e) { $('live').textContent='Unavailable'; $('live').style.color='var(--red)'; }
+    finally { refreshInFlight = false; }
+  }
+  $('traceSearch').addEventListener('input',()=>{ if(snapshot) { /* rerender using current snapshot */ render(snapshot); } });
+  $('statusFilter').addEventListener('change',()=>{ if(snapshot) render(snapshot); });
+  $('usageWindow').addEventListener('change',refresh);
+  $('refresh').addEventListener('click',refresh);
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('show'));
+  refresh();
+  window.setInterval(refresh,15000);
+})();
+</script>
+</body>
+</html>
+ + Number(value).toFixed(5);
+    $('models').innerHTML = models.length ? models.map(m => {
+      const apiCost = m.providerApiCostUsd ?? m.estimatedCostUsd;
+      return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+money(apiCost)+'</td><td>'+money(m.localInfrastructureCostUsd)+'</td><td>'+money(m.totalCostUsd)+'</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">No model usage recorded for this window</td></tr>';
+    const tripCosts = data.tripCosts || [];
+    $('tripCosts').innerHTML = tripCosts.length ? tripCosts.map(t => '<tr><td title="'+esc(t.threadId)+'">'+esc((t.threadId && t.threadId.length > 12 ? '…' + t.threadId.slice(-8) : (t.threadId || 'untracked')))+'</td><td>'+fmt(t.calls)+'</td><td>'+fmt(t.inputTokens)+'</td><td>'+fmt(t.outputTokens)+'</td><td>'+money(t.localInfrastructureCostUsd)+'</td><td>'+money(t.providerApiCostUsd)+'</td><td>'+money(t.totalCostUsd)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No trip cost records in this window</td></tr>';
+    $('costNotice').textContent = data.costNotice || 'Cost estimates use configured model pricing and local execution-time allocation. Unknown paid-model rates show as Unpriced.';
+    const traces = data.traces || [];
+    renderTraces();
+    function renderTraces() {
+      const query = ($('traceSearch')?.value || '').trim().toLowerCase();
+      const status = $('statusFilter')?.value || '';
+      const filtered = traces.map((t,i)=>({t,i})).filter(({t}) =>
+        (!status || t.status === status) &&
+        (!query || [t.goal,t.destination,t.threadId,t.reason,t.budget,...(t.satisfiedCriteria||[]),...(t.unmetCriteria||[]),...(t.blockingIssues||[])].some(v=>String(v||'').toLowerCase().includes(query)))
+      );
+      $('traceCount').textContent = filtered.length+' of '+traces.length+' records';
+      $('traces').innerHTML = filtered.length ? filtered.map(({t,i})=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(time(t.timestamp))+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">'+(traces.length ? 'No evaluations match these filters.' : 'No goal evaluations recorded yet. Run a trip to populate this dashboard.')+'</td></tr>';
+      document.querySelectorAll('.trace-row').forEach(row => {
+        row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
+        row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showTrace(Number(row.dataset.index));}});
+      });
+    }
+    $('runtime').innerHTML = [['Node executions · process-wide',s.nodeExecutions],['Replan decisions · process-wide',s.replans],['MCP tool calls · process-wide',s.mcpCalls],['LLM calls · your account/window',s.llmCalls],['Input tokens · your account/window',s.inputTokens],['Output tokens · your account/window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
+    $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
+    $('live').textContent = '● Live';
+    $('live').style.color = 'var(--green)';
+  }
+  function showTrace(index) {
+    if (!snapshot || !snapshot.traces[index]) return;
+    const t = snapshot.traces[index];
+    $('detail').classList.add('show');
+    $('detailSummary').textContent = [t.timestamp, 'thread '+t.threadId, t.status, 'score '+Number(t.score||0).toFixed(3), t.recoverable ? 'recoverable' : 'not marked recoverable', t.reason].filter(Boolean).join(' · ');
+    list('satisfied',t.satisfiedCriteria); list('unmet',t.unmetCriteria); list('blockers',t.blockingIssues);
+    $('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    $('live').textContent = 'Refreshing…';
+    try {
+      const response = await fetch('/api/observability/dashboard?limit=50&windowDays='+encodeURIComponent($('usageWindow').value || '30'),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
+      if (!response.ok) throw new Error('Dashboard API returned '+response.status);
+      render(await response.json());
+    } catch (e) { $('live').textContent='Unavailable'; $('live').style.color='var(--red)'; }
+    finally { refreshInFlight = false; }
+  }
+  $('traceSearch').addEventListener('input',()=>{ if(snapshot) { /* rerender using current snapshot */ render(snapshot); } });
+  $('statusFilter').addEventListener('change',()=>{ if(snapshot) render(snapshot); });
+  $('usageWindow').addEventListener('change',refresh);
+  $('refresh').addEventListener('click',refresh);
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('show'));
+  refresh();
+  window.setInterval(refresh,15000);
+})();
+</script>
+</body>
+</html>
++Number(cs.totalCostUsd).toFixed(5));
+    const traces = data.traces || [];
+    renderTraces();
+    function renderTraces() {
+      const query = ($('traceSearch')?.value || '').trim().toLowerCase();
+      const status = $('statusFilter')?.value || '';
+      const filtered = traces.map((t,i)=>({t,i})).filter(({t}) =>
+        (!status || t.status === status) &&
+        (!query || [t.goal,t.destination,t.threadId,t.reason,t.budget,...(t.satisfiedCriteria||[]),...(t.unmetCriteria||[]),...(t.blockingIssues||[])].some(v=>String(v||'').toLowerCase().includes(query)))
+      );
+      $('traceCount').textContent = filtered.length+' of '+traces.length+' records';
+      $('traces').innerHTML = filtered.length ? filtered.map(({t,i})=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(time(t.timestamp))+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">'+(traces.length ? 'No evaluations match these filters.' : 'No goal evaluations recorded yet. Run a trip to populate this dashboard.')+'</td></tr>';
+      document.querySelectorAll('.trace-row').forEach(row => {
+        row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
+        row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showTrace(Number(row.dataset.index));}});
+      });
+    }
+    $('runtime').innerHTML = [['Node executions · process-wide',s.nodeExecutions],['Replan decisions · process-wide',s.replans],['MCP tool calls · process-wide',s.mcpCalls],['LLM calls · your account/window',s.llmCalls],['Input tokens · your account/window',s.inputTokens],['Output tokens · your account/window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
+    $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
+    $('live').textContent = '● Live';
+    $('live').style.color = 'var(--green)';
+  }
+  function showTrace(index) {
+    if (!snapshot || !snapshot.traces[index]) return;
+    const t = snapshot.traces[index];
+    $('detail').classList.add('show');
+    $('detailSummary').textContent = [t.timestamp, 'thread '+t.threadId, t.status, 'score '+Number(t.score||0).toFixed(3), t.recoverable ? 'recoverable' : 'not marked recoverable', t.reason].filter(Boolean).join(' · ');
+    list('satisfied',t.satisfiedCriteria); list('unmet',t.unmetCriteria); list('blockers',t.blockingIssues);
+    $('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function refresh() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    $('live').textContent = 'Refreshing…';
+    try {
+      const response = await fetch('/api/observability/dashboard?limit=50&windowDays='+encodeURIComponent($('usageWindow').value || '30'),{credentials:'same-origin',headers:{'Accept':'application/json'}});
+      if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
+      if (!response.ok) throw new Error('Dashboard API returned '+response.status);
+      render(await response.json());
+    } catch (e) { $('live').textContent='Unavailable'; $('live').style.color='var(--red)'; }
+    finally { refreshInFlight = false; }
+  }
+  $('traceSearch').addEventListener('input',()=>{ if(snapshot) { /* rerender using current snapshot */ render(snapshot); } });
+  $('statusFilter').addEventListener('change',()=>{ if(snapshot) render(snapshot); });
+  $('usageWindow').addEventListener('change',refresh);
+  $('refresh').addEventListener('click',refresh);
+  $('closeDetail').addEventListener('click',()=>$('detail').classList.remove('show'));
+  refresh();
+  window.setInterval(refresh,15000);
+})();
+</script>
+</body>
+</html>
+ + Number(value).toFixed(5);
     $('models').innerHTML = models.length ? models.map(m => {
       const apiCost = m.providerApiCostUsd ?? m.estimatedCostUsd;
       return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+money(apiCost)+'</td><td>'+money(m.localInfrastructureCostUsd)+'</td><td>'+money(m.totalCostUsd)+'</td></tr>';
