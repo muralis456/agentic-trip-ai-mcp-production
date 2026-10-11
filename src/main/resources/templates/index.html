@@ -5065,27 +5065,69 @@
                         reject(error);
                     }
                 });
+                let reconnectRecoveryStarted = false;
                 es.onerror = () => {
-                    if (finished) {
-                        return;
-                    }
+                    if (finished) return;
                     if (liveResponse.stopRequested) {
                         liveResponse.state.textContent = 'Stopping';
                         liveResponse.activity.textContent = 'Waiting for the saved checkpoint…';
                         return;
                     }
-                    finished = true;
-                    es.close();
-                    liveResponse.state.textContent = 'Connection lost';
-                    liveResponse.activity.textContent = 'The planner disconnected before finishing. After it is running again, send Continue to resume the saved checkpoint.';
+
+                    // EventSource reconnects only the stream; it cannot restart a graph
+                    // worker after the server process has restarted. Keep the checkpoint
+                    // thread attached to this card and automatically issue the explicit
+                    // Continue command once the authenticated backend is reachable again.
+                    liveResponse.state.textContent = 'Reconnecting';
+                    liveResponse.activity.textContent = 'Connection interrupted. Waiting for the planner to return; your saved checkpoint will resume automatically…';
                     if (liveResponse.stopButton) {
                         liveResponse.stopButton.disabled = true;
-                        liveResponse.stopButton.textContent = 'Disconnected';
+                        liveResponse.stopButton.textContent = 'Reconnecting…';
                     }
-                    submitButton.disabled = false;
-                    loadingState.classList.remove('visible');
-                    updateComposerState();
+                    if (reconnectRecoveryStarted) return;
+                    reconnectRecoveryStarted = true;
+                    finished = true;
+                    es.close();
                     resolve();
+
+                    void (async () => {
+                        const recoveryStartedAt = Date.now();
+                        const recoveryTimeoutMs = 10 * 60 * 1000;
+                        while (Date.now() - recoveryStartedAt < recoveryTimeoutMs) {
+                            await new Promise(r => setTimeout(r, 3000));
+                            try {
+                                const probe = await apiFetch('/api/plan/' + encodeURIComponent(threadId) + '/history', {
+                                    method: 'GET',
+                                    cache: 'no-store'
+                                });
+                                if (!probe.ok) continue;
+                                // Don't race the original worker if only the event stream
+                                // failed. The backend's Continue routing attaches to a
+                                // still-active run and resumes a stopped/failed checkpoint.
+                                liveResponse.state.textContent = 'Resuming';
+                                liveResponse.activity.textContent = 'Connection restored. Resuming your saved checkpoint automatically…';
+                                if (liveResponse.stopButton) {
+                                    liveResponse.stopButton.disabled = true;
+                                    liveResponse.stopButton.textContent = 'Resuming…';
+                                }
+                                promptInput.value = 'Continue';
+                                if (form.requestSubmit) form.requestSubmit();
+                                else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                                return;
+                            } catch (ignored) {
+                                // Keep retrying with a bounded recovery window.
+                            }
+                        }
+                        liveResponse.state.textContent = 'Disconnected';
+                        liveResponse.activity.textContent = 'Automatic recovery timed out. Your checkpoint is preserved; send Continue when the planner is available.';
+                        if (liveResponse.stopButton) {
+                            liveResponse.stopButton.disabled = true;
+                            liveResponse.stopButton.textContent = 'Disconnected';
+                        }
+                        submitButton.disabled = false;
+                        loadingState.classList.remove('visible');
+                        updateComposerState();
+                    })();
                 };
             });
         } catch (error) {
