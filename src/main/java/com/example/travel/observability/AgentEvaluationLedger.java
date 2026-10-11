@@ -103,9 +103,13 @@ public class AgentEvaluationLedger {
         };
         Sort.Direction sortDirection = "ASC".equalsIgnoreCase(direction)
                 ? Sort.Direction.ASC : Sort.Direction.DESC;
-        return repository.searchForUser(userId, since, safeStatus, safeQuery,
-                PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortProperty)))
-                .map(this::toRecord);
+        PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortProperty));
+        // Do not bind a null text pattern into lower(:query): PostgreSQL can infer bytea
+        // for that parameter, producing "function lower(bytea) does not exist".
+        Page<AgentGoalEvaluation> results = safeQuery == null
+                ? repository.searchForUserWithoutText(userId, since, safeStatus, pageable)
+                : repository.searchForUserWithText(userId, since, safeStatus, safeQuery, pageable);
+        return results.map(this::toRecord);
     }
 
     @Transactional(readOnly = true)
