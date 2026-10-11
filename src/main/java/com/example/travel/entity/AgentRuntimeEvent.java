@@ -26,6 +26,8 @@ public class AgentRuntimeEvent {
     private long durationMs;
     @Column(nullable = false)
     private int attempt;
+    @Column(name = "cost_usd")
+    private Double costUsd;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -33,6 +35,11 @@ public class AgentRuntimeEvent {
 
     public AgentRuntimeEvent(String userId, String threadId, String eventType, String component,
                              String status, long durationMs, int attempt, Instant createdAt) {
+        this(userId, threadId, eventType, component, status, durationMs, attempt, null, createdAt);
+    }
+
+    public AgentRuntimeEvent(String userId, String threadId, String eventType, String component,
+                             String status, long durationMs, int attempt, Double costUsd, Instant createdAt) {
         this.userId = safe(userId, 120);
         this.threadId = safe(threadId, 160);
         this.eventType = safe(eventType, 40);
@@ -40,6 +47,7 @@ public class AgentRuntimeEvent {
         this.status = safe(status, 16);
         this.durationMs = Math.max(0, durationMs);
         this.attempt = Math.max(1, attempt);
+        this.costUsd = costUsd == null || !Double.isFinite(costUsd) || costUsd < 0 ? null : costUsd;
         this.createdAt = createdAt == null ? Instant.now() : createdAt;
     }
 
@@ -58,5 +66,6 @@ public class AgentRuntimeEvent {
     public String getStatus() { return status; }
     public long getDurationMs() { return durationMs; }
     public int getAttempt() { return attempt; }
+    public Double getCostUsd() { return costUsd; }
     public Instant getCreatedAt() { return createdAt; }
 }
