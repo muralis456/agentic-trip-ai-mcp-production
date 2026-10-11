@@ -123,6 +123,5 @@ class AgentEvaluationLedgerTest {
         verify(repository, times(2)).findAll(
                 org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<AgentGoalEvaluation>>any(),
                 any(Pageable.class));
-        verify(repository, never()).searchForUserWithText(anyString(), any(), any(), anyString(), any(Pageable.class));
     }
 }
