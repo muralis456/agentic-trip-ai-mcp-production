@@ -22,8 +22,12 @@ import java.util.Map;
 public class AgentRuntimeEventLedger {
     private static final Logger log = LoggerFactory.getLogger(AgentRuntimeEventLedger.class);
     private final AgentRuntimeEventRepository repository;
+    private final ModelPricingProperties pricing;
 
-    public AgentRuntimeEventLedger(AgentRuntimeEventRepository repository) { this.repository = repository; }
+    public AgentRuntimeEventLedger(AgentRuntimeEventRepository repository, ModelPricingProperties pricing) {
+        this.repository = repository;
+        this.pricing = pricing;
+    }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void recordCurrentRun(String type, String component, String status, long durationMs, int attempt) {
@@ -31,8 +35,9 @@ public class AgentRuntimeEventLedger {
         String threadId = ModelRoutingContext.threadId();
         if (userId == null || userId.isBlank() || threadId == null || threadId.isBlank()) return;
         try {
+            Double cost = "PROVIDER".equalsIgnoreCase(type) ? pricing.estimateProviderCallCostUsd(component) : null;
             repository.save(new AgentRuntimeEvent(userId, threadId, safe(type, 40), safe(component, 120),
-                    safe(status, 16), durationMs, attempt, Instant.now()));
+                    safe(status, 16), durationMs, attempt, cost, Instant.now()));
         } catch (RuntimeException ex) {
             log.warn("Could not persist runtime telemetry; continuing without durable event ({})",
                     ex.getClass().getSimpleName());
@@ -45,6 +50,23 @@ public class AgentRuntimeEventLedger {
         int safeDays = Math.max(0, Math.min(3650, days));
         Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
         return repository.aggregateForUser(userId, since).stream().map(this::asMap).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> providerCostsByThread(String userId, int days) {
+        if (userId == null || userId.isBlank()) return List.of();
+        int safeDays = Math.max(0, Math.min(3650, days));
+        Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
+        return repository.providerCostsByThread(userId, since).stream().map(a -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("threadId", a.getThreadId());
+            row.put("calls", a.getCalls() == null ? 0L : a.getCalls());
+            row.put("pricedCalls", a.getPricedCalls() == null ? 0L : a.getPricedCalls());
+            row.put("unpricedCalls", a.getUnpricedCalls() == null ? 0L : a.getUnpricedCalls());
+            row.put("costUsd", a.getCostUsd());
+            row.put("costKnown", a.getUnpricedCalls() != null && a.getUnpricedCalls() == 0L);
+            return row;
+        }).toList();
     }
 
     @Transactional(readOnly = true)
@@ -63,6 +85,7 @@ public class AgentRuntimeEventLedger {
                     row.put("status", e.getStatus());
                     row.put("durationMs", e.getDurationMs());
                     row.put("attempt", e.getAttempt());
+                    row.put("costUsd", e.getCostUsd());
                     return row;
                 }).toList();
     }
