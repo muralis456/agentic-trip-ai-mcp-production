@@ -51,17 +51,19 @@ public class AgentModelUsageLedger {
     @Transactional(readOnly = true)
     public List<AgentModelUsageAggregate> aggregateForUser(String userId, int days) {
         if (userId == null || userId.isBlank()) return List.of();
-        int safeDays = Math.max(1, Math.min(365, days));
-        return repository.aggregateByUserAndCreatedAtAfter(
-                userId, Instant.now().minusSeconds(safeDays * 86400L));
+        int safeDays = Math.max(0, Math.min(3650, days));
+        return safeDays == 0 ? repository.aggregateAllByUser(userId)
+                : repository.aggregateByUserAndCreatedAtAfter(
+                    userId, Instant.now().minusSeconds(safeDays * 86400L));
     }
 
     @Transactional(readOnly = true)
     public List<AgentModelUsageTripAggregate> aggregateTripsForUser(String userId, int days) {
         if (userId == null || userId.isBlank()) return List.of();
-        int safeDays = Math.max(1, Math.min(365, days));
-        return repository.aggregateByThreadAndModelForUserAndCreatedAtAfter(
-                userId, Instant.now().minusSeconds(safeDays * 86400L));
+        int safeDays = Math.max(0, Math.min(3650, days));
+        return safeDays == 0 ? repository.aggregateAllTripsByUser(userId)
+                : repository.aggregateByThreadAndModelForUserAndCreatedAtAfter(
+                    userId, Instant.now().minusSeconds(safeDays * 86400L));
     }
 
     @Transactional(readOnly = true)
