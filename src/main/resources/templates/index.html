@@ -4760,10 +4760,16 @@
         if (live && live.row && live.row.isConnected) live.row.remove();
     };
 
+    // Automatic reconnect recovery must reuse the original live card and thread.
+    // A normal form submission creates a second tracking card, which is misleading.
+    let automaticRecoveryContext = null;
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         syncUserIdField();
 
+        const recoveryContext = automaticRecoveryContext;
+        automaticRecoveryContext = null;
         const text = promptInput.value.trim();
         if (!text) {
             return;
@@ -4784,7 +4790,7 @@
         const payload = Object.fromEntries(formData.entries());
         const activeChat = ensureCurrentChat(text);
         payload.conversationId = activeChat.conversationId || activeChat.id;
-        payload.continuationThreadId = chatThreadIdForDelete(activeChat);
+        payload.continuationThreadId = recoveryContext?.threadId || chatThreadIdForDelete(activeChat);
         const explicitContinue = /^(?:please\s+)?(?:continue|resume|go ahead|proceed|keep going|do it|yes|okay|ok)(?:\s+please)?[.!?]*$/i.test(String(text || '').trim());
         if (explicitContinue) {
             // A chat-level threadId is only a cache and may point at a different
@@ -4806,11 +4812,13 @@
         payload.preferences = text;
         payload.prompt = text;
 
-        appendUserMessage(text);
+        // Recovery is an internal control action, not a new user message.
+        // Keep the existing card visible and attach its new stream to that card.
+        if (!recoveryContext) appendUserMessage(text);
         promptInput.value = '';
         submitButton.disabled = true;
         loadingState.classList.add('visible');
-        const liveResponse = createLiveResponse();
+        const liveResponse = recoveryContext?.liveResponse || createLiveResponse();
 
         try {
             const idempotencyKey = (window.crypto && crypto.randomUUID)
@@ -5175,6 +5183,7 @@
                                     liveResponse.stopButton.disabled = true;
                                     liveResponse.stopButton.textContent = 'Resuming…';
                                 }
+                                automaticRecoveryContext = { liveResponse, threadId };
                                 promptInput.value = 'Continue';
                                 if (form.requestSubmit) form.requestSubmit();
                                 else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
