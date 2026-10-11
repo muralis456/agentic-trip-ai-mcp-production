@@ -51,6 +51,8 @@ public class EvaluationDashboardController {
             @RequestParam(defaultValue = "30") int windowDays,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int pageSize,
+            @RequestParam(defaultValue = "0") int runtimePage,
+            @RequestParam(defaultValue = "25") int runtimePageSize,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -146,7 +148,18 @@ public class EvaluationDashboardController {
         Page<AgentEvaluationLedger.EvaluationRecord> tracePage =
                 evaluationLedger.search(userId, days, safePage, safePageSize, status, q, sortBy, sortDirection);
         List<Map<String, Object>> runtimeAggregate = runtimeEventLedger.aggregateForUser(userId, days);
-        List<Map<String, Object>> runtimeEvents = runtimeEventLedger.recentForUser(userId, days, 100);
+        int safeRuntimePage = Math.max(0, runtimePage);
+        int safeRuntimePageSize = Math.max(1, Math.min(100, runtimePageSize));
+        Page<Map<String, Object>> runtimeEventPage =
+                runtimeEventLedger.recentPageForUser(userId, days, safeRuntimePage, safeRuntimePageSize);
+        List<Map<String, Object>> runtimeEvents = runtimeEventPage.getContent();
+        Map<String, Object> runtimeEventPagination = new LinkedHashMap<>();
+        runtimeEventPagination.put("page", runtimeEventPage.getNumber());
+        runtimeEventPagination.put("pageSize", runtimeEventPage.getSize());
+        runtimeEventPagination.put("totalElements", runtimeEventPage.getTotalElements());
+        runtimeEventPagination.put("totalPages", runtimeEventPage.getTotalPages());
+        runtimeEventPagination.put("hasNext", runtimeEventPage.hasNext());
+        runtimeEventPagination.put("hasPrevious", runtimeEventPage.hasPrevious());
 
         Map<String, Object> tracePagination = new LinkedHashMap<>();
         tracePagination.put("page", tracePage.getNumber());
@@ -166,6 +179,7 @@ public class EvaluationDashboardController {
         response.put("processRuntime", processRuntime);
         response.put("runtimeSummary", runtimeAggregate);
         response.put("runtimeEvents", runtimeEvents);
+        response.put("runtimeEventPagination", runtimeEventPagination);
         response.put("refreshedAt", Instant.now().toString());
         response.put("modelUsageWindowDays", days);
         response.put("costNotice", "Model API amounts are token-price estimates, not provider invoices. Local compute cost is unavailable unless TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR is explicitly configured. Unknown costs remain unavailable, never zero-filled. External provider API costs are included only when per-call estimates are configured; unknown provider charges keep totals unavailable.");
