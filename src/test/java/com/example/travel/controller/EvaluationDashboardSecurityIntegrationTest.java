@@ -77,7 +77,7 @@ class EvaluationDashboardSecurityIntegrationTest {
         when(usage.aggregateTripsForUser("alice", 30)).thenReturn(List.of());
         when(evaluations.labelsForThreads(eq("alice"), anyCollection())).thenReturn(Map.of());
         when(runtimeEvents.aggregateForUser("alice", 30)).thenReturn(List.of());
-        when(runtimeEvents.recentForUser("alice", 30, 100)).thenReturn(List.of());
+        when(runtimeEvents.recentPageForUser(eq("alice"), anyInt(), anyInt(), anyInt())).thenReturn(new PageImpl<>(List.of()));
 
         mvc.perform(get("/api/observability/dashboard")
                         .with(user("alice").roles("USER")))
