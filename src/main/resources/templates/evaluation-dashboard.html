@@ -83,11 +83,14 @@
       $('scoreChart').innerHTML=grid+'<polyline points="'+poly+'" fill="none" stroke="#4a9cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'+dots+'<text x="'+left+'" y="207" font-size="10" fill="#93a5bd">'+esc(time(points[0].t.timestamp))+'</text><text x="'+right+'" y="207" text-anchor="end" font-size="10" fill="#93a5bd">'+esc(time(points[points.length-1].t.timestamp))+'</text>';
     }
     const models = data.modelUsage || [];
+    const money = value => value == null ? '<span class="sub">Unpriced</span>' : '$' + Number(value).toFixed(5);
     $('models').innerHTML = models.length ? models.map(m => {
-      const cost = m.estimatedCostUsd == null ? '<span class="sub">Unavailable</span>' : '
-      return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+cost+'</td></tr>';
-    }).join('') : '<tr><td colspan="7" class="empty">No model usage recorded for this window</td></tr>';
-    $('costNotice').textContent = data.costNotice || 'Local Ollama models have $0 provider/API token charges; infrastructure costs are excluded.';
+      const apiCost = m.providerApiCostUsd ?? m.estimatedCostUsd;
+      return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+money(apiCost)+'</td><td>'+money(m.localInfrastructureCostUsd)+'</td><td>'+money(m.totalCostUsd)+'</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">No model usage recorded for this window</td></tr>';
+    const tripCosts = data.tripCosts || [];
+    $('tripCosts').innerHTML = tripCosts.length ? tripCosts.map(t => '<tr><td title="'+esc(t.threadId)+'">'+esc((t.threadId || '').slice(0,16) || 'untracked')+'</td><td>'+fmt(t.calls)+'</td><td>'+fmt(t.inputTokens)+'</td><td>'+fmt(t.outputTokens)+'</td><td>'+money(t.localInfrastructureCostUsd)+'</td><td>'+money(t.providerApiCostUsd)+'</td><td>'+money(t.totalCostUsd)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No trip cost records in this window</td></tr>';
+    $('costNotice').textContent = data.costNotice || 'Cost estimates use configured model pricing and local execution-time allocation. Unknown paid-model rates show as Unpriced.';
     const traces = data.traces || [];
     renderTraces();
     function renderTraces() {
