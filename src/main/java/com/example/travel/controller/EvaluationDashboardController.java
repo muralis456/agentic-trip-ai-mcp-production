@@ -53,6 +53,8 @@ public class EvaluationDashboardController {
             @RequestParam(defaultValue = "50") int pageSize,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection,
             Authentication authentication) {
         String userId = authentication == null ? "" : authentication.getName();
         int days = Math.max(0, Math.min(3650, windowDays));
@@ -129,7 +131,7 @@ public class EvaluationDashboardController {
         costSummary.put("trips", tripCosts.size());
 
         Page<AgentEvaluationLedger.EvaluationRecord> tracePage =
-                evaluationLedger.search(userId, days, safePage, safePageSize, status, q);
+                evaluationLedger.search(userId, days, safePage, safePageSize, status, q, sortBy, sortDirection);
         List<Map<String, Object>> runtimeAggregate = runtimeEventLedger.aggregateForUser(userId, days);
         List<Map<String, Object>> runtimeEvents = runtimeEventLedger.recentForUser(userId, days, 100);
 
