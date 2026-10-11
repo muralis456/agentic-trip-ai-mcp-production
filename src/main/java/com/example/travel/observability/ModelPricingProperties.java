@@ -59,6 +59,16 @@ public class ModelPricingProperties {
 
     public double estimateLocalInfrastructureCostUsd(String model, long durationMs) {
         if (!isLocalModel(model)) return 0.0;
+        ModelPrice rate = modelPricing.get(model);
+        if (rate == null) {
+            String normalized = normalize(model);
+            rate = modelPricing.entrySet().stream()
+                    .filter(entry -> normalize(entry.getKey()).equals(normalized))
+                    .map(Map.Entry::getValue).findFirst().orElse(null);
+        }
+        // A non-zero configured token rate means this model is routed to a paid
+        // provider; do not allocate local-compute cost to the same call.
+        if (rate != null && (rate.getInputUsdPerMillion() > 0 || rate.getOutputUsdPerMillion() > 0)) return 0.0;
         return Math.max(0, durationMs) * localComputeUsdPerHour / 3_600_000.0;
     }
 
