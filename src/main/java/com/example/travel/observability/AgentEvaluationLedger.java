@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -104,12 +106,31 @@ public class AgentEvaluationLedger {
         Sort.Direction sortDirection = "ASC".equalsIgnoreCase(direction)
                 ? Sort.Direction.ASC : Sort.Direction.DESC;
         PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortProperty));
-        // Do not bind a null text pattern into lower(:query): PostgreSQL can infer bytea
-        // for that parameter, producing "function lower(bytea) does not exist".
-        Page<AgentGoalEvaluation> results = safeQuery == null
-                ? repository.searchForUserWithoutText(userId, since, safeStatus, pageable)
-                : repository.searchForUserWithText(userId, since, safeStatus, safeQuery, pageable);
-        return results.map(this::toRecord);
+        // Build predicates only for supplied filters. Optional parameters in JPQL such as
+        // (:since is null or createdAt >= :since) are unsafe with PostgreSQL/Hibernate because
+        // the null-only bind has no inferable SQL type (SQLState 42P18).
+        final String textPattern = safeQuery;
+        Specification<AgentGoalEvaluation> specification = (root, criteriaQuery, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.equal(root.get("userId"), userId));
+            if (since != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), since));
+            }
+            if (safeStatus != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), safeStatus));
+            }
+            if (textPattern != null) {
+                String pattern = textPattern.toLowerCase(java.util.Locale.ROOT);
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("goal"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("destination"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("threadId"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("reason"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("budget"), "")), pattern)));
+            }
+            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+        };
+        return repository.findAll(specification, pageable).map(this::toRecord);
     }
 
     @Transactional(readOnly = true)
