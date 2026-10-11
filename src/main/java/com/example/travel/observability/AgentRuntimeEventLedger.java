@@ -49,7 +49,8 @@ public class AgentRuntimeEventLedger {
         if (userId == null || userId.isBlank()) return List.of();
         int safeDays = Math.max(0, Math.min(3650, days));
         Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
-        return repository.aggregateForUser(userId, since).stream().map(this::asMap).toList();
+        return (since == null ? repository.aggregateForUser(userId) : repository.aggregateForUserSince(userId, since))
+                .stream().map(this::asMap).toList();
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +58,8 @@ public class AgentRuntimeEventLedger {
         if (userId == null || userId.isBlank()) return List.of();
         int safeDays = Math.max(0, Math.min(3650, days));
         Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
-        return repository.providerCostsByThread(userId, since).stream().map(a -> {
+        return (since == null ? repository.providerCostsByThread(userId) : repository.providerCostsByThreadSince(userId, since))
+                .stream().map(a -> {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("threadId", a.getThreadId());
             row.put("calls", a.getCalls() == null ? 0L : a.getCalls());
@@ -74,8 +76,10 @@ public class AgentRuntimeEventLedger {
         if (userId == null || userId.isBlank()) return List.of();
         int safeDays = Math.max(0, Math.min(3650, days));
         Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
-        return repository.recentForUser(userId, since,
-                PageRequest.of(0, Math.max(1, Math.min(200, limit)), Sort.by(Sort.Direction.DESC, "createdAt")))
+        var pageable = PageRequest.of(0, Math.max(1, Math.min(200, limit)),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        return (since == null ? repository.recentForUser(userId, pageable)
+                : repository.recentForUserSince(userId, since, pageable))
                 .getContent().stream().map(e -> {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("timestamp", e.getCreatedAt().toString());
