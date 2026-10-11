@@ -220,8 +220,8 @@ public class ExternalApiService {
                 FlightOption option = new FlightOption(
                         text(flight.path("flight"), "iata"),
                         text(flight.path("airline"), "name"),
-                        text(flight.path("departure"), "iata", origin),
-                        text(flight.path("arrival"), "iata", destination),
+                        text(flight.path("departure"), "iata", ""),
+                        text(flight.path("arrival"), "iata", ""),
                         text(flight.path("departure"), "scheduled"),
                         text(flight.path("arrival"), "scheduled"),
                         text(flight, "flight_status"),
