@@ -77,8 +77,12 @@ public class FlightAgentService {
                             + "). Please provide a different departure city.");
         }
 
+        boolean searchRoundTrip = state.roundTrip();
+        // A direct flight lookup is one-way unless this user turn explicitly asks
+        // for a return journey. Stale intent state must not trigger a reverse search.
+        if (isSingleLegFlightLookup(state.userRequest())) searchRoundTrip = false;
         log.info("Flight agent searching roundTrip={} datesFlexible={} {} -> {}",
-                state.roundTrip(), state.datesFlexible(), originIata, destinationIata);
+                searchRoundTrip, state.datesFlexible(), originIata, destinationIata);
         McpFlightSearchClient mcpClient = mcpFlightSearchClient.getIfAvailable();
         String preferredProvider = state.flightProvider();
         if (TravelState.isBlank(preferredProvider) && jevProviderDecision.isPresent()) {
@@ -109,7 +113,7 @@ public class FlightAgentService {
                 : mcpClient.search(originIata, destinationIata, outboundDate, state.travelers(), state.userRequest(), preferredProvider);
         flights = normalizeResults(flights, "outbound", outboundDate, state.datesFlexible(), originIata, destinationIata);
 
-        if (state.roundTrip()) {
+        if (searchRoundTrip) {
             // A flexible-date round trip still needs a concrete provider probe date
             // for the reverse leg. TravelState already carries a deterministic
             // fallback return date (departure + 5 days). Do not send null here:
@@ -167,9 +171,9 @@ public class FlightAgentService {
                         direction, expectedOrigin, expectedDestination, flight.getOrigin(), flight.getDestination(), flight.getFlightNumber());
                 continue;
             }
-            if (!flexible && requestedDate != null && hasExplicitDepartureDate(flight)
-                    && extractDepartureDate(flight) != null
-                    && !requestedDate.equals(extractDepartureDate(flight))) {
+            LocalDate actualDepartureDate = extractDepartureDate(flight);
+            if (!flexible && requestedDate != null && actualDepartureDate != null
+                    && !requestedDate.equals(actualDepartureDate)) {
                 log.warn("Discarding date-mismatched flight direction={} requestedDate={} actualDeparture={} flight={}",
                         direction, requestedDate, flight.getDepartureTime(), flight.getFlightNumber());
                 continue;
@@ -190,18 +194,31 @@ public class FlightAgentService {
     }
 
 
-    private boolean hasExplicitDepartureDate(FlightOption flight) {
-        return flight != null && flight.getDepartureTime() != null && !flight.getDepartureTime().isBlank();
+    private LocalDate extractDepartureDate(FlightOption flight) {
+        if (flight == null) return null;
+        try {
+            if (flight.getDepartureTime() != null && !flight.getDepartureTime().isBlank()) {
+                return OffsetDateTime.parse(flight.getDepartureTime()).toLocalDate();
+            }
+        } catch (Exception ignored) {
+            // Fall through to provider flight_date metadata.
+        }
+        String notes = flight.getNotes();
+        if (notes != null) {
+            java.util.regex.Matcher date = java.util.regex.Pattern
+                    .compile("(?i)\\bdate=(\\d{4}-\\d{2}-\\d{2})\\b").matcher(notes);
+            if (date.find()) {
+                try { return LocalDate.parse(date.group(1)); } catch (Exception ignored) { }
+            }
+        }
+        return null;
     }
 
-    private LocalDate extractDepartureDate(FlightOption flight) {
-        try {
-            return OffsetDateTime.parse(flight.getDepartureTime()).toLocalDate();
-        } catch (Exception ignored) {
-            // If a provider returns a non-ISO time, keep the record and let the
-            // existing "not independently confirmed" note communicate the gap.
-            return null;
-        }
+    private boolean isSingleLegFlightLookup(String request) {
+        String text = request == null ? "" : request.toLowerCase(java.util.Locale.ROOT);
+        boolean flightLookup = text.matches("(?s).*\\b(flight|flights|airfare|flight status)\\b.*");
+        boolean returnIntent = text.matches("(?s).*\\b(round[ -]?trip|return flight|return journey|two[ -]?way|both ways|there and back|come back|coming back|returning)\\b.*");
+        return flightLookup && !returnIntent;
     }
 
     private String mergeNote(String existing, String addition) {
@@ -216,10 +233,10 @@ public class FlightAgentService {
         String actualDestination = normalizeCode(flight.getDestination());
         String origin = normalizeCode(expectedOrigin);
         String destination = normalizeCode(expectedDestination);
-        // Some providers return empty route fields. Keep those records because the
-        // request itself supplied the authoritative route. Reject only explicit
-        // mismatches, which protects return-flight direction.
-        if (actualOrigin.isBlank() || actualDestination.isBlank()) return true;
+        // Missing provider airport codes are not evidence that a record matches
+        // the requested route. Fail closed instead of silently relabelling records.
+        if (actualOrigin.isBlank() || actualDestination.isBlank()
+                || origin.isBlank() || destination.isBlank()) return false;
         return actualOrigin.equals(origin) && actualDestination.equals(destination);
     }
 
