@@ -95,7 +95,7 @@ public class ModelPricingProperties {
     }
 
     private static String normalize(String value) {
-        return value == null ? "" : value.trim().toLowerCase().replaceAll("[^a-z0-9_.:-]", "_");
+        return value == null ? "" : value.trim().toLowerCase().replaceAll("[^a-z0-9_.*:-]", "_");
     }
 
     public static class ModelPrice {
