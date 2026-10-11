@@ -122,13 +122,14 @@ public class AgentRunControlService {
         if (preferredThreadId != null && !preferredThreadId.isBlank()) {
             Optional<AgentRunControl> preferred = repository.findByThreadId(preferredThreadId)
                     .filter(run -> userId.equals(run.getUserId()));
-            if (preferred.isPresent() && STOPPED.equals(preferred.get().getStatus())) {
-                return preferred;
+            if (preferred.isPresent()) {
+                // The active chat's explicit thread ID is authoritative. If that
+                // run is not stopped, do not resume a different, older checkpoint
+                // from the same conversation by falling back to latestStopped().
+                return STOPPED.equals(preferred.get().getStatus())
+                        ? preferred
+                        : Optional.empty();
             }
-            // A chat can contain more than one run. Its cached threadId may refer
-            // to a completed/disconnected run, while a newer run in the same
-            // conversation is the one that was explicitly stopped. Do not return
-            // early here; fall through to the latest STOPPED run in this chat.
         }
         if (conversationId == null || conversationId.isBlank()) return Optional.empty();
         return latestStopped(userId, conversationId);
