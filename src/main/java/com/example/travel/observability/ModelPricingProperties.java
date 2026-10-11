@@ -19,6 +19,7 @@ public class ModelPricingProperties {
     private Map<String, ModelPrice> modelPricing = new LinkedHashMap<>();
     private Set<String> localModels = new LinkedHashSet<>(Set.of("llama3.2:3b", "tev1:4b"));
     private Double localComputeUsdPerHour;
+    private Map<String, Double> providerCallPricing = new LinkedHashMap<>();
 
     public Map<String, ModelPrice> getModelPricing() { return modelPricing; }
     public void setModelPricing(Map<String, ModelPrice> modelPricing) {
@@ -28,6 +29,26 @@ public class ModelPricingProperties {
     public void setLocalModels(Set<String> localModels) {
         this.localModels = localModels == null ? new LinkedHashSet<>() : new LinkedHashSet<>(localModels);
     }
+    public Map<String, Double> getProviderCallPricing() { return providerCallPricing; }
+    public void setProviderCallPricing(Map<String, Double> pricing) {
+        providerCallPricing = new LinkedHashMap<>();
+        if (pricing != null) pricing.forEach((key, value) -> {
+            if (key != null && !key.isBlank() && value != null && Double.isFinite(value) && value >= 0) {
+                providerCallPricing.put(normalize(key), value);
+            }
+        });
+    }
+    /** Returns null when the provider/operation has no explicitly configured per-call estimate. */
+    public Double estimateProviderCallCostUsd(String providerAndOperation) {
+        if (providerAndOperation == null || providerAndOperation.isBlank()) return null;
+        String key = normalize(providerAndOperation);
+        Double exact = providerCallPricing.get(key);
+        if (exact != null) return exact;
+        int separator = key.indexOf(':');
+        if (separator > 0) return providerCallPricing.get(key.substring(0, separator) + ":*");
+        return providerCallPricing.get(key + ":*");
+    }
+
     public Double getLocalComputeUsdPerHour() { return localComputeUsdPerHour; }
     public void setLocalComputeUsdPerHour(Double value) {
         localComputeUsdPerHour = value == null || !Double.isFinite(value) || value < 0 ? null : value;
