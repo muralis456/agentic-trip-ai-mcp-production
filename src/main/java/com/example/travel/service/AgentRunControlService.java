@@ -121,12 +121,14 @@ public class AgentRunControlService {
             String userId, String conversationId, String preferredThreadId) {
         if (preferredThreadId != null && !preferredThreadId.isBlank()) {
             Optional<AgentRunControl> preferred = repository.findByThreadId(preferredThreadId)
-                .filter(run -> userId.equals(run.getUserId()));
-            if (preferred.isPresent()) {
-            return STOPPED.equals(preferred.get().getStatus())
-                ? preferred
-                : Optional.empty();
+                    .filter(run -> userId.equals(run.getUserId()));
+            if (preferred.isPresent() && STOPPED.equals(preferred.get().getStatus())) {
+                return preferred;
             }
+            // A chat can contain more than one run. Its cached threadId may refer
+            // to a completed/disconnected run, while a newer run in the same
+            // conversation is the one that was explicitly stopped. Do not return
+            // early here; fall through to the latest STOPPED run in this chat.
         }
         if (conversationId == null || conversationId.isBlank()) return Optional.empty();
         return latestStopped(userId, conversationId);
