@@ -86,18 +86,23 @@ public class EvaluationDashboardController {
                 .sorted(Comparator.comparingLong((ModelUsage m) -> m.inputTokens + m.outputTokens).reversed())
                 .map(m -> m.asMap(pricing)).toList();
 
-        // Per-trip costs use the durable thread id recorded with every model call.
-        // Unknown paid-model pricing is represented as unknown, never silently as $0.
+        // Database-side aggregation avoids a recent-event cap and groups all model usage
+        // belonging to the unique LangGraph run/thread, making trip totals complete for
+        // the selected account and time window.
         Map<String, TripCost> tripCostsByThread = new TreeMap<>();
-        for (var event : modelUsageLedger.recentForUser(userId, days, 5000)) {
-            String threadId = event.getThreadId();
+        for (var usage : modelUsageLedger.aggregateTripsForUser(userId, days)) {
+            String threadId = usage.getThreadId();
             if (threadId == null || threadId.isBlank() || "untracked".equals(threadId)) continue;
             TripCost trip = tripCostsByThread.computeIfAbsent(threadId, TripCost::new);
-            trip.calls++;
-            trip.inputTokens += event.getInputTokens();
-            trip.outputTokens += event.getOutputTokens();
-            trip.localInfrastructureCostUsd += pricing.estimateLocalInfrastructureCostUsd(event.getModel(), event.getDurationMs());
-            Double providerCost = pricing.estimateProviderApiCostUsd(event.getModel(), event.getInputTokens(), event.getOutputTokens());
+            long calls = usage.getCalls() == null ? 0 : usage.getCalls();
+            long input = usage.getInputTokens() == null ? 0 : usage.getInputTokens();
+            long output = usage.getOutputTokens() == null ? 0 : usage.getOutputTokens();
+            long duration = usage.getDurationMs() == null ? 0 : usage.getDurationMs();
+            trip.calls += calls;
+            trip.inputTokens += input;
+            trip.outputTokens += output;
+            trip.localInfrastructureCostUsd += pricing.estimateLocalInfrastructureCostUsd(usage.getModel(), duration);
+            Double providerCost = pricing.estimateProviderApiCostUsd(usage.getModel(), input, output);
             if (providerCost == null) trip.providerApiCostKnown = false;
             else trip.providerApiCostUsd += providerCost;
         }
