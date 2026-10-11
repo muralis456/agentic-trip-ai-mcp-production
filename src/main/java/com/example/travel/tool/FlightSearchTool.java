@@ -5,6 +5,9 @@ import com.example.travel.service.ExternalApiService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.example.travel.service.McpFlightSearchClient;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,15 +17,35 @@ import java.util.stream.Collectors;
 public class FlightSearchTool {
 
     private final ExternalApiService externalApiService;
+    private final ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient;
 
+    @Autowired
+    public FlightSearchTool(ExternalApiService externalApiService,
+                            ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient) {
+        this.externalApiService = externalApiService;
+        this.mcpFlightSearchClient = mcpFlightSearchClient;
+    }
+
+    /** Backward-compatible constructor used by direct-tool unit tests. */
     public FlightSearchTool(ExternalApiService externalApiService) {
         this.externalApiService = externalApiService;
+        this.mcpFlightSearchClient = new ObjectProvider<>() {
+            @Override public McpFlightSearchClient getObject(Object... args) { throw new IllegalStateException("MCP flight client is not available"); }
+            @Override public McpFlightSearchClient getIfAvailable() { return null; }
+            @Override public McpFlightSearchClient getIfUnique() { return null; }
+            @Override public java.util.Iterator<McpFlightSearchClient> iterator() { return java.util.Collections.emptyIterator(); }
+        };
     }
 
     public List<FlightOption> search(String originIata, String destinationIata, LocalDate departureDate) {
-        return externalApiService.fetchFlights(
-                originIata,
-                destinationIata,
+        McpFlightSearchClient mcp = mcpFlightSearchClient.getIfAvailable();
+        if (mcp != null) {
+            return mcp.search(originIata, destinationIata, departureDate, 1,
+                    "Flight search for " + originIata + " to " + destinationIata, "");
+        }
+        // Direct AviationStack calls are disabled by default. This legacy route is
+        // retained only for installations that explicitly enable the adapter.
+        return externalApiService.fetchFlights(originIata, destinationIata,
                 departureDate == null ? null : departureDate.toString());
     }
 
