@@ -31,6 +31,20 @@ class ModelPricingPropertiesTest {
     }
 
     @Test
+    void explicitPaidRateOverridesLocalModelClassificationWithoutDoubleCountingCompute() {
+        ModelPricingProperties pricing = new ModelPricingProperties();
+        pricing.setLocalModels(Set.of("shared-model"));
+        pricing.setLocalComputeUsdPerHour(3.60);
+        ModelPricingProperties.ModelPrice rate = new ModelPricingProperties.ModelPrice();
+        rate.setInputUsdPerMillion(1.0);
+        rate.setOutputUsdPerMillion(2.0);
+        pricing.setModelPricing(Map.of("shared-model", rate));
+
+        assertEquals(3.0, pricing.estimateProviderApiCostUsd("shared-model", 1_000_000, 1_000_000), 0.000001);
+        assertEquals(0.0, pricing.estimateLocalInfrastructureCostUsd("shared-model", 3_600_000), 0.000001);
+    }
+
+    @Test
     void doesNotMisreportUnconfiguredPaidModelAsFree() {
         ModelPricingProperties pricing = new ModelPricingProperties();
         assertNull(pricing.estimateProviderApiCostUsd("unknown-paid-model", 100, 100));
