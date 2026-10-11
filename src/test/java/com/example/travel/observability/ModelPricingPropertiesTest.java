@@ -26,7 +26,7 @@ class ModelPricingPropertiesTest {
         rate.setOutputUsdPerMillion(4.0);
         pricing.setModelPricing(Map.of("paid-model", rate));
 
-        assertEquals(6.0, pricing.estimateProviderApiCostUsd("PAID_MODEL", 1_000_000, 1_000_000), 0.000001);
+        assertEquals(6.0, pricing.estimateProviderApiCostUsd("PAID-MODEL", 1_000_000, 1_000_000), 0.000001);
         assertEquals(0.0, pricing.estimateLocalInfrastructureCostUsd("paid-model", 10_000), 0.000001);
     }
 
