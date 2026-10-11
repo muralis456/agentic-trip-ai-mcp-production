@@ -154,7 +154,7 @@
     const rows=(snapshot?.traces||[]);
     const cols=['timestamp','threadId','destination','goal','budget','status','score','reason','satisfiedCriteria','unmetCriteria','blockingIssues'];
     const quote=v=>'"'+String(Array.isArray(v)?v.join('; '):(v??'')).replace(/"/g,'""')+'"';
-    const csv=[cols.join(','),...rows.map(row=>cols.map(key=>quote(row[key])).join(','))].join('\\r\\n');
+    const csv=[cols.join(','),...rows.map(row=>cols.map(key=>quote(row[key])).join(','))].join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='agent-evaluations-page-'+(pageIndex+1)+'.csv';a.click();URL.revokeObjectURL(url);
   });
