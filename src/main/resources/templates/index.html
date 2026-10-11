@@ -5101,9 +5101,43 @@
                                     cache: 'no-store'
                                 });
                                 if (!probe.ok) continue;
-                                // Don't race the original worker if only the event stream
-                                // failed. The backend's Continue routing attaches to a
-                                // still-active run and resumes a stopped/failed checkpoint.
+                                const history = await probe.json();
+
+                                // The graph may have completed while the browser was
+                                // disconnected (including the HITL approval pause). In
+                                // that case restore the persisted result into the UI;
+                                // sending Continue would be wrong for a completed run.
+                                const restoredResponse = await apiFetch('/api/plan/' + encodeURIComponent(threadId) + '/restore', {
+                                    method: 'GET',
+                                    cache: 'no-store'
+                                });
+                                if (!restoredResponse.ok) continue;
+                                const restoredPlan = await restoredResponse.json();
+                                const nextNodes = history && history.next;
+                                const noNextNode = Array.isArray(nextNodes) && nextNodes.length === 0;
+                                const restoredStatus = String(restoredPlan.status || '').toUpperCase();
+                                const waitingForUser = restoredPlan.awaitingApproval === true
+                                    || restoredStatus === 'PENDING_APPROVAL'
+                                    || restoredStatus === 'NEEDS_USER_INPUT';
+                                if (noNextNode || waitingForUser) {
+                                    liveResponse.state.textContent = waitingForUser ? 'Plan ready' : 'Completed';
+                                    liveResponse.activity.textContent = waitingForUser
+                                        ? 'Connection restored. Your completed plan is ready for review.'
+                                        : 'Connection restored. Loaded the completed plan.';
+                                    liveResponse.row.classList.add('live-complete');
+                                    if (liveResponse.stopButton) {
+                                        liveResponse.stopButton.disabled = true;
+                                        liveResponse.stopButton.textContent = 'Done';
+                                    }
+                                    appendAssistantMessage(restoredPlan);
+                                    loadDbTrips(false);
+                                    setTimeout(() => removeLiveResponse(liveResponse), 260);
+                                    return;
+                                }
+
+                                // The graph has not reached a terminal checkpoint.
+                                // Continue routes through the existing thread and
+                                // attaches to active work or resumes its saved checkpoint.
                                 liveResponse.state.textContent = 'Resuming';
                                 liveResponse.activity.textContent = 'Connection restored. Resuming your saved checkpoint automatically…';
                                 if (liveResponse.stopButton) {
