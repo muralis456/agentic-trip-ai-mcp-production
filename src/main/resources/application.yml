@@ -102,6 +102,9 @@ travel:
     local-models:
       - "llama3.2:3b"
       - "tev1:4b"
+    # Optional estimated USD per provider operation. Configure only from your provider plan.
+    # Exact keys use "provider:operation"; a "provider:*" key is a fallback per-call estimate.
+    provider-call-pricing: {}
     model-pricing:
       "llama3.2:3b":
         input-usd-per-million: ${TRAVEL_LLM_LLAMA32_INPUT_USD_PER_MILLION:0}
