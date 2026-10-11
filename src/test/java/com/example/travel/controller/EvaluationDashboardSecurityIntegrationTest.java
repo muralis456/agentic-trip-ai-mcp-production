@@ -3,8 +3,8 @@ package com.example.travel.controller;
 import com.example.travel.observability.AgentEvaluationLedger;
 import com.example.travel.observability.AgentModelUsageLedger;
 import com.example.travel.observability.AgentRuntimeEventLedger;
-import org.springframework.data.domain.PageImpl;
 import com.example.travel.observability.ModelPricingProperties;
+import org.springframework.data.domain.PageImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -58,7 +58,7 @@ class EvaluationDashboardSecurityIntegrationTest {
     void dashboardApiRejectsUnauthenticatedRequestsWith401() throws Exception {
         mvc.perform(get("/api/observability/dashboard"))
                 .andExpect(status().isUnauthorized());
-        verifyNoInteractions(evaluations, usage);
+        verifyNoInteractions(evaluations, usage, runtimeEvents, pricing);
     }
 
     @Test
@@ -73,6 +73,10 @@ class EvaluationDashboardSecurityIntegrationTest {
         when(evaluations.search(eq("alice"), anyInt(), anyInt(), anyInt(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
         when(evaluations.summary(eq("alice"), anyInt())).thenReturn(Map.of("evaluations", 0L));
         when(usage.aggregateForUser("alice", 30)).thenReturn(List.of());
+        when(usage.aggregateTripsForUser("alice", 30)).thenReturn(List.of());
+        when(evaluations.labelsForThreads(eq("alice"), anyCollection())).thenReturn(Map.of());
+        when(runtimeEvents.aggregateForUser("alice", 30)).thenReturn(List.of());
+        when(runtimeEvents.recentForUser("alice", 30, 100)).thenReturn(List.of());
 
         mvc.perform(get("/api/observability/dashboard")
                         .with(user("alice").roles("USER")))
