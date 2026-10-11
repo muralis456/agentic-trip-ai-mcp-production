@@ -101,6 +101,21 @@ public class AgentEvaluationLedger {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, String> labelsForThreads(String userId, java.util.Collection<String> threadIds) {
+        if (userId == null || userId.isBlank() || threadIds == null || threadIds.isEmpty()) return Map.of();
+        Map<String, String> labels = new java.util.LinkedHashMap<>();
+        for (AgentGoalEvaluation row : repository.findByUserIdAndThreadIdInOrderByCreatedAtDesc(userId, threadIds)) {
+            String label = !safe(row.getDestination(), 120).isBlank() ? safe(row.getDestination(), 120)
+                    : !safe(row.getGoal(), 200).isBlank() ? safe(row.getGoal(), 200) : "Trip";
+            if (!safe(row.getGoal(), 200).isBlank() && !label.equals(safe(row.getGoal(), 200))) {
+                label += " · " + safe(row.getGoal(), 200);
+            }
+            labels.putIfAbsent(row.getThreadId(), label);
+        }
+        return Map.copyOf(labels);
+    }
+
+    @Transactional(readOnly = true)
     public Map<String, Object> summary(String userId, int days) {
         if (userId == null || userId.isBlank()) return Map.of(
                 "evaluations", 0L, "achieved", 0L, "partial", 0L, "failed", 0L,
