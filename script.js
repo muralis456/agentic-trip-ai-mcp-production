@@ -24,6 +24,27 @@ const layout = document.querySelector('.layout');
     const signedInUser = document.getElementById('signedInUser');
     let currentUserId = '';
 
+    // App-wide interceptor so every fetch-based action handles stale sessions
+    // and forbidden responses consistently, even if it bypasses apiFetch.
+    if (!window.__agenticTripSecurityFetchInstalled) {
+        window.__agenticTripSecurityFetchInstalled = true;
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = (...args) => nativeFetch(...args).then(response => {
+            const requestUrl = String(args[0] && args[0].url ? args[0].url : args[0] || '');
+            let pathname = '';
+            try { pathname = new URL(requestUrl, window.location.origin).pathname; } catch (_) {}
+            const authEndpoint = pathname.startsWith('/api/auth/');
+            const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(window.location.pathname);
+            if (!authEndpoint && !authPage && (response.status === 401 || response.status === 403)) {
+                const target = response.status === 401 ? '/login?expired=true' : '/login?forbidden=true';
+                if (window.location.pathname + window.location.search !== target) {
+                    window.location.replace(target);
+                }
+            }
+            return response;
+        });
+    }
+
     const csrfMeta = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
     const apiFetch = (url, options = {}) => {
