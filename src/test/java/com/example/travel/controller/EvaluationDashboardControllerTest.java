@@ -22,7 +22,7 @@ class EvaluationDashboardControllerTest {
 
     private EvaluationDashboardController controller(AgentEvaluationLedger evaluations,
             AgentModelUsageLedger usage, AgentRuntimeEventLedger runtime, ModelPricingProperties pricing) {
-        when(evaluations.search(anyString(), anyInt(), anyInt(), anyInt(), any(), any()))
+        when(evaluations.search(anyString(), anyInt(), anyInt(), anyInt(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
         when(evaluations.summary(anyString(), anyInt())).thenReturn(Map.of(
                 "evaluations", 0L, "achieved", 0L, "partial", 0L, "failed", 0L,
@@ -46,7 +46,7 @@ class EvaluationDashboardControllerTest {
 
         Map<String, Object> response = controller.dashboard(50, 30, 0, 50, null, null, authentication);
 
-        verify(evaluations).search("alice", 30, 0, 50, null, null);
+        verify(evaluations).search("alice", 30, 0, 50, null, null, "createdAt", "DESC");
         verify(evaluations).summary("alice", 30);
         verify(usage).aggregateForUser("alice", 30);
         verify(usage).aggregateTripsForUser("alice", 30);
@@ -67,10 +67,10 @@ class EvaluationDashboardControllerTest {
 
         controller.dashboard(50, 30, 0, 50, null, null, null);
 
-        verify(evaluations).search("", 30, 0, 50, null, null);
+        verify(evaluations).search("", 30, 0, 50, null, null, "createdAt", "DESC");
         verify(usage).aggregateForUser("", 30);
         verify(runtime).aggregateForUser("", 30);
-        verify(evaluations, never()).search(eq("alice"), anyInt(), anyInt(), anyInt(), any(), any());
+        verify(evaluations, never()).search(eq("alice"), anyInt(), anyInt(), anyInt(), any(), any(), any(), any());
         verify(usage, never()).aggregateForUser(eq("alice"), anyInt());
         verify(runtime, never()).aggregateForUser(eq("alice"), anyInt());
     }
