@@ -240,6 +240,13 @@ public class FlightAgentService {
         return actualOrigin.equals(origin) && actualDestination.equals(destination);
     }
 
+    private boolean isSingleLegFlightLookup(String request) {
+        String text = request == null ? "" : request.toLowerCase(java.util.Locale.ROOT);
+        boolean flightLookup = text.matches("(?s).*\\b(flight|flights|airfare|flight status)\\b.*");
+        boolean returnIntent = text.matches("(?s).*\\b(round[ -]?trip|return flight|return journey|two[ -]?way|both ways|there and back|and back|come back|coming back|returning)\\b.*");
+        return flightLookup && !returnIntent;
+    }
+
     private String normalizeCode(String value) {
         return value == null ? "" : value.trim().toUpperCase(java.util.Locale.ROOT);
     }
