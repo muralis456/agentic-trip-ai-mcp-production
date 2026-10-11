@@ -100,6 +100,10 @@ travel:
     # no per-token provider/API charge. This does NOT include compute, electricity,
     # hosting, or any external services. Override rates if routing these model names
     # through a paid provider. Keys match the model name recorded in telemetry.
+    local-compute-usd-per-hour: ${TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR:0.10}
+    local-models:
+      - "llama3.2:3b"
+      - "tev1:4b"
     model-pricing:
       "llama3.2:3b":
         input-usd-per-million: ${TRAVEL_LLM_LLAMA32_INPUT_USD_PER_MILLION:0}
