@@ -2,6 +2,8 @@ package com.example.travel.controller;
 
 import com.example.travel.observability.AgentEvaluationLedger;
 import com.example.travel.observability.AgentModelUsageLedger;
+import com.example.travel.observability.AgentRuntimeEventLedger;
+import org.springframework.data.domain.PageImpl;
 import com.example.travel.observability.ModelPricingProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +49,9 @@ class EvaluationDashboardSecurityIntegrationTest {
     private AgentModelUsageLedger usage;
 
     @MockitoBean
+    private AgentRuntimeEventLedger runtimeEvents;
+
+    @MockitoBean
     private ModelPricingProperties pricing;
 
     @Test
@@ -65,8 +70,8 @@ class EvaluationDashboardSecurityIntegrationTest {
 
     @Test
     void authenticatedDashboardUsesOnlyTheAuthenticatedUsernameForHistoryQueries() throws Exception {
-        when(evaluations.recent(eq("alice"), anyInt())).thenReturn(List.of());
-        when(evaluations.summary("alice")).thenReturn(Map.of("evaluations", 0L));
+        when(evaluations.search(eq("alice"), anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(evaluations.summary(eq("alice"), anyInt())).thenReturn(Map.of("evaluations", 0L));
         when(usage.aggregateForUser("alice", 30)).thenReturn(List.of());
 
         mvc.perform(get("/api/observability/dashboard")
@@ -75,10 +80,10 @@ class EvaluationDashboardSecurityIntegrationTest {
                 .andExpect(jsonPath("$.summary.evaluations").value(0))
                 .andExpect(jsonPath("$.modelUsageWindowDays").value(30));
 
-        verify(evaluations).recent("alice", 50);
-        verify(evaluations).summary("alice");
+        verify(evaluations).search("alice", 30, 0, 50, null, null);
+        verify(evaluations).summary("alice", 30);
         verify(usage).aggregateForUser("alice", 30);
-        verify(evaluations, never()).recent(eq("bob"), anyInt());
+        verify(evaluations, never()).search(eq("bob"), anyInt(), anyInt(), anyInt(), any(), any());
         verify(evaluations, never()).summary("bob");
         verify(usage, never()).aggregateForUser(eq("bob"), anyInt());
     }
