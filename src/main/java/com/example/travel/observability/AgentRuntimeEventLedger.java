@@ -6,6 +6,7 @@ import com.example.travel.repository.AgentRuntimeEventRepository;
 import com.example.travel.service.ModelRoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -92,6 +93,35 @@ public class AgentRuntimeEventLedger {
                     row.put("costUsd", e.getCostUsd());
                     return row;
                 }).toList();
+    }
+
+    /** Server-side pagination for durable event history; the query remains account-scoped. */
+    @Transactional(readOnly = true)
+    public Page<Map<String, Object>> recentPageForUser(String userId, int days, int page, int pageSize) {
+        int safeDays = Math.max(0, Math.min(3650, days));
+        int safePage = Math.max(0, Math.min(1_000_000, page));
+        int safePageSize = Math.max(1, Math.min(100, pageSize));
+        if (userId == null || userId.isBlank()) {
+            return Page.empty(PageRequest.of(safePage, safePageSize));
+        }
+        Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
+        var pageable = PageRequest.of(safePage, safePageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        Page<AgentRuntimeEvent> result = since == null
+                ? repository.recentForUser(userId, pageable)
+                : repository.recentForUserSince(userId, since, pageable);
+        return result.map(e -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("timestamp", e.getCreatedAt().toString());
+            row.put("threadId", e.getThreadId());
+            row.put("eventType", e.getEventType());
+            row.put("component", e.getComponent());
+            row.put("status", e.getStatus());
+            row.put("durationMs", e.getDurationMs());
+            row.put("attempt", e.getAttempt());
+            row.put("costUsd", e.getCostUsd());
+            return row;
+        });
     }
 
     private Map<String, Object> asMap(AgentRuntimeEventAggregate a) {
