@@ -114,18 +114,20 @@ public class EvaluationDashboardController {
         double knownProviderApiCost = tripCostsByThread.values().stream()
                 .mapToDouble(t -> t.providerApiCostUsd).sum();
         boolean allProviderCostsKnown = tripCostsByThread.values().stream().allMatch(t -> t.providerApiCostKnown);
+        Map<String, Object> costSummary = new LinkedHashMap<>();
+        costSummary.put("localInfrastructureCostUsd", knownLocalInfrastructureCost);
+        costSummary.put("providerApiCostUsd", knownProviderApiCost);
+        costSummary.put("providerApiCostComplete", allProviderCostsKnown);
+        costSummary.put("totalCostUsd", allProviderCostsKnown
+                ? knownLocalInfrastructureCost + knownProviderApiCost : null);
+        costSummary.put("trips", tripCosts.size());
 
         return Map.of(
                 "summary", summary,
                 "traces", recent,
                 "modelUsage", modelUsage,
                 "tripCosts", tripCosts,
-                "costSummary", Map.of(
-                        "localInfrastructureCostUsd", knownLocalInfrastructureCost,
-                        "providerApiCostUsd", knownProviderApiCost,
-                        "providerApiCostComplete", allProviderCostsKnown,
-                        "totalCostUsd", allProviderCostsKnown ? knownLocalInfrastructureCost + knownProviderApiCost : -1.0,
-                        "trips", tripCosts.size()),
+                "costSummary", costSummary,
                 "refreshedAt", Instant.now().toString(),
                 "modelUsageWindowDays", days,
                 "costNotice", "Local infrastructure is an estimate from local-model execution time × TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR (default $0.10/hour). Paid model API charges are token estimates using configured model-pricing rates. Unknown rates are shown as Unpriced; these are not provider invoices and exclude separate hosting/electricity and non-model API billing.");
