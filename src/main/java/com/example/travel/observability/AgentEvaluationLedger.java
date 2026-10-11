@@ -110,23 +110,24 @@ public class AgentEvaluationLedger {
         // (:since is null or createdAt >= :since) are unsafe with PostgreSQL/Hibernate because
         // the null-only bind has no inferable SQL type (SQLState 42P18).
         final String textPattern = safeQuery;
+        final String statusFilter = safeStatus;
         Specification<AgentGoalEvaluation> specification = (root, criteriaQuery, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(criteriaBuilder.equal(root.get("userId"), userId));
             if (since != null) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), since));
             }
-            if (safeStatus != null) {
-                predicates.add(criteriaBuilder.equal(root.get("status"), safeStatus));
+            if (statusFilter != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), statusFilter));
             }
             if (textPattern != null) {
                 String pattern = textPattern.toLowerCase(java.util.Locale.ROOT);
                 predicates.add(criteriaBuilder.or(
-                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("goal"), "")), pattern),
-                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("destination"), "")), pattern),
-                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("threadId"), "")), pattern),
-                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("reason"), "")), pattern),
-                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("budget"), "")), pattern)));
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.<String>get("goal"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.<String>get("destination"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.<String>get("threadId"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.<String>get("reason"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.<String>get("budget"), "")), pattern)));
             }
             return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
         };
