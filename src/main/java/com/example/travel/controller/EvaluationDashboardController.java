@@ -113,9 +113,10 @@ public class EvaluationDashboardController {
             Double provider = pricing.estimateProviderApiCostUsd(usage.getModel(), input, output);
             if (provider == null) trip.providerCostKnown = false; else trip.providerApiCostUsd += provider;
         }
+        Map<String, String> tripLabels = evaluationLedger.labelsForThreads(userId, trips.keySet());
         List<Map<String, Object>> tripCosts = trips.values().stream()
                 .sorted(Comparator.comparingLong((TripCost t) -> t.calls).reversed())
-                .map(TripCost::asMap).toList();
+                .map(t -> t.asMap(tripLabels.get(t.threadId))).toList();
         boolean costsComplete = trips.values().stream().allMatch(t -> t.localCostKnown && t.providerCostKnown);
         Map<String, Object> costSummary = new LinkedHashMap<>();
         costSummary.put("localInfrastructureCostUsd", trips.values().stream().allMatch(t -> t.localCostKnown)
@@ -178,9 +179,10 @@ public class EvaluationDashboardController {
         private double localInfrastructureCostUsd, providerApiCostUsd;
         private boolean localCostKnown = true, providerCostKnown = true;
         private TripCost(String threadId) { this.threadId = threadId; }
-        private Map<String, Object> asMap() {
+        private Map<String, Object> asMap(String label) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("threadId", threadId);
+            row.put("label", label == null || label.isBlank() ? "Trip · " + threadId.substring(Math.max(0, threadId.length() - 8)) : label);
             row.put("calls", calls);
             row.put("inputTokens", inputTokens);
             row.put("outputTokens", outputTokens);
