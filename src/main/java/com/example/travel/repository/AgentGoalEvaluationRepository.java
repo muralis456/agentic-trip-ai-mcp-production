@@ -12,6 +12,7 @@ import java.util.List;
 
 public interface AgentGoalEvaluationRepository extends JpaRepository<AgentGoalEvaluation, Long> {
     List<AgentGoalEvaluation> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
+    List<AgentGoalEvaluation> findByUserIdAndThreadIdInOrderByCreatedAtDesc(String userId, java.util.Collection<String> threadIds);
     long countByUserId(String userId);
     long countByUserIdAndStatus(String userId, String status);
 
