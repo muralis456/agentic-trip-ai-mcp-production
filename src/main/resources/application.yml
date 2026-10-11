@@ -96,9 +96,17 @@ spring:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
   observability:
-    # Keys are normalized model names (for example llama3.2_3b).
-    # Rates are USD per million tokens. Leave empty rather than inventing prices.
-    model-pricing: {}
+    # USD per million tokens. The default Ollama models run locally, so they have
+    # no per-token provider/API charge. This does NOT include compute, electricity,
+    # hosting, or any external services. Override rates if routing these model names
+    # through a paid provider. Keys match the model name recorded in telemetry.
+    model-pricing:
+      "llama3.2:3b":
+        input-usd-per-million: ${TRAVEL_LLM_LLAMA32_INPUT_USD_PER_MILLION:0}
+        output-usd-per-million: ${TRAVEL_LLM_LLAMA32_OUTPUT_USD_PER_MILLION:0}
+      "tev1:4b":
+        input-usd-per-million: ${TRAVEL_LLM_TEV1_INPUT_USD_PER_MILLION:0}
+        output-usd-per-million: ${TRAVEL_LLM_TEV1_OUTPUT_USD_PER_MILLION:0}
   jev:
     # Local development defaults to Ollama Tev1. Production can override these
     # with TRAVEL_JEV_* environment variables.
