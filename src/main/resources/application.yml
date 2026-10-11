@@ -95,6 +95,23 @@ spring:
         connection:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
+  observability:
+    # Configured token rates are estimates, not invoices. Local model compute cost
+    # is unavailable unless an explicit rate is supplied; no default hourly cost is assumed.
+    local-compute-usd-per-hour: ${TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR:}
+    local-models:
+      - "llama3.2:3b"
+      - "tev1:4b"
+    # Optional estimated USD per provider operation. Configure only from your provider plan.
+    # Exact keys use "provider:operation"; a "provider:*" key is a fallback per-call estimate.
+    provider-call-pricing: {}
+    model-pricing:
+      "llama3.2:3b":
+        input-usd-per-million: ${TRAVEL_LLM_LLAMA32_INPUT_USD_PER_MILLION:0}
+        output-usd-per-million: ${TRAVEL_LLM_LLAMA32_OUTPUT_USD_PER_MILLION:0}
+      "tev1:4b":
+        input-usd-per-million: ${TRAVEL_LLM_TEV1_INPUT_USD_PER_MILLION:0}
+        output-usd-per-million: ${TRAVEL_LLM_TEV1_OUTPUT_USD_PER_MILLION:0}
   jev:
     # Local development defaults to Ollama Tev1. Production can override these
     # with TRAVEL_JEV_* environment variables.
@@ -218,9 +235,10 @@ travel:
     api-url: https://api.tavily.com/search
     api-key: ${TAVILY_API_KEY:}
   aviation:
+    # Disabled for now; live flight lookup uses MCP-provider fallback instead.
     api-url: https://api.aviationstack.com/v1
     api-key: ${AVIATIONSTACK_API_KEY:}
-    # Free plans reject flight_date with 403 function_access_restricted.
+    enabled: false
     include-flight-date: false
   weather:
     provider: ${WEATHER_PROVIDER:openweather}

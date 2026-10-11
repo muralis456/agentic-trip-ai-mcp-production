@@ -149,6 +149,18 @@ public class TravelController {
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(resumeInfo);
         }
 
+        // Never reinterpret an explicit Continue as a brand-new travel request.
+        // If no resumable/active checkpoint was found, fail clearly instead of
+        // letting the intent planner turn the word "continue" into (for example)
+        // a flight-search request based on stale destination fields.
+        if (isExplicitContinue(rawPrompt)) {
+            log.warn("Continue rejected because no resumable checkpoint was found userId={} conversationId={} continuationThreadId={}",
+                    userId, conversationId, request.getContinuationThreadId());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "status", "NO_RESUMABLE_CHECKPOINT",
+                    "message", "I couldn't find a resumable checkpoint for this conversation. Your request was not restarted. Open the original trip and try Continue again, or start a new trip explicitly."));
+        }
+
         // Keep stale hidden dates out of live provider calls, but keep TravelState pure
         // so deterministic state/checkpoint tests can preserve explicit dates.
         if (request.getDepartureDate() != null && !request.getDepartureDate().isBlank()
@@ -375,6 +387,12 @@ public class TravelController {
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    private boolean isExplicitContinue(String prompt) {
+        if (prompt == null) return false;
+        return prompt.trim().toLowerCase(java.util.Locale.ROOT)
+                .matches("(?:please\\s+)?(?:continue|resume|go ahead|proceed|keep going|do it|yes|okay|ok)(?:\\s+please)?[.!?]*");
     }
 
     private String currentUser(Authentication authentication) {

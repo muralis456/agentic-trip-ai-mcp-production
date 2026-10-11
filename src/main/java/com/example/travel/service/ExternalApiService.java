@@ -47,6 +47,9 @@ public class ExternalApiService {
     @Value("${travel.aviation.api-key:}")
     private String aviationApiKey;
 
+    @Value("${travel.aviation.enabled:false}")
+    private boolean aviationEnabled;
+
     /**
      * Free AviationStack plans reject {@code flight_date} with 403 function_access_restricted.
      * Keep false unless you are on a paid plan that supports historical/future date search.
@@ -127,6 +130,10 @@ public class ExternalApiService {
 
     public List<FlightOption> fetchFlights(String departureIata, String arrivalIata, String date) {
         List<FlightOption> flights = new ArrayList<>();
+        if (!aviationEnabled) {
+            flights.add(unavailable("Direct AviationStack lookup is disabled; use the MCP flight provider fallback chain."));
+            return flights;
+        }
         if (aviationApiKey == null || aviationApiKey.isBlank()) {
             log.warn("AviationStack API key is missing");
             flights.add(unavailable("AviationStack API key is missing. Please set AVIATIONSTACK_API_KEY."));
@@ -220,8 +227,8 @@ public class ExternalApiService {
                 FlightOption option = new FlightOption(
                         text(flight.path("flight"), "iata"),
                         text(flight.path("airline"), "name"),
-                        text(flight.path("departure"), "iata", origin),
-                        text(flight.path("arrival"), "iata", destination),
+                        text(flight.path("departure"), "iata", ""),
+                        text(flight.path("arrival"), "iata", ""),
                         text(flight.path("departure"), "scheduled"),
                         text(flight.path("arrival"), "scheduled"),
                         text(flight, "flight_status"),

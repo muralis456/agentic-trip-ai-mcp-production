@@ -9,7 +9,7 @@ import java.util.List;
 public class GoalEvaluation implements Serializable {
     @Serial private static final long serialVersionUID = 1L;
 
-    public enum Status { ACHIEVED, PARTIAL, FAILED, NEEDS_USER }
+    public enum Status { ACHIEVED, PARTIAL, FAILED, NEEDS_USER, STOPPED }
 
     private Status status = Status.PARTIAL;
     private double score;

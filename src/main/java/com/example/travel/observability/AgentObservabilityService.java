@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,13 +20,28 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AgentObservabilityService {
 
     private final MeterRegistry registry;
+    private final AgentRuntimeEventLedger runtimeEvents;
 
+    @Autowired
+    public AgentObservabilityService(MeterRegistry registry, AgentRuntimeEventLedger runtimeEvents) {
+        this.registry = registry;
+        this.runtimeEvents = runtimeEvents;
+    }
+
+    /** Test/backwards-compatible constructor; Spring uses the fully wired constructor above. */
     public AgentObservabilityService(MeterRegistry registry) {
         this.registry = registry;
+        this.runtimeEvents = null;
+    }
+
+    private void runtime(String type, String component, boolean success, long durationMs, int attempt) {
+        if (runtimeEvents != null) runtimeEvents.recordCurrentRun(type, component,
+                success ? "SUCCESS" : "ERROR", durationMs, attempt);
     }
 
     public void recordLlmCall(String operation, String model, int inputTokens,
                               int outputTokens, long durationMs, boolean success) {
+        runtime("LLM", model, success, durationMs, 1);
         String safeOperation = normalize(operation);
         String safeModel = normalize(model);
 
@@ -68,6 +84,7 @@ public class AgentObservabilityService {
     }
 
     public void recordMcpCall(String tool, long durationMs, boolean success, int attempt) {
+        runtime("MCP", tool, success, durationMs, attempt);
         String safeTool = normalize(tool);
 
         Counter.builder("agent.mcp.calls")
@@ -102,6 +119,7 @@ public class AgentObservabilityService {
     }
 
     public void recordRetry(String category, String reason) {
+        runtime("RETRY", category + ":" + reason, true, 0, 2);
         Counter.builder("agent.retries")
                 .description("Agent and provider retry attempts")
                 .tag("category", normalize(category))
@@ -111,6 +129,7 @@ public class AgentObservabilityService {
     }
 
     public void recordReplan(String reason) {
+        runtime("REPLAN", reason, true, 0, 1);
         Counter.builder("agent.replans")
                 .description("Agent replans")
                 .tag("reason", normalize(reason))
@@ -119,6 +138,7 @@ public class AgentObservabilityService {
     }
 
     public void recordNode(String node, long durationMs, boolean success) {
+        runtime("NODE", node, success, durationMs, 1);
         Counter.builder("agent.nodes")
                 .description("Agent graph node executions")
                 .tag("node", normalize(node))
@@ -134,6 +154,7 @@ public class AgentObservabilityService {
     }
 
     public void recordProviderCall(String provider, String operation, long durationMs, boolean success) {
+        runtime("PROVIDER", provider + ":" + operation, success, durationMs, 1);
         Counter.builder("agent.provider.calls")
                 .description("External provider calls")
                 .tag("provider", normalize(provider))
@@ -168,6 +189,7 @@ public class AgentObservabilityService {
     }
 
     public void recordRun(String status, long durationMs) {
+        runtime("RUN", "agent-run", "success".equalsIgnoreCase(status) || "achieved".equalsIgnoreCase(status), durationMs, 1);
         Counter.builder("agent.runs")
                 .description("Agent runs")
                 .tag("status", normalize(status))

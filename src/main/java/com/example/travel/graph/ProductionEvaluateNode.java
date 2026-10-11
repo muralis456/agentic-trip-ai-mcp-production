@@ -12,21 +12,32 @@ public class ProductionEvaluateNode implements NodeAction<TravelState> {
     private final GoalEvaluationService evaluator;
     private final com.example.travel.observability.AgentObservabilityService observability;
     private final java.util.Optional<JevGoalDecisionService> jevGoalDecision;
+    private final com.example.travel.observability.AgentEvaluationLedger evaluationLedger;
     @org.springframework.beans.factory.annotation.Autowired
     public ProductionEvaluateNode(GoalEvaluationService evaluator,
                                   com.example.travel.observability.AgentObservabilityService observability,
-                                  java.util.Optional<JevGoalDecisionService> jevGoalDecision){
+                                  java.util.Optional<JevGoalDecisionService> jevGoalDecision,
+                                  com.example.travel.observability.AgentEvaluationLedger evaluationLedger){
         this.evaluator=evaluator;
         this.observability=observability;
         this.jevGoalDecision=jevGoalDecision;
+        this.evaluationLedger=evaluationLedger;
     }
+    /** Compatibility constructor retained for existing tests and wiring. */
+    public ProductionEvaluateNode(GoalEvaluationService evaluator,
+                                  com.example.travel.observability.AgentObservabilityService observability,
+                                  java.util.Optional<JevGoalDecisionService> jevGoalDecision) {
+        this.evaluator=evaluator; this.observability=observability; this.jevGoalDecision=jevGoalDecision; this.evaluationLedger=null;
+    }
+
     /** Backward-compatible constructor for unit tests and infrastructure wiring. */
     public ProductionEvaluateNode(GoalEvaluationService evaluator, com.example.travel.observability.AgentObservabilityService observability){
-        this(evaluator, observability, java.util.Optional.empty());
+        this.evaluator=evaluator; this.observability=observability; this.jevGoalDecision=java.util.Optional.empty(); this.evaluationLedger=null;
     }
     @Override public Map<String,Object> apply(TravelState state){
         GoalEvaluation e=evaluator.evaluate(state);
         observability.recordGoalOutcome(e.getStatus().name());
+        if (evaluationLedger != null) evaluationLedger.record(state, e);
         Map<String,Object> u=new LinkedHashMap<>();
         u.put(TravelState.GOAL_EVALUATION,e);
         String route = e.getStatus().name();

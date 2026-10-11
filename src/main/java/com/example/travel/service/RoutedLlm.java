@@ -24,6 +24,7 @@ public class RoutedLlm {
     private final TravelModelsProperties models;
     private final AgentExecutionBudget executionBudget;
     private final com.example.travel.observability.AgentObservabilityService observability;
+    private final com.example.travel.observability.AgentModelUsageLedger modelUsageLedger;
     private final int extractionMaxTokens;
     private final int plannerMaxTokens;
     private final int itineraryMaxTokens;
@@ -33,6 +34,7 @@ public class RoutedLlm {
                      TravelModelsProperties models,
                      AgentExecutionBudget executionBudget,
                      com.example.travel.observability.AgentObservabilityService observability,
+                     com.example.travel.observability.AgentModelUsageLedger modelUsageLedger,
                      @Value("${travel.models.max-tokens.extraction:384}") int extractionMaxTokens,
                      @Value("${travel.models.max-tokens.planner:512}") int plannerMaxTokens,
                      @Value("${travel.models.max-tokens.itinerary:1400}") int itineraryMaxTokens,
@@ -41,6 +43,7 @@ public class RoutedLlm {
         this.models = models;
         this.executionBudget = executionBudget;
         this.observability = observability;
+        this.modelUsageLedger = modelUsageLedger;
         this.extractionMaxTokens = Math.max(128, extractionMaxTokens);
         this.plannerMaxTokens = Math.max(128, plannerMaxTokens);
         this.itineraryMaxTokens = Math.max(256, itineraryMaxTokens);
@@ -118,6 +121,7 @@ public class RoutedLlm {
                 } catch (Exception ignored) { }
                 LlmExecutionResult result = new LlmExecutionResult(content, candidateModel, toolNames, durationMs, inputTokens, outputTokens);
                 observability.recordLlmCall(role.name(), candidateModel, inputTokens, outputTokens, durationMs, true);
+                recordUsageSafely(candidateModel, role.name(), true, inputTokens, outputTokens, durationMs);
                 LlmCallContext.record(result);
                 return result;
             } catch (Exception ex) {
@@ -130,11 +134,24 @@ public class RoutedLlm {
                 }
                 lastFailure = ex;
                 observability.recordLlmCall(role.name(), candidateModel, 0, 0, durationMs, false);
+                recordUsageSafely(candidateModel, role.name(), false, 0, 0, durationMs);
                 log.warn("[RoutedLLM] phase={} decision=LLM_FAILED model={} durationMs={} errorType={} message={}", role, candidateModel, durationMs, ex.getClass().getSimpleName(), sanitizeLogMessage(ex.getMessage()));
             }
         }
         if (lastFailure instanceof RuntimeException runtimeException) throw runtimeException;
         throw new RuntimeException(lastFailure);
+    }
+
+    private void recordUsageSafely(String model, String operation, boolean success,
+                                   int inputTokens, int outputTokens, long durationMs) {
+        try {
+            modelUsageLedger.record(ModelRoutingContext.userId(), ModelRoutingContext.threadId(),
+                    model, operation, success, inputTokens, outputTokens, durationMs);
+        } catch (RuntimeException ex) {
+            // A telemetry write failure must not turn a successful model response into a failed trip.
+            log.warn("Model usage persistence failed; continuing execution ({})",
+                    ex.getClass().getSimpleName());
+        }
     }
 
     private static boolean isInterruptedCause(Throwable error) {

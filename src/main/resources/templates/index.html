@@ -2344,6 +2344,7 @@
             <button type="button" class="sidebar-nav-item" data-nav="tools"><span>▱</span> Travel Tools</button>
             <button type="button" class="sidebar-nav-item" data-nav="saved"><span>♡</span> Saved Places</button>
             <button type="button" class="sidebar-nav-item" data-nav="settings"><span>⚙</span> Settings</button>
+            <a class="sidebar-nav-item" href="/evaluation" style="text-decoration:none"><span>◉</span> Evaluation &amp; Observability</a>
             <button type="button" class="sidebar-nav-item" data-nav="help"><span>?</span> Help</button>
         </nav>
 
@@ -2542,6 +2543,28 @@
     const signedInUser = document.getElementById('signedInUser');
     let currentUserId = '';
 
+    // Global security-response handler: cover every fetch-driven UI action,
+    // not just actions that happen to use apiFetch (Approve, history, settings, etc.).
+    // A 403 from any protected endpoint redirects the client to sign-in.
+    if (!window.__agenticTripSecurityFetchInstalled) {
+        window.__agenticTripSecurityFetchInstalled = true;
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = (...args) => nativeFetch(...args).then(response => {
+            const requestUrl = String(args[0] && args[0].url ? args[0].url : args[0] || '');
+            let pathname = '';
+            try { pathname = new URL(requestUrl, window.location.origin).pathname; } catch (_) {}
+            const authEndpoint = pathname.startsWith('/api/auth/');
+            const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(window.location.pathname);
+            if (!authEndpoint && !authPage && (response.status === 401 || response.status === 403)) {
+                const target = response.status === 401 ? '/login?expired=true' : '/login?forbidden=true';
+                if (window.location.pathname + window.location.search !== target) {
+                    window.location.replace(target);
+                }
+            }
+            return response;
+        });
+    }
+
     const csrfMeta = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
     const apiFetch = (url, options = {}) => {
@@ -2551,8 +2574,17 @@
             opts.headers[csrfHeaderMeta.content] = csrfMeta.content;
         }
         return window.fetch(url, opts).then(response => {
-            if (response.status === 401 && !String(url).startsWith('/api/auth/')) {
-                window.location.href = '/login?expired=true';
+            const requestUrl = String(url);
+            const isAuthEndpoint = requestUrl.startsWith('/api/auth/');
+            const isAuthPage = ['/login', '/register', '/forgot-password', '/reset-password']
+                .includes(window.location.pathname);
+            // This template owns the approval buttons, so handle both expired
+            // sessions (401) and forbidden responses (403) in its API wrapper.
+            if (!isAuthEndpoint && !isAuthPage && (response.status === 401 || response.status === 403)) {
+                const target = response.status === 401 ? '/login?expired=true' : '/login?forbidden=true';
+                if (window.location.pathname + window.location.search !== target) {
+                    window.location.replace(target);
+                }
             }
             return response;
         });
@@ -3378,27 +3410,47 @@
         scrollChat();
     };
 
-    newChatBtn.addEventListener('click', () => {
+    const startNewChat = (event) => {
+        event?.preventDefault();
+        event?.stopPropagation();
         exitModifyMode(true);
         startedFreshChat = true;
         currentChatId = null;
         currentHistoryKey = null;
-        ensureCurrentChat('New trip');
+        showHomeView();
         clearThreadDom();
+        const freshChat = ensureCurrentChat('New trip');
+        if (freshChat) {
+            freshChat.messages = [];
+            freshChat.threadId = null;
+            saveStore(loadStore());
+        }
         renderHistoryList();
         promptInput.value = '';
-        
-    resizePrompt();
+        resizePrompt();
         loadingState.classList.remove('visible');
         submitButton.disabled = false;
+        updateComposerState();
         promptInput.focus();
-    });
+    };
 
-    if (composerNewChat) {
-        composerNewChat.addEventListener('click', () => {
-            newChatBtn.click();
-        });
-    }
+    // Bind both entry points directly. Do not make the composer + depend on
+    // programmatically clicking the sidebar button; that can be blocked by
+    // overlays/disabled state and made the two controls behave inconsistently.
+    newChatBtn.addEventListener('click', startNewChat);
+    composerNewChat?.addEventListener('click', startNewChat);
+
+    // Capture clicks as a defensive fallback if another component stops
+    // propagation before the button's normal listener executes.
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('#newChatBtn, #composerNewChat');
+        if (!trigger || trigger.dataset.newChatHandled === 'true') return;
+        trigger.dataset.newChatHandled = 'true';
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        startNewChat(event);
+        queueMicrotask(() => { delete trigger.dataset.newChatHandled; });
+    }, true);
 
     promptInput.addEventListener('input', () => {
         
@@ -4728,10 +4780,16 @@
         if (live && live.row && live.row.isConnected) live.row.remove();
     };
 
+    // Automatic reconnect recovery must reuse the original live card and thread.
+    // A normal form submission creates a second tracking card, which is misleading.
+    let automaticRecoveryContext = null;
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         syncUserIdField();
 
+        const recoveryContext = automaticRecoveryContext;
+        automaticRecoveryContext = null;
         const text = promptInput.value.trim();
         if (!text) {
             return;
@@ -4752,15 +4810,35 @@
         const payload = Object.fromEntries(formData.entries());
         const activeChat = ensureCurrentChat(text);
         payload.conversationId = activeChat.conversationId || activeChat.id;
-        payload.continuationThreadId = chatThreadIdForDelete(activeChat);
+        payload.continuationThreadId = recoveryContext?.threadId || chatThreadIdForDelete(activeChat);
+        const explicitContinue = /^(?:please\s+)?(?:continue|resume|go ahead|proceed|keep going|do it|yes|okay|ok)(?:\s+please)?[.!?]*$/i.test(String(text || '').trim());
+        if (explicitContinue) {
+            // A chat-level threadId is only a cache and may point at a different
+            // run from an earlier message. Prefer the live card explicitly showing
+            // a saved stopped checkpoint, rather than accidentally resuming another
+            // run (or falling through into a fresh plan).
+            const liveCards = Array.from(chatThread.querySelectorAll('.live-response[data-thread-id]'));
+            const stoppedCard = [...liveCards].reverse().find(card =>
+                /stopped/i.test(card.querySelector('.live-state')?.textContent || '') &&
+                /checkpoint|continue|resume/i.test(card.querySelector('.live-activity-text')?.textContent || ''));
+            const disconnectedCard = [...liveCards].reverse().find(card =>
+                /connection lost|disconnected/i.test(card.querySelector('.live-state')?.textContent || '') &&
+                /checkpoint|continue|resume/i.test(card.querySelector('.live-activity-text')?.textContent || ''));
+            const resumableCard = stoppedCard || disconnectedCard;
+            if (resumableCard?.dataset.threadId) {
+                payload.continuationThreadId = resumableCard.dataset.threadId;
+            }
+        }
         payload.preferences = text;
         payload.prompt = text;
 
-        appendUserMessage(text);
+        // Recovery is an internal control action, not a new user message.
+        // Keep the existing card visible and attach its new stream to that card.
+        if (!recoveryContext) appendUserMessage(text);
         promptInput.value = '';
         submitButton.disabled = true;
         loadingState.classList.add('visible');
-        const liveResponse = createLiveResponse();
+        const liveResponse = recoveryContext?.liveResponse || createLiveResponse();
 
         try {
             const idempotencyKey = (window.crypto && crypto.randomUUID)
@@ -5046,27 +5124,104 @@
                         reject(error);
                     }
                 });
+                let reconnectRecoveryStarted = false;
                 es.onerror = () => {
-                    if (finished) {
-                        return;
-                    }
+                    if (finished) return;
                     if (liveResponse.stopRequested) {
                         liveResponse.state.textContent = 'Stopping';
                         liveResponse.activity.textContent = 'Waiting for the saved checkpoint…';
                         return;
                     }
-                    finished = true;
-                    es.close();
-                    liveResponse.state.textContent = 'Connection lost';
-                    liveResponse.activity.textContent = 'The planner disconnected before finishing. After it is running again, send Continue to resume the saved checkpoint.';
+
+                    // EventSource reconnects only the stream; it cannot restart a graph
+                    // worker after the server process has restarted. Keep the checkpoint
+                    // thread attached to this card and automatically issue the explicit
+                    // Continue command once the authenticated backend is reachable again.
+                    liveResponse.state.textContent = 'Reconnecting';
+                    liveResponse.activity.textContent = 'Connection interrupted. Waiting for the planner to return; your saved checkpoint will resume automatically…';
                     if (liveResponse.stopButton) {
                         liveResponse.stopButton.disabled = true;
-                        liveResponse.stopButton.textContent = 'Disconnected';
+                        liveResponse.stopButton.textContent = 'Reconnecting…';
                     }
-                    submitButton.disabled = false;
-                    loadingState.classList.remove('visible');
-                    updateComposerState();
+                    if (reconnectRecoveryStarted) return;
+                    reconnectRecoveryStarted = true;
+                    finished = true;
+                    es.close();
                     resolve();
+
+                    void (async () => {
+                        const recoveryStartedAt = Date.now();
+                        const recoveryTimeoutMs = 10 * 60 * 1000;
+                        while (Date.now() - recoveryStartedAt < recoveryTimeoutMs) {
+                            await new Promise(r => setTimeout(r, 3000));
+                            try {
+                                const probe = await apiFetch('/api/plan/' + encodeURIComponent(threadId) + '/history', {
+                                    method: 'GET',
+                                    cache: 'no-store'
+                                });
+                                if (!probe.ok) continue;
+                                const history = await probe.json();
+
+                                // The graph may have completed while the browser was
+                                // disconnected (including the HITL approval pause). In
+                                // that case restore the persisted result into the UI;
+                                // sending Continue would be wrong for a completed run.
+                                const restoredResponse = await apiFetch('/api/plan/' + encodeURIComponent(threadId) + '/restore', {
+                                    method: 'GET',
+                                    cache: 'no-store'
+                                });
+                                if (!restoredResponse.ok) continue;
+                                const restoredPlan = await restoredResponse.json();
+                                const nextNodes = history && history.next;
+                                const noNextNode = Array.isArray(nextNodes) && nextNodes.length === 0;
+                                const restoredStatus = String(restoredPlan.status || '').toUpperCase();
+                                const waitingForUser = restoredPlan.awaitingApproval === true
+                                    || restoredStatus === 'PENDING_APPROVAL'
+                                    || restoredStatus === 'NEEDS_USER_INPUT';
+                                if (noNextNode || waitingForUser) {
+                                    liveResponse.state.textContent = waitingForUser ? 'Plan ready' : 'Completed';
+                                    liveResponse.activity.textContent = waitingForUser
+                                        ? 'Connection restored. Your completed plan is ready for review.'
+                                        : 'Connection restored. Loaded the completed plan.';
+                                    liveResponse.row.classList.add('live-complete');
+                                    if (liveResponse.stopButton) {
+                                        liveResponse.stopButton.disabled = true;
+                                        liveResponse.stopButton.textContent = 'Done';
+                                    }
+                                    appendAssistantMessage(restoredPlan);
+                                    loadDbTrips(false);
+                                    setTimeout(() => removeLiveResponse(liveResponse), 260);
+                                    return;
+                                }
+
+                                // The graph has not reached a terminal checkpoint.
+                                // Continue routes through the existing thread and
+                                // attaches to active work or resumes its saved checkpoint.
+                                liveResponse.state.textContent = 'Resuming';
+                                liveResponse.activity.textContent = 'Connection restored. Resuming your saved checkpoint automatically…';
+                                if (liveResponse.stopButton) {
+                                    liveResponse.stopButton.disabled = true;
+                                    liveResponse.stopButton.textContent = 'Resuming…';
+                                }
+                                automaticRecoveryContext = { liveResponse, threadId };
+                                promptInput.value = 'Continue';
+                                if (form.requestSubmit) form.requestSubmit();
+                                else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                                return;
+                            } catch (ignored) {
+                                // Keep retrying with a bounded recovery window.
+                            }
+                        }
+                        liveResponse.state.textContent = 'Disconnected';
+                        liveResponse.activity.textContent = 'Automatic recovery timed out. Your checkpoint is preserved; send Continue when the planner is available.';
+                        if (liveResponse.stopButton) {
+                            liveResponse.stopButton.disabled = true;
+                            liveResponse.stopButton.textContent = 'Disconnected';
+                        }
+                        submitButton.disabled = false;
+                        loadingState.classList.remove('visible');
+                        updateComposerState();
+                    })();
                 };
             });
         } catch (error) {

@@ -4,6 +4,7 @@ import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.support.TripSlotHeuristics;
 import com.example.travel.service.TripHistoryService;
 import com.example.travel.model.GoalEvaluation;
+import com.example.travel.observability.AgentEvaluationLedger;
 import com.example.travel.config.TravelModelsProperties;
 import com.example.travel.dto.AgentExecutionDetails;
 import com.example.travel.dto.TripPlanResult;
@@ -45,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -89,6 +91,10 @@ public class TravelPlannerAgentService {
     private final TripHistoryService tripHistoryService;
     private final ObjectMapper objectMapper;
     private final int maxRetries;
+
+    // Optional telemetry dependency is field-injected to keep existing test constructors compatible.
+    @Autowired
+    private AgentEvaluationLedger evaluationLedger;
 
     public TravelPlannerAgentService(
             CompiledGraph<TravelState> travelGraph,
@@ -179,7 +185,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 threadId,
                 executionBudget.capture(),
-                policy);
+                policy,
+                userId);
 
         long runStarted = System.currentTimeMillis();
         GraphExecutionLogger.runStart(threadId, userId,
@@ -295,7 +302,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 threadId,
                 executionBudget.capture(),
-                policy);
+                policy,
+                userId);
 
         long runStarted = System.currentTimeMillis();
         GraphExecutionLogger.runStart(threadId, userId,
@@ -394,7 +402,10 @@ public class TravelPlannerAgentService {
                 Map<String, Object> stopped = new LinkedHashMap<>();
                 stopped.put("threadId", threadId);
                 stopped.put("message", "Stopped. Your current checkpoint is saved. Say Continue to resume this request.");
-                if (checkpoint != null) stopped.put("pipeline", checkpoint.pipeline());
+                if (checkpoint != null) {
+                    stopped.put("pipeline", checkpoint.pipeline());
+                    if (evaluationLedger != null) evaluationLedger.recordStopped(checkpoint, threadId);
+                }
                 graphProgressHub.emit(threadId, "stopped", stopped);
                 runControlService.markStopped(threadId);
                 log.info("Graph stopped threadId={} at persisted checkpoint", threadId);
@@ -460,6 +471,38 @@ public class TravelPlannerAgentService {
 
     public java.util.Optional<Map<String, Object>> tryHandleStoppedRunInput(
             String userId, String conversationId, String prompt, String historyContext, String continuationThreadId) {
+        // Explicit Continue must prefer the thread attached to the current chat, even if
+        // the browser lost SSE before the run-control row was transitioned to STOPPED.
+        // A worker can be FAILED while its LangGraph checkpoint is still resumable.
+        if (isContinueCommand(prompt) && continuationThreadId != null && !continuationThreadId.isBlank()) {
+            var preferred = runControlService.find(continuationThreadId)
+                    .filter(run -> userId.equals(run.getUserId()));
+            if (preferred.isPresent()) {
+                AgentRunControl run = preferred.get();
+                if (AgentRunControlService.FAILED.equals(run.getStatus())) {
+                    try {
+                        requireCheckpointState(run.getThreadId());
+                        runControlService.markStopped(run.getThreadId());
+                    } catch (Exception checkpointUnavailable) {
+                        log.warn("Continue requested for failed thread without a readable checkpoint threadId={}",
+                                run.getThreadId(), checkpointUnavailable);
+                    }
+                }
+                if (AgentRunControlService.STOPPED.equals(runControlService.find(run.getThreadId())
+                        .map(AgentRunControl::getStatus).orElse(""))) {
+                    return java.util.Optional.of(resumeLatestStoppedInfo(userId, conversationId, run.getThreadId()));
+                }
+                if (AgentRunControlService.RUNNING.equals(run.getStatus())
+                        || AgentRunControlService.STOP_REQUESTED.equals(run.getStatus())) {
+                    return java.util.Optional.of(attachToActiveRunInfo(run));
+                }
+            }
+        }
+
+        // Never resume a stopped run from an unrelated conversation. The UI's
+        // cached thread ID can point at an older completed run; in that case the
+        // run-control service resolves the latest STOPPED thread in this same
+        // conversation. A user-wide fallback could resume an unrelated trip.
         var stopped = runControlService.findStoppedForConversation(userId, conversationId, continuationThreadId);
         if (stopped.isEmpty()) {
             var active = runControlService.findActiveForConversation(userId, conversationId, continuationThreadId);
@@ -472,6 +515,11 @@ public class TravelPlannerAgentService {
         AgentRunControl run = stopped.get();
         String threadId = run.getThreadId();
         TravelState checkpoint = requireCheckpointState(threadId);
+        // "Continue" is an explicit control command, not a new natural-language
+        // planning request. Do not let the LLM action resolver reinterpret it as NEW.
+        if (isContinueCommand(prompt)) {
+            return java.util.Optional.of(resumeLatestStoppedInfo(userId, conversationId, threadId));
+        }
         StoppedRunActionDecision action = stoppedRunActionResolver.resolve(checkpoint, prompt);
         log.info("Stopped-run routing action={} confidence={} threadId={} prompt={}",
                 action.getAction(), action.getConfidence(), threadId, prompt);
@@ -606,7 +654,7 @@ public class TravelPlannerAgentService {
         RunnableConfig config = configFor(threadId);
         ModelRoutingContext.set(policy);
         executionBudget.begin();
-        graphRunContext.open(threadId, executionBudget.capture(), policy);
+        graphRunContext.open(threadId, executionBudget.capture(), policy, userId);
         long runStarted = System.currentTimeMillis();
         try {
             TravelState checkpoint = requireCheckpointState(threadId);
@@ -759,7 +807,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 key,
                 executionBudget.capture(),
-                previousPolicy(key));
+                previousPolicy(key),
+                userId);
 
         TravelState state;
 
@@ -1103,7 +1152,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 key,
                 executionBudget.capture(),
-                previous.modelPolicy());
+                previous.modelPolicy(),
+                userId);
 
         try {
 
@@ -1192,7 +1242,7 @@ public class TravelPlannerAgentService {
 
         ModelRoutingContext.set(policy);
         executionBudget.begin();
-        graphRunContext.open(key, executionBudget.capture(), policy);
+        graphRunContext.open(key, executionBudget.capture(), policy, userId);
         graphProgressHub.emit(key, "started", Map.of(
                 "threadId", key,
                 "node", "RETRY",
@@ -1323,7 +1373,8 @@ public class TravelPlannerAgentService {
         graphRunContext.open(
                 key,
                 executionBudget.capture(),
-                previousPolicy(key));
+                previousPolicy(key),
+                userId);
 
         TravelState state;
 
