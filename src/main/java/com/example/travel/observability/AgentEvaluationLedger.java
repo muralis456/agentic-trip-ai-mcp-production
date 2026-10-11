@@ -7,6 +7,8 @@ import com.example.travel.repository.AgentGoalEvaluationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,6 +81,41 @@ public class AgentEvaluationLedger {
         if (userId == null || userId.isBlank()) return List.of();
         return repository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, bounded))
                 .stream().map(this::toRecord).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<EvaluationRecord> search(String userId, int days, int page, int pageSize, String status, String query) {
+        if (userId == null || userId.isBlank()) return Page.empty();
+        int safeDays = Math.max(0, Math.min(3650, days));
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(100, pageSize));
+        Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
+        String safeStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase();
+        if (safeStatus != null && !List.of("ACHIEVED", "PARTIAL", "FAILED", "NEEDS_USER").contains(safeStatus)) {
+            safeStatus = null;
+        }
+        String safeQuery = query == null || query.isBlank() ? null : "%" + query.trim().substring(0, Math.min(120, query.trim().length())) + "%";
+        return repository.searchForUser(userId, since, safeStatus, safeQuery,
+                PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .map(this::toRecord);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> summary(String userId, int days) {
+        if (userId == null || userId.isBlank()) return Map.of(
+                "evaluations", 0L, "achieved", 0L, "partial", 0L, "failed", 0L,
+                "needsUser", 0L, "averageScore", 0.0);
+        int safeDays = Math.max(0, Math.min(3650, days));
+        if (safeDays == 0) return summary(userId);
+        Instant since = Instant.now().minusSeconds(safeDays * 86400L);
+        long total = repository.countByUserIdAndCreatedAtAfter(userId, since);
+        return Map.of(
+                "evaluations", total,
+                "achieved", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "ACHIEVED", since),
+                "partial", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "PARTIAL", since),
+                "failed", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "FAILED", since),
+                "needsUser", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "NEEDS_USER", since),
+                "averageScore", Math.round(repository.averageScoreByUserIdAndCreatedAtAfter(userId, since) * 1000.0) / 1000.0);
     }
 
     @Transactional(readOnly = true)
