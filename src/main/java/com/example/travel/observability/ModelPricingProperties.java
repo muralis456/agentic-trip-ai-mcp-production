@@ -18,7 +18,7 @@ import java.util.Set;
 public class ModelPricingProperties {
     private Map<String, ModelPrice> modelPricing = new LinkedHashMap<>();
     private Set<String> localModels = new LinkedHashSet<>(Set.of("llama3.2:3b", "tev1:4b"));
-    private double localComputeUsdPerHour = 0.10;
+    private Double localComputeUsdPerHour;
 
     public Map<String, ModelPrice> getModelPricing() { return modelPricing; }
     public void setModelPricing(Map<String, ModelPrice> modelPricing) {
@@ -28,9 +28,9 @@ public class ModelPricingProperties {
     public void setLocalModels(Set<String> localModels) {
         this.localModels = localModels == null ? new LinkedHashSet<>() : new LinkedHashSet<>(localModels);
     }
-    public double getLocalComputeUsdPerHour() { return localComputeUsdPerHour; }
-    public void setLocalComputeUsdPerHour(double value) {
-        localComputeUsdPerHour = Double.isFinite(value) ? Math.max(0, value) : 0;
+    public Double getLocalComputeUsdPerHour() { return localComputeUsdPerHour; }
+    public void setLocalComputeUsdPerHour(Double value) {
+        localComputeUsdPerHour = value == null || !Double.isFinite(value) || value < 0 ? null : value;
     }
 
     public boolean isLocalModel(String model) {
@@ -57,8 +57,9 @@ public class ModelPricingProperties {
                 + Math.max(0, outputTokens) * rate.getOutputUsdPerMillion()) / 1_000_000.0;
     }
 
-    public double estimateLocalInfrastructureCostUsd(String model, long durationMs) {
+    public Double estimateLocalInfrastructureCostUsd(String model, long durationMs) {
         if (!isLocalModel(model)) return 0.0;
+        if (localComputeUsdPerHour == null) return null;
         ModelPrice rate = modelPricing.get(model);
         if (rate == null) {
             String normalized = normalize(model);
