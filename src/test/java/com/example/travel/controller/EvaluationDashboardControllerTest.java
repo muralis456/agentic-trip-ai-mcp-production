@@ -85,7 +85,7 @@ class EvaluationDashboardControllerTest {
 
         Map<String, Object> response = controller.dashboard(5000, 99999, -4, 1000, null, null, authentication);
 
-        verify(evaluations).search("alice", 3650, 0, 100, null, null);
+        verify(evaluations).search("alice", 3650, 0, 100, null, null, "createdAt", "DESC");
         verify(usage).aggregateForUser("alice", 3650);
         assertEquals(3650, response.get("modelUsageWindowDays"));
     }
