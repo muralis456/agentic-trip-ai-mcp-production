@@ -96,11 +96,9 @@ spring:
           handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
 travel:
   observability:
-    # USD per million tokens. The default Ollama models run locally, so they have
-    # no per-token provider/API charge. This does NOT include compute, electricity,
-    # hosting, or any external services. Override rates if routing these model names
-    # through a paid provider. Keys match the model name recorded in telemetry.
-    local-compute-usd-per-hour: ${TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR:0.10}
+    # Configured token rates are estimates, not invoices. Local model compute cost
+    # is unavailable unless an explicit rate is supplied; no default hourly cost is assumed.
+    local-compute-usd-per-hour: ${TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR:}
     local-models:
       - "llama3.2:3b"
       - "tev1:4b"
