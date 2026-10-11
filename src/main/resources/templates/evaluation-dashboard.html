@@ -55,7 +55,8 @@
     snapshot = data;
     const s = data.summary || {};
     $('evaluations').textContent = fmt(s.evaluations);
-    $('successRate').textContent = s.evaluations ? pct(s.achieved / s.evaluations) : '—';
+    const evaluatedRuns = Math.max(0, Number(s.evaluations || 0) - Number(s.stopped || 0));
+    $('successRate').textContent = evaluatedRuns ? pct(s.achieved / evaluatedRuns) : '—';
     $('successFoot').textContent = fmt(s.achieved)+' achieved · '+fmt(s.partial)+' partial · '+fmt(s.failed)+' failed · '+fmt(s.needsUser)+' need input';
     $('avgScore').textContent = Number(s.evaluations || 0) ? Number(s.averageScore || 0).toFixed(3) : '—';
     $('tokens').textContent = fmt((s.inputTokens || 0) + (s.outputTokens || 0));
