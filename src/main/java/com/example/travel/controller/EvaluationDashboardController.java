@@ -86,13 +86,44 @@ public class EvaluationDashboardController {
                 .sorted(Comparator.comparingLong((ModelUsage m) -> m.inputTokens + m.outputTokens).reversed())
                 .map(m -> m.asMap(pricing)).toList();
 
+        // Per-trip costs use the durable thread id recorded with every model call.
+        // Unknown paid-model pricing is represented as unknown, never silently as $0.
+        Map<String, TripCost> tripCostsByThread = new TreeMap<>();
+        for (var event : modelUsageLedger.recentForUser(userId, days, 5000)) {
+            String threadId = event.getThreadId();
+            if (threadId == null || threadId.isBlank() || "untracked".equals(threadId)) continue;
+            TripCost trip = tripCostsByThread.computeIfAbsent(threadId, TripCost::new);
+            trip.calls++;
+            trip.inputTokens += event.getInputTokens();
+            trip.outputTokens += event.getOutputTokens();
+            trip.localInfrastructureCostUsd += pricing.estimateLocalInfrastructureCostUsd(event.getModel(), event.getDurationMs());
+            Double providerCost = pricing.estimateProviderApiCostUsd(event.getModel(), event.getInputTokens(), event.getOutputTokens());
+            if (providerCost == null) trip.providerApiCostKnown = false;
+            else trip.providerApiCostUsd += providerCost;
+        }
+        List<Map<String, Object>> tripCosts = tripCostsByThread.values().stream()
+                .sorted(Comparator.comparingLong((TripCost t) -> t.calls).reversed())
+                .map(TripCost::asMap).toList();
+        double knownLocalInfrastructureCost = tripCostsByThread.values().stream()
+                .mapToDouble(t -> t.localInfrastructureCostUsd).sum();
+        double knownProviderApiCost = tripCostsByThread.values().stream()
+                .mapToDouble(t -> t.providerApiCostUsd).sum();
+        boolean allProviderCostsKnown = tripCostsByThread.values().stream().allMatch(t -> t.providerApiCostKnown);
+
         return Map.of(
                 "summary", summary,
                 "traces", recent,
                 "modelUsage", modelUsage,
+                "tripCosts", tripCosts,
+                "costSummary", Map.of(
+                        "localInfrastructureCostUsd", knownLocalInfrastructureCost,
+                        "providerApiCostUsd", knownProviderApiCost,
+                        "providerApiCostComplete", allProviderCostsKnown,
+                        "totalCostUsd", allProviderCostsKnown ? knownLocalInfrastructureCost + knownProviderApiCost : -1.0,
+                        "trips", tripCosts.size()),
                 "refreshedAt", Instant.now().toString(),
                 "modelUsageWindowDays", days,
-                "costNotice", "Local Ollama models are configured at $0 per token for provider/API usage. Estimates exclude hardware, electricity, hosting and external API charges. Set TRAVEL_LLM_*_USD_PER_MILLION rates when using a paid provider.");
+                "costNotice", "Local infrastructure is an estimate from local-model execution time × TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR (default $0.10/hour). Paid model API charges are token estimates using configured model-pricing rates. Unknown rates are shown as Unpriced; these are not provider invoices and exclude separate hosting/electricity and non-model API billing.");
     }
 
     private double counterSum(String name) {
@@ -102,6 +133,31 @@ public class EvaluationDashboardController {
                 .map(io.micrometer.core.instrument.Counter.class::cast)
                 .mapToDouble(io.micrometer.core.instrument.Counter::count)
                 .sum();
+    }
+
+    private static final class TripCost {
+        private final String threadId;
+        private long calls;
+        private long inputTokens;
+        private long outputTokens;
+        private double localInfrastructureCostUsd;
+        private double providerApiCostUsd;
+        private boolean providerApiCostKnown = true;
+
+        private TripCost(String threadId) { this.threadId = threadId; }
+
+        private Map<String, Object> asMap() {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("threadId", threadId);
+            result.put("calls", calls);
+            result.put("inputTokens", inputTokens);
+            result.put("outputTokens", outputTokens);
+            result.put("localInfrastructureCostUsd", localInfrastructureCostUsd);
+            result.put("providerApiCostUsd", providerApiCostKnown ? providerApiCostUsd : null);
+            result.put("totalCostUsd", providerApiCostKnown ? localInfrastructureCostUsd + providerApiCostUsd : null);
+            result.put("providerApiCostKnown", providerApiCostKnown);
+            return result;
+        }
     }
 
     private static final class ModelUsage {
@@ -131,16 +187,12 @@ public class EvaluationDashboardController {
             result.put("inputTokens", inputTokens);
             result.put("outputTokens", outputTokens);
             result.put("totalTokens", inputTokens + outputTokens);
-            var rate = pricing.getModelPricing().get(model);
-            if (rate == null) {
-                String normalizedModel = normalizeModel(model);
-                rate = pricing.getModelPricing().entrySet().stream()
-                        .filter(e -> normalizeModel(e.getKey()).equals(normalizedModel))
-                        .map(Map.Entry::getValue).findFirst().orElse(null);
-            }
-            Double cost = rate == null ? null :
-                    (inputTokens * rate.getInputUsdPerMillion() + outputTokens * rate.getOutputUsdPerMillion()) / 1_000_000.0;
-            result.put("estimatedCostUsd", cost);
+            Double providerCost = pricing.estimateProviderApiCostUsd(model, inputTokens, outputTokens);
+            double localCost = pricing.estimateLocalInfrastructureCostUsd(model, durationMs);
+            result.put("providerApiCostUsd", providerCost);
+            result.put("localInfrastructureCostUsd", localCost);
+            result.put("totalCostUsd", providerCost == null ? null : providerCost + localCost);
+            result.put("estimatedCostUsd", providerCost); // backward-compatible API field
             return result;
         }
 
