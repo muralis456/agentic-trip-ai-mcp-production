@@ -34,7 +34,7 @@
   <section class="card" style="margin-top:14px"><h2 class="section-title">Trip cost breakdown <span class="pill">PER THREAD / TRIP</span></h2><div class="table-wrap"><table><thead><tr><th>Trip / goal</th><th>Model calls</th><th>Input tokens</th><th>Output tokens</th><th>Local compute</th><th>Model API</th><th>External API</th><th>Estimated total</th></tr></thead><tbody id="tripCosts"><tr><td colspan="8" class="empty">Loading trip costs…</td></tr></tbody></table></div></section>
   <section class="card" style="margin-top:14px"><h2 class="section-title">Runtime signals <span class="pill">MIXED SCOPE</span></h2><div class="table-wrap"><table><tbody id="runtime"><tr><td class="empty">Loading runtime signals…</td></tr></tbody></table></div><div class="sub" style="margin-top:10px">Operational counters do not prove that a trip met its requirements.</div></section>
   <section class="card" style="margin-top:14px"><h2 class="section-title">Evaluation history <span class="pill">FILTERED · CLICK A ROW FOR EVIDENCE</span></h2><div class="trace-controls"><input id="traceSearch" type="search" placeholder="Search goal, destination, thread or reason" aria-label="Search evaluation history"><select id="statusFilter" aria-label="Filter evaluation status"><option value="">All outcomes</option><option value="ACHIEVED">Achieved</option><option value="PARTIAL">Partial</option><option value="FAILED">Failed</option><option value="NEEDS_USER">Needs user</option><option value="STOPPED">Stopped</option></select><select id="sortFilter" aria-label="Sort evaluation history"><option value="createdAt:DESC">Newest first</option><option value="createdAt:ASC">Oldest first</option><option value="score:DESC">Highest score</option><option value="score:ASC">Lowest score</option><option value="status:ASC">Outcome</option></select><button class="btn" id="exportCsv" type="button">Export current page CSV</button><span class="sub" id="traceCount">0 records</span></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Goal / destination</th><th>Status</th><th>Score</th></tr></thead><tbody id="traces"><tr><td colspan="5" class="empty">Loading traces…</td></tr></tbody></table></div><div class="actions" style="justify-content:flex-end;margin-top:12px"><button class="btn" id="prevPage" type="button">← Previous</button><span class="sub" id="pageInfo">Page 1</span><button class="btn" id="nextPage" type="button">Next →</button></div></section>
-  <section class="card" style="margin-top:14px"><h2 class="section-title">Durable runtime events <span class="pill">ACCOUNT + THREAD SCOPED</span></h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Event</th><th>Component</th><th>Status</th><th>Duration</th><th>Attempt</th><th>Est. cost</th></tr></thead><tbody id="runtimeEvents"><tr><td colspan="8" class="empty">Loading runtime events…</td></tr></tbody></table></div><div class="sub" style="margin-top:10px">Only events with an authenticated user and active thread context can be persisted. Process-wide counters remain separate.</div></section>
+  <section class="card" style="margin-top:14px"><h2 class="section-title">Durable runtime events <span class="pill">ACCOUNT + THREAD SCOPED</span></h2><div class="trace-controls"><span class="sub" id="runtimeEventCount">0 events</span><label class="sub" for="runtimePageSize">Rows</label><select id="runtimePageSize" aria-label="Runtime events per page"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Thread</th><th>Event</th><th>Component</th><th>Status</th><th>Duration</th><th>Attempt</th><th>Est. cost</th></tr></thead><tbody id="runtimeEvents"><tr><td colspan="8" class="empty">Loading runtime events…</td></tr></tbody></table></div><div class="actions" style="justify-content:flex-end;margin-top:12px"><button class="btn" id="runtimePrevPage" type="button">← Previous</button><span class="sub" id="runtimePageInfo">Page 0 of 0</span><button class="btn" id="runtimeNextPage" type="button">Next →</button></div><div class="sub" style="margin-top:10px">Only events with an authenticated user and active thread context can be persisted. Process-wide counters remain separate. Event history is loaded from durable storage page by page.</div></section>
   <section class="card detail" id="detail"><h2 class="section-title">Evaluation evidence <button class="btn" id="closeDetail">Close</button></h2><div id="detailSummary" class="sub"></div><div class="criteria" style="margin-top:15px"><div><h4>SATISFIED CRITERIA</h4><ul id="satisfied"></ul></div><div><h4>UNMET CRITERIA</h4><ul id="unmet"></ul></div><div><h4>BLOCKING ISSUES</h4><ul id="blockers"></ul></div></div></section>
   <div class="footer"><span>Evaluation history is stored in PostgreSQL and survives application restarts. MCP/replan/node counters reset when the application restarts and are shared across users. Model telemetry is persisted and scoped to your account.</span><span id="updated">Not refreshed yet</span></div>
 </div>
@@ -45,6 +45,7 @@
   let snapshot = null;
   let refreshInFlight = false;
   let pageIndex = 0;
+  let runtimePageIndex = 0;
   let searchTimer = null;
   const fmt = n => Number(n || 0).toLocaleString();
   const pct = n => (Number(n || 0) * 100).toFixed(1) + '%';
@@ -118,7 +119,12 @@
     const pr = data.processRuntime || {};
     $('runtime').innerHTML = [['Node executions · process-wide / resets on restart',pr.nodeExecutions],['Replan decisions · process-wide / resets on restart',pr.replans],['MCP tool calls · process-wide',pr.mcpCalls],['MCP retries · process-wide',pr.mcpRetries],['External provider calls · process-wide',pr.providerCalls],['Agent retries · process-wide',pr.agentRetries],['Average node duration · ms',Math.round(pr.averageNodeDurationMs||0)],['Average MCP duration · ms',Math.round(pr.averageMcpDurationMs||0)],['Average provider duration · ms',Math.round(pr.averageProviderDurationMs||0)],['LLM calls · your account/window',s.llmCalls],['Input tokens · your account/window',s.inputTokens],['Output tokens · your account/window',s.outputTokens]].map(x=>'<tr><td class="sub">'+esc(x[0])+'</td><td style="text-align:right;font-weight:700">'+fmt(x[1])+'</td></tr>').join('');
     const events = data.runtimeEvents || [];
-    $('runtimeEvents').innerHTML = events.length ? events.map(e=>'<tr><td>'+esc(new Date(e.timestamp).toLocaleString())+'</td><td title="'+esc(e.threadId)+'">'+esc((e.threadId||'').slice(-8))+'</td><td>'+esc(e.eventType)+'</td><td>'+esc(e.component)+'</td><td><span class="badge '+(e.status==='SUCCESS'?'ACHIEVED':'FAILED')+'">'+esc(e.status)+'</span></td><td>'+fmt(e.durationMs)+' ms</td><td>'+fmt(e.attempt)+'</td><td>'+money(e.costUsd)+'</td></tr>').join('') : '<tr><td colspan="8" class="empty">No durable runtime events for this account and time window. Events require a valid user/thread context.</td></tr>';
+    const eventPg = data.runtimeEventPagination || {page:0,pageSize:25,totalElements:events.length,totalPages:events.length?1:0,hasNext:false,hasPrevious:false};
+    $('runtimeEventCount').textContent = fmt(eventPg.totalElements)+' events';
+    $('runtimePageInfo').textContent = 'Page '+(eventPg.totalPages ? eventPg.page+1 : 0)+' of '+eventPg.totalPages;
+    $('runtimePrevPage').disabled = !eventPg.hasPrevious;
+    $('runtimeNextPage').disabled = !eventPg.hasNext;
+    $('runtimeEvents').innerHTML = events.length ? events.map(e=>'<tr><td>'+esc(new Date(e.timestamp).toLocaleString())+'</td><td title="'+esc(e.threadId)+'">'+esc((e.threadId||'').slice(-8))+'</td><td>'+esc(e.eventType)+'</td><td>'+esc(e.component)+'</td><td><span class="badge '+(e.status==='SUCCESS'?'ACHIEVED':'FAILED')+'">'+esc(e.status)+'</span></td><td>'+fmt(e.durationMs)+' ms</td><td>'+fmt(e.attempt)+'</td><td>'+money(e.costUsd)+'</td></tr>').join('') : '<tr><td colspan="8" class="empty">No durable runtime events for this account and time window.</td></tr>';
     $('updated').textContent = 'Updated '+new Date(data.refreshedAt).toLocaleString();
     $('live').textContent = '● Live';
     $('live').style.color = 'var(--green)';
@@ -137,7 +143,7 @@
     $('live').textContent = 'Refreshing…';
     try {
       const [sortBy, sortDirection] = ($('sortFilter').value || 'createdAt:DESC').split(':');
-      const params = new URLSearchParams({limit:'50',page:String(pageIndex),pageSize:'50',windowDays:$('usageWindow').value || '30',q:$('traceSearch').value || '',status:$('statusFilter').value || '',sortBy,sortDirection});
+      const params = new URLSearchParams({limit:'50',page:String(pageIndex),pageSize:'50',runtimePage:String(runtimePageIndex),runtimePageSize:$('runtimePageSize').value || '25',windowDays:$('usageWindow').value || '30',q:$('traceSearch').value || '',status:$('statusFilter').value || '',sortBy,sortDirection});
       const response = await fetch('/api/observability/dashboard?'+params.toString(),{credentials:'same-origin',headers:{'Accept':'application/json'}});
       if (response.status === 401 || response.status === 403) { $('live').textContent='Sign-in required'; return; }
       if (!response.ok) throw new Error('Dashboard API returned '+response.status);
@@ -148,7 +154,10 @@
   $('traceSearch').addEventListener('input',()=>{pageIndex=0;window.clearTimeout(searchTimer);searchTimer=window.setTimeout(refresh,250);});
   $('statusFilter').addEventListener('change',()=>{pageIndex=0;refresh();});
   $('sortFilter').addEventListener('change',()=>{pageIndex=0;refresh();});
-  $('usageWindow').addEventListener('change',()=>{pageIndex=0;refresh();});
+  $('usageWindow').addEventListener('change',()=>{pageIndex=0;runtimePageIndex=0;refresh();});
+  $('runtimePageSize').addEventListener('change',()=>{runtimePageIndex=0;refresh();});
+  $('runtimePrevPage').addEventListener('click',()=>{if(runtimePageIndex>0){runtimePageIndex--;refresh();}});
+  $('runtimeNextPage').addEventListener('click',()=>{runtimePageIndex++;refresh();});
   $('prevPage').addEventListener('click',()=>{if(pageIndex>0){pageIndex--;refresh();}});
   $('nextPage').addEventListener('click',()=>{pageIndex++;refresh();});
   $('exportCsv').addEventListener('click',()=>{
