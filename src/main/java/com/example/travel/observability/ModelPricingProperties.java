@@ -38,15 +38,18 @@ public class ModelPricingProperties {
             }
         });
     }
+
     /** Returns null when the provider/operation has no explicitly configured per-call estimate. */
     public Double estimateProviderCallCostUsd(String providerAndOperation) {
         if (providerAndOperation == null || providerAndOperation.isBlank()) return null;
         String key = normalize(providerAndOperation);
         Double exact = providerCallPricing.get(key);
         if (exact != null) return exact;
+
+        // Support both provider:* wildcard keys and provider-specific operation names.
         int separator = key.indexOf(':');
-        if (separator > 0) return providerCallPricing.get(key.substring(0, separator) + ":*");
-        return providerCallPricing.get(key + ":*");
+        String provider = separator > 0 ? key.substring(0, separator) : key;
+        return providerCallPricing.get(provider + ":*");
     }
 
     public Double getLocalComputeUsdPerHour() { return localComputeUsdPerHour; }
