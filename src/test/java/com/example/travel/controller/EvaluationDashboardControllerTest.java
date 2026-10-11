@@ -44,7 +44,7 @@ class EvaluationDashboardControllerTest {
         var controller = controller(evaluations, usage, runtime, pricing);
         Authentication authentication = new UsernamePasswordAuthenticationToken("alice", "unused");
 
-        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, null, null, authentication);
+        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, null, null, "createdAt", "DESC", authentication);
 
         verify(evaluations).search("alice", 30, 0, 50, null, null, "createdAt", "DESC");
         verify(evaluations).summary("alice", 30);
@@ -65,7 +65,7 @@ class EvaluationDashboardControllerTest {
         AgentRuntimeEventLedger runtime = mock(AgentRuntimeEventLedger.class);
         var controller = controller(evaluations, usage, runtime, new ModelPricingProperties());
 
-        controller.dashboard(50, 30, 0, 50, null, null, null);
+        controller.dashboard(50, 30, 0, 50, null, null, "createdAt", "DESC", null);
 
         verify(evaluations).search("", 30, 0, 50, null, null, "createdAt", "DESC");
         verify(usage).aggregateForUser("", 30);
@@ -83,7 +83,7 @@ class EvaluationDashboardControllerTest {
         var controller = controller(evaluations, usage, runtime, new ModelPricingProperties());
         Authentication authentication = new UsernamePasswordAuthenticationToken("alice", "unused");
 
-        Map<String, Object> response = controller.dashboard(5000, 99999, -4, 1000, null, null, authentication);
+        Map<String, Object> response = controller.dashboard(5000, 99999, -4, 1000, null, null, "createdAt", "DESC", authentication);
 
         verify(evaluations).search("alice", 3650, 0, 100, null, null, "createdAt", "DESC");
         verify(usage).aggregateForUser("alice", 3650);
@@ -106,7 +106,7 @@ class EvaluationDashboardControllerTest {
         when(aggregate.getDurationMs()).thenReturn(800L);
         when(usage.aggregateForUser("alice", 30)).thenReturn(List.of(aggregate));
 
-        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, null, null,
+        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, null, null, "createdAt", "DESC",
                 new UsernamePasswordAuthenticationToken("alice", "unused"));
         Map<?, ?> summary = (Map<?, ?>) response.get("summary");
 
