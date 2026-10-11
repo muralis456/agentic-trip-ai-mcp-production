@@ -70,7 +70,7 @@ class EvaluationDashboardSecurityIntegrationTest {
 
     @Test
     void authenticatedDashboardUsesOnlyTheAuthenticatedUsernameForHistoryQueries() throws Exception {
-        when(evaluations.search(eq("alice"), anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(evaluations.search(eq("alice"), anyInt(), anyInt(), anyInt(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
         when(evaluations.summary(eq("alice"), anyInt())).thenReturn(Map.of("evaluations", 0L));
         when(usage.aggregateForUser("alice", 30)).thenReturn(List.of());
 
@@ -80,10 +80,10 @@ class EvaluationDashboardSecurityIntegrationTest {
                 .andExpect(jsonPath("$.summary.evaluations").value(0))
                 .andExpect(jsonPath("$.modelUsageWindowDays").value(30));
 
-        verify(evaluations).search("alice", 30, 0, 50, null, null);
+        verify(evaluations).search("alice", 30, 0, 50, null, null, "createdAt", "DESC");
         verify(evaluations).summary("alice", 30);
         verify(usage).aggregateForUser("alice", 30);
-        verify(evaluations, never()).search(eq("bob"), anyInt(), anyInt(), anyInt(), any(), any());
+        verify(evaluations, never()).search(eq("bob"), anyInt(), anyInt(), anyInt(), any(), any(), any(), any());
         verify(evaluations, never()).summary("bob");
         verify(usage, never()).aggregateForUser(eq("bob"), anyInt());
     }
