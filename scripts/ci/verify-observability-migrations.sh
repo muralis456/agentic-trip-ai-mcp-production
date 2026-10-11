@@ -41,6 +41,13 @@ BEGIN
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
+        WHERE conname = 'ck_agent_runtime_event_cost'
+          AND conrelid = 'public.agent_runtime_event'::regclass
+    ) THEN
+        RAISE EXCEPTION 'V13 provider cost constraint is missing';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
         WHERE conname = 'ck_agent_goal_evaluation_score'
           AND conrelid = 'public.agent_goal_evaluation'::regclass
     ) THEN
