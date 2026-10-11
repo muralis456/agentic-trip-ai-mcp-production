@@ -23,9 +23,9 @@ public interface AgentGoalEvaluationRepository extends JpaRepository<AgentGoalEv
     long countByUserIdAndCreatedAtAfter(String userId, Instant since);
     long countByUserIdAndStatusAndCreatedAtAfter(String userId, String status, Instant since);
 
-    @Query("select coalesce(avg(e.score), 0.0) from AgentGoalEvaluation e where e.userId = :userId and e.createdAt >= :since")
+    @Query("select coalesce(avg(e.score), 0.0) from AgentGoalEvaluation e where e.userId = :userId and e.createdAt >= :since and e.status <> 'STOPPED'")
     double averageScoreByUserIdAndCreatedAtAfter(@Param("userId") String userId, @Param("since") Instant since);
 
-    @Query("select coalesce(avg(e.score), 0.0) from AgentGoalEvaluation e where e.userId = :userId")
+    @Query("select coalesce(avg(e.score), 0.0) from AgentGoalEvaluation e where e.userId = :userId and e.status <> 'STOPPED'")
     double averageScoreByUserId(@Param("userId") String userId);
 }
