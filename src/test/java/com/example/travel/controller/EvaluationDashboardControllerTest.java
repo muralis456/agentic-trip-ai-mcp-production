@@ -31,7 +31,7 @@ class EvaluationDashboardControllerTest {
         when(usage.aggregateTripsForUser(anyString(), anyInt())).thenReturn(List.of());
         when(evaluations.labelsForThreads(anyString(), anyCollection())).thenReturn(Map.of());
         when(runtime.aggregateForUser(anyString(), anyInt())).thenReturn(List.of());
-        when(runtime.recentForUser(anyString(), anyInt(), anyInt())).thenReturn(List.of());
+        when(runtime.recentPageForUser(anyString(), anyInt(), anyInt(), anyInt())).thenReturn(new PageImpl<>(List.of()));
         return new EvaluationDashboardController(evaluations, usage, runtime, new SimpleMeterRegistry(), pricing);
     }
 
@@ -44,18 +44,20 @@ class EvaluationDashboardControllerTest {
         var controller = controller(evaluations, usage, runtime, pricing);
         Authentication authentication = new UsernamePasswordAuthenticationToken("alice", "unused");
 
-        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, null, null, "createdAt", "DESC", authentication);
+        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, 0, 25, null, null, "createdAt", "DESC", authentication);
 
         verify(evaluations).search("alice", 30, 0, 50, null, null, "createdAt", "DESC");
         verify(evaluations).summary("alice", 30);
         verify(usage).aggregateForUser("alice", 30);
         verify(usage).aggregateTripsForUser("alice", 30);
         verify(runtime).aggregateForUser("alice", 30);
+        verify(runtime).recentPageForUser("alice", 30, 0, 25);
         assertTrue(response.containsKey("summary"));
         assertTrue(response.containsKey("traces"));
         assertTrue(response.containsKey("tracePagination"));
         assertTrue(response.containsKey("modelUsage"));
         assertTrue(response.containsKey("runtimeEvents"));
+        assertTrue(response.containsKey("runtimeEventPagination"));
     }
 
     @Test
@@ -65,11 +67,12 @@ class EvaluationDashboardControllerTest {
         AgentRuntimeEventLedger runtime = mock(AgentRuntimeEventLedger.class);
         var controller = controller(evaluations, usage, runtime, new ModelPricingProperties());
 
-        controller.dashboard(50, 30, 0, 50, null, null, "createdAt", "DESC", null);
+        controller.dashboard(50, 30, 0, 50, 0, 25, null, null, "createdAt", "DESC", null);
 
         verify(evaluations).search("", 30, 0, 50, null, null, "createdAt", "DESC");
         verify(usage).aggregateForUser("", 30);
         verify(runtime).aggregateForUser("", 30);
+        verify(runtime).recentPageForUser("", 30, 0, 25);
         verify(evaluations, never()).search(eq("alice"), anyInt(), anyInt(), anyInt(), any(), any(), any(), any());
         verify(usage, never()).aggregateForUser(eq("alice"), anyInt());
         verify(runtime, never()).aggregateForUser(eq("alice"), anyInt());
@@ -83,7 +86,7 @@ class EvaluationDashboardControllerTest {
         var controller = controller(evaluations, usage, runtime, new ModelPricingProperties());
         Authentication authentication = new UsernamePasswordAuthenticationToken("alice", "unused");
 
-        Map<String, Object> response = controller.dashboard(5000, 99999, -4, 1000, null, null, "createdAt", "DESC", authentication);
+        Map<String, Object> response = controller.dashboard(5000, 99999, -4, 1000, -2, 500, null, null, "createdAt", "DESC", authentication);
 
         verify(evaluations).search("alice", 3650, 0, 100, null, null, "createdAt", "DESC");
         verify(usage).aggregateForUser("alice", 3650);
@@ -106,7 +109,7 @@ class EvaluationDashboardControllerTest {
         when(aggregate.getDurationMs()).thenReturn(800L);
         when(usage.aggregateForUser("alice", 30)).thenReturn(List.of(aggregate));
 
-        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, null, null, "createdAt", "DESC",
+        Map<String, Object> response = controller.dashboard(50, 30, 0, 50, 0, 25, null, null, "createdAt", "DESC",
                 new UsernamePasswordAuthenticationToken("alice", "unused"));
         Map<?, ?> summary = (Map<?, ?>) response.get("summary");
 
