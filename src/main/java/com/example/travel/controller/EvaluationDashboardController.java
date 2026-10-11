@@ -143,19 +143,20 @@ public class EvaluationDashboardController {
         tracePagination.put("hasNext", tracePage.hasNext());
         tracePagination.put("hasPrevious", tracePage.hasPrevious());
 
-        return Map.of(
-                "summary", summary,
-                "traces", tracePage.getContent(),
-                "tracePagination", tracePagination,
-                "modelUsage", modelUsage,
-                "tripCosts", tripCosts,
-                "costSummary", costSummary,
-                "processRuntime", processRuntime,
-                "runtimeSummary", runtimeAggregate,
-                "runtimeEvents", runtimeEvents,
-                "refreshedAt", Instant.now().toString(),
-                "modelUsageWindowDays", days,
-                "costNotice", "Model API amounts are token-price estimates, not provider invoices. Local compute cost is unavailable unless TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR is explicitly configured. Unknown costs remain unavailable, never zero-filled. Separate non-model API billing is not included.");
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("summary", summary);
+        response.put("traces", tracePage.getContent());
+        response.put("tracePagination", tracePagination);
+        response.put("modelUsage", modelUsage);
+        response.put("tripCosts", tripCosts);
+        response.put("costSummary", costSummary);
+        response.put("processRuntime", processRuntime);
+        response.put("runtimeSummary", runtimeAggregate);
+        response.put("runtimeEvents", runtimeEvents);
+        response.put("refreshedAt", Instant.now().toString());
+        response.put("modelUsageWindowDays", days);
+        response.put("costNotice", "Model API amounts are token-price estimates, not provider invoices. Local compute cost is unavailable unless TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR is explicitly configured. Unknown costs remain unavailable, never zero-filled. Separate non-model API billing is not included.");
+        return response;
     }
 
     private double counterSum(String name) {
