@@ -4754,7 +4754,7 @@
         const activeChat = ensureCurrentChat(text);
         payload.conversationId = activeChat.conversationId || activeChat.id;
         payload.continuationThreadId = chatThreadIdForDelete(activeChat);
-        const explicitContinue = /^(?:please\\s+)?(?:continue|resume|go ahead|proceed|keep going|do it|yes|okay|ok)(?:\\s+please)?[.!?]*$/i.test(String(text || '').trim());
+        const explicitContinue = /^(?:please\s+)?(?:continue|resume|go ahead|proceed|keep going|do it|yes|okay|ok)(?:\s+please)?[.!?]*$/i.test(String(text || '').trim());
         if (explicitContinue) {
             // A chat-level threadId is only a cache and may point at a different
             // run from an earlier message. Prefer the live card explicitly showing
