@@ -2552,8 +2552,17 @@
             opts.headers[csrfHeaderMeta.content] = csrfMeta.content;
         }
         return window.fetch(url, opts).then(response => {
-            if (response.status === 401 && !String(url).startsWith('/api/auth/')) {
-                window.location.href = '/login?expired=true';
+            const requestUrl = String(url);
+            const isAuthEndpoint = requestUrl.startsWith('/api/auth/');
+            const isAuthPage = ['/login', '/register', '/forgot-password', '/reset-password']
+                .includes(window.location.pathname);
+            // This template owns the approval buttons, so handle both expired
+            // sessions (401) and forbidden responses (403) in its API wrapper.
+            if (!isAuthEndpoint && !isAuthPage && (response.status === 401 || response.status === 403)) {
+                const target = response.status === 401 ? '/login?expired=true' : '/login?forbidden=true';
+                if (window.location.pathname + window.location.search !== target) {
+                    window.location.replace(target);
+                }
             }
             return response;
         });
