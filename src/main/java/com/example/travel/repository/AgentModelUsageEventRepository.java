@@ -14,6 +14,15 @@ public interface AgentModelUsageEventRepository extends JpaRepository<AgentModel
             String userId, Instant since, Pageable pageable);
     long countByUserIdAndCreatedAtAfter(String userId, Instant since);
 
+    @Query("select e.threadId as threadId, e.model as model, count(e.id) as calls, " +
+            "coalesce(sum(e.inputTokens), 0) as inputTokens, " +
+            "coalesce(sum(e.outputTokens), 0) as outputTokens, " +
+            "coalesce(sum(e.durationMs), 0) as durationMs " +
+            "from AgentModelUsageEvent e where e.userId = :userId and e.createdAt >= :since " +
+            "group by e.threadId, e.model")
+    List<AgentModelUsageTripAggregate> aggregateByThreadAndModelForUserAndCreatedAtAfter(
+            @Param("userId") String userId, @Param("since") Instant since);
+
     @Query("select e.model as model, count(e.id) as calls, " +
             "sum(case when e.status = 'ERROR' then 1 else 0 end) as errors, " +
             "coalesce(sum(e.inputTokens), 0) as inputTokens, " +
