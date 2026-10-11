@@ -115,18 +115,31 @@ public class EvaluationDashboardController {
             Double provider = pricing.estimateProviderApiCostUsd(usage.getModel(), input, output);
             if (provider == null) trip.providerCostKnown = false; else trip.providerApiCostUsd += provider;
         }
+        for (Map<String, Object> provider : runtimeEventLedger.providerCostsByThread(userId, days)) {
+            String threadId = (String) provider.get("threadId");
+            if (threadId == null || threadId.isBlank() || "untracked".equals(threadId)) continue;
+            TripCost trip = trips.computeIfAbsent(threadId, TripCost::new);
+            trip.providerCalls += ((Number) provider.getOrDefault("calls", 0L)).longValue();
+            trip.unpricedProviderCalls += ((Number) provider.getOrDefault("unpricedCalls", 0L)).longValue();
+            Object cost = provider.get("costUsd");
+            if (cost instanceof Number number) trip.externalProviderApiCostUsd += number.doubleValue();
+            if (!Boolean.TRUE.equals(provider.get("costKnown"))) trip.externalCostKnown = false;
+        }
         Map<String, String> tripLabels = evaluationLedger.labelsForThreads(userId, trips.keySet());
         List<Map<String, Object>> tripCosts = trips.values().stream()
                 .sorted(Comparator.comparingLong((TripCost t) -> t.calls).reversed())
                 .map(t -> t.asMap(tripLabels.get(t.threadId))).toList();
-        boolean costsComplete = trips.values().stream().allMatch(t -> t.localCostKnown && t.providerCostKnown);
+        boolean costsComplete = trips.values().stream().allMatch(t -> t.localCostKnown && t.providerCostKnown && t.externalCostKnown);
         Map<String, Object> costSummary = new LinkedHashMap<>();
         costSummary.put("localInfrastructureCostUsd", trips.values().stream().allMatch(t -> t.localCostKnown)
                 ? trips.values().stream().mapToDouble(t -> t.localInfrastructureCostUsd).sum() : null);
         costSummary.put("providerApiCostUsd", trips.values().stream().allMatch(t -> t.providerCostKnown)
                 ? trips.values().stream().mapToDouble(t -> t.providerApiCostUsd).sum() : null);
+        costSummary.put("externalProviderApiCostUsd", trips.values().stream().allMatch(t -> t.externalCostKnown)
+                ? trips.values().stream().mapToDouble(t -> t.externalProviderApiCostUsd).sum() : null);
+        costSummary.put("unpricedExternalProviderCalls", trips.values().stream().mapToLong(t -> t.unpricedProviderCalls).sum());
         costSummary.put("totalCostUsd", costsComplete ? trips.values().stream()
-                .mapToDouble(t -> t.localInfrastructureCostUsd + t.providerApiCostUsd).sum() : null);
+                .mapToDouble(t -> t.localInfrastructureCostUsd + t.providerApiCostUsd + t.externalProviderApiCostUsd).sum() : null);
         costSummary.put("costsComplete", costsComplete);
         costSummary.put("trips", tripCosts.size());
 
@@ -155,7 +168,7 @@ public class EvaluationDashboardController {
         response.put("runtimeEvents", runtimeEvents);
         response.put("refreshedAt", Instant.now().toString());
         response.put("modelUsageWindowDays", days);
-        response.put("costNotice", "Model API amounts are token-price estimates, not provider invoices. Local compute cost is unavailable unless TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR is explicitly configured. Unknown costs remain unavailable, never zero-filled. Separate non-model API billing is not included.");
+        response.put("costNotice", "Model API amounts are token-price estimates, not provider invoices. Local compute cost is unavailable unless TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR is explicitly configured. Unknown costs remain unavailable, never zero-filled. External provider API costs are included only when per-call estimates are configured; unknown provider charges keep totals unavailable.");
         return response;
     }
 
@@ -178,9 +191,9 @@ public class EvaluationDashboardController {
 
     private static final class TripCost {
         private final String threadId;
-        private long calls, inputTokens, outputTokens;
-        private double localInfrastructureCostUsd, providerApiCostUsd;
-        private boolean localCostKnown = true, providerCostKnown = true;
+        private long calls, inputTokens, outputTokens, providerCalls, unpricedProviderCalls;
+        private double localInfrastructureCostUsd, providerApiCostUsd, externalProviderApiCostUsd;
+        private boolean localCostKnown = true, providerCostKnown = true, externalCostKnown = true;
         private TripCost(String threadId) { this.threadId = threadId; }
         private Map<String, Object> asMap(String label) {
             Map<String, Object> row = new LinkedHashMap<>();
@@ -191,8 +204,12 @@ public class EvaluationDashboardController {
             row.put("outputTokens", outputTokens);
             row.put("localInfrastructureCostUsd", localCostKnown ? localInfrastructureCostUsd : null);
             row.put("providerApiCostUsd", providerCostKnown ? providerApiCostUsd : null);
-            row.put("totalCostUsd", localCostKnown && providerCostKnown ? localInfrastructureCostUsd + providerApiCostUsd : null);
-            row.put("costKnown", localCostKnown && providerCostKnown);
+            row.put("externalProviderCalls", providerCalls);
+            row.put("unpricedExternalProviderCalls", unpricedProviderCalls);
+            row.put("externalProviderApiCostUsd", externalCostKnown ? externalProviderApiCostUsd : null);
+            row.put("totalCostUsd", localCostKnown && providerCostKnown && externalCostKnown
+                    ? localInfrastructureCostUsd + providerApiCostUsd + externalProviderApiCostUsd : null);
+            row.put("costKnown", localCostKnown && providerCostKnown && externalCostKnown);
             return row;
         }
     }
