@@ -4754,6 +4754,24 @@
         const activeChat = ensureCurrentChat(text);
         payload.conversationId = activeChat.conversationId || activeChat.id;
         payload.continuationThreadId = chatThreadIdForDelete(activeChat);
+        const explicitContinue = /^(?:please\\s+)?(?:continue|resume|go ahead|proceed|keep going|do it|yes|okay|ok)(?:\\s+please)?[.!?]*$/i.test(String(text || '').trim());
+        if (explicitContinue) {
+            // A chat-level threadId is only a cache and may point at a different
+            // run from an earlier message. Prefer the live card explicitly showing
+            // a saved stopped checkpoint, rather than accidentally resuming another
+            // run (or falling through into a fresh plan).
+            const liveCards = Array.from(chatThread.querySelectorAll('.live-response[data-thread-id]'));
+            const stoppedCard = [...liveCards].reverse().find(card =>
+                /stopped/i.test(card.querySelector('.live-state')?.textContent || '') &&
+                /checkpoint|continue|resume/i.test(card.querySelector('.live-activity-text')?.textContent || ''));
+            const disconnectedCard = [...liveCards].reverse().find(card =>
+                /connection lost|disconnected/i.test(card.querySelector('.live-state')?.textContent || '') &&
+                /checkpoint|continue|resume/i.test(card.querySelector('.live-activity-text')?.textContent || ''));
+            const resumableCard = stoppedCard || disconnectedCard;
+            if (resumableCard?.dataset.threadId) {
+                payload.continuationThreadId = resumableCard.dataset.threadId;
+            }
+        }
         payload.preferences = text;
         payload.prompt = text;
 
