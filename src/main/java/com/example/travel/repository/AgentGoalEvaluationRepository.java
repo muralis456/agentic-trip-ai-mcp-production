@@ -5,12 +5,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import java.time.Instant;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface AgentGoalEvaluationRepository extends JpaRepository<AgentGoalEvaluation, Long> {
+public interface AgentGoalEvaluationRepository extends JpaRepository<AgentGoalEvaluation, Long>, JpaSpecificationExecutor<AgentGoalEvaluation> {
     List<AgentGoalEvaluation> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
     List<AgentGoalEvaluation> findByUserIdAndThreadIdInOrderByCreatedAtDesc(String userId, java.util.Collection<String> threadIds);
     long countByUserId(String userId);
@@ -24,35 +25,6 @@ public interface AgentGoalEvaluationRepository extends JpaRepository<AgentGoalEv
 
     @Query("select coalesce(avg(e.score), 0.0) from AgentGoalEvaluation e where e.userId = :userId and e.createdAt >= :since")
     double averageScoreByUserIdAndCreatedAtAfter(@Param("userId") String userId, @Param("since") Instant since);
-
-    @Query(value = "select e from AgentGoalEvaluation e where e.userId = :userId " +
-            "and (:since is null or e.createdAt >= :since) " +
-            "and (:status is null or e.status = :status) " +
-            "and (lower(coalesce(e.goal, '')) like lower(:query) " +
-            "or lower(coalesce(e.destination, '')) like lower(:query) " +
-            "or lower(coalesce(e.threadId, '')) like lower(:query) " +
-            "or lower(coalesce(e.reason, '')) like lower(:query) " +
-            "or lower(coalesce(e.budget, '')) like lower(:query))",
-            countQuery = "select count(e) from AgentGoalEvaluation e where e.userId = :userId " +
-            "and (:since is null or e.createdAt >= :since) " +
-            "and (:status is null or e.status = :status) " +
-            "and (lower(coalesce(e.goal, '')) like lower(:query) " +
-            "or lower(coalesce(e.destination, '')) like lower(:query) " +
-            "or lower(coalesce(e.threadId, '')) like lower(:query) " +
-            "or lower(coalesce(e.reason, '')) like lower(:query) " +
-            "or lower(coalesce(e.budget, '')) like lower(:query))")
-    Page<AgentGoalEvaluation> searchForUserWithText(@Param("userId") String userId,
-            @Param("since") Instant since, @Param("status") String status,
-            @Param("query") String query, Pageable pageable);
-
-    @Query(value = "select e from AgentGoalEvaluation e where e.userId = :userId " +
-            "and (:since is null or e.createdAt >= :since) " +
-            "and (:status is null or e.status = :status)",
-            countQuery = "select count(e) from AgentGoalEvaluation e where e.userId = :userId " +
-            "and (:since is null or e.createdAt >= :since) " +
-            "and (:status is null or e.status = :status)")
-    Page<AgentGoalEvaluation> searchForUserWithoutText(@Param("userId") String userId,
-            @Param("since") Instant since, @Param("status") String status, Pageable pageable);
 
     @Query("select coalesce(avg(e.score), 0.0) from AgentGoalEvaluation e where e.userId = :userId")
     double averageScoreByUserId(@Param("userId") String userId);
