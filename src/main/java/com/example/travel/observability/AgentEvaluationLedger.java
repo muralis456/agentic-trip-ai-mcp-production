@@ -115,7 +115,7 @@ public class AgentEvaluationLedger {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(criteriaBuilder.equal(root.get("userId"), userId));
             if (since != null) {
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), since));
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.<Instant>get("createdAt"), since));
             }
             if (statusFilter != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), statusFilter));
