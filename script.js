@@ -33,8 +33,15 @@ const layout = document.querySelector('.layout');
             opts.headers[csrfHeaderMeta.content] = csrfMeta.content;
         }
         return window.fetch(url, opts).then(response => {
-            if (response.status === 401 && !String(url).startsWith('/api/auth/')) {
-                window.location.href = '/login?expired=true';
+            const requestUrl = String(url);
+            const isAuthEndpoint = requestUrl.startsWith('/api/auth/');
+            const isLoginPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(window.location.pathname);
+            // Expired sessions can surface as 401 or 403. Avoid redirect loops on auth pages.
+            if (!isAuthEndpoint && !isLoginPage && (response.status === 401 || response.status === 403)) {
+                const target = response.status === 401 ? '/login?expired=true' : '/login?forbidden=true';
+                if (window.location.pathname + window.location.search !== target) {
+                    window.location.replace(target);
+                }
             }
             return response;
         });
