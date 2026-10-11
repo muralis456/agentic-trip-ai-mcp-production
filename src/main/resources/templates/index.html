@@ -3410,31 +3410,45 @@
         scrollChat();
     };
 
-    newChatBtn.addEventListener('click', () => {
+    const startNewChat = (event) => {
+        event?.preventDefault();
+        event?.stopPropagation();
         exitModifyMode(true);
-        // New Trip must leave My Trips/Settings and return to the chat workspace.
-        // Previously the handler cleared the chat DOM but left tripsView visible,
-        // so clicking New Trip appeared to do nothing.
-        showHomeView();
         startedFreshChat = true;
         currentChatId = null;
         currentHistoryKey = null;
-        ensureCurrentChat('New trip');
+        showHomeView();
         clearThreadDom();
+        const freshChat = ensureCurrentChat('New trip');
+        if (freshChat) {
+            freshChat.messages = [];
+            freshChat.threadId = null;
+            saveStore(loadStore());
+        }
         renderHistoryList();
         promptInput.value = '';
-        
-    resizePrompt();
+        resizePrompt();
         loadingState.classList.remove('visible');
         submitButton.disabled = false;
+        updateComposerState();
         promptInput.focus();
-    });
+    };
 
-    if (composerNewChat) {
-        composerNewChat.addEventListener('click', () => {
-            newChatBtn.click();
-        });
-    }
+    // Bind both entry points directly. Do not make the composer + depend on
+    // programmatically clicking the sidebar button; that can be blocked by
+    // overlays/disabled state and made the two controls behave inconsistently.
+    newChatBtn.addEventListener('click', startNewChat);
+    composerNewChat?.addEventListener('click', startNewChat);
+
+    // Capture clicks as a defensive fallback if another component stops
+    // propagation before the button's normal listener executes.
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('#newChatBtn, #composerNewChat');
+        if (!trigger || trigger.dataset.newChatHandled === 'true') return;
+        trigger.dataset.newChatHandled = 'true';
+        startNewChat(event);
+        queueMicrotask(() => { delete trigger.dataset.newChatHandled; });
+    }, true);
 
     promptInput.addEventListener('input', () => {
         
