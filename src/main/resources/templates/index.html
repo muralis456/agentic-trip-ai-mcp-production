@@ -3446,6 +3446,8 @@
         const trigger = event.target.closest('#newChatBtn, #composerNewChat');
         if (!trigger || trigger.dataset.newChatHandled === 'true') return;
         trigger.dataset.newChatHandled = 'true';
+        event.preventDefault();
+        event.stopImmediatePropagation();
         startNewChat(event);
         queueMicrotask(() => { delete trigger.dataset.newChatHandled; });
     }, true);
