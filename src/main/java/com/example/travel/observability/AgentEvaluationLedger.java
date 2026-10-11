@@ -77,6 +77,41 @@ public class AgentEvaluationLedger {
         }
     }
 
+    /**
+     * Persist an explicit STOPPED history row when the user interrupts a run.
+     * A stop is not a failed goal evaluation: it has no evaluator score and must
+     * not inflate achieved/partial/failed outcome counts.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void recordStopped(TravelState state, String threadId) {
+        String userId = safe(state == null ? null : state.userId(), 120);
+        String safeThreadId = safe(threadId, 120);
+        if (userId.isBlank() || safeThreadId.isBlank()) {
+            log.warn("Skipping stopped-run history because user or thread id is absent");
+            return;
+        }
+        AgentGoalEvaluation row = new AgentGoalEvaluation();
+        row.setUserId(userId);
+        row.setThreadId(safeThreadId);
+        row.setDestination(safe(state.destination(), 120));
+        row.setBudget(safe(state.budgetLabel(), 100));
+        row.setGoal(state.agentPlan() == null ? "" : safe(state.agentPlan().getGoal(), 200));
+        row.setStatus("STOPPED");
+        row.setScore(0.0);
+        row.setReason("Run stopped by user; checkpoint saved. Resume is available.");
+        row.setRecoverable(true);
+        row.setCreatedAt(Instant.now());
+        row.setSatisfiedCriteriaJson("[]");
+        row.setUnmetCriteriaJson("[]");
+        row.setBlockingIssuesJson("[\\"Run stopped by user\\",\\"Checkpoint saved for possible resume\\"]");
+        try {
+            repository.save(row);
+        } catch (RuntimeException ex) {
+            log.warn("Could not persist stopped-run history for threadId={} ({})",
+                    safeThreadId, ex.getClass().getSimpleName());
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<EvaluationRecord> recent(String userId, int limit) {
         int bounded = Math.max(1, Math.min(100, limit));
@@ -93,7 +128,7 @@ public class AgentEvaluationLedger {
         int safeSize = Math.max(1, Math.min(100, pageSize));
         Instant since = safeDays == 0 ? null : Instant.now().minusSeconds(safeDays * 86400L);
         String safeStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase();
-        if (safeStatus != null && !List.of("ACHIEVED", "PARTIAL", "FAILED", "NEEDS_USER").contains(safeStatus)) {
+        if (safeStatus != null && !List.of("ACHIEVED", "PARTIAL", "FAILED", "NEEDS_USER", "STOPPED").contains(safeStatus)) {
             safeStatus = null;
         }
         String safeQuery = query == null || query.isBlank() ? null : "%" + query.trim().substring(0, Math.min(120, query.trim().length())) + "%";
@@ -164,6 +199,7 @@ public class AgentEvaluationLedger {
                 "partial", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "PARTIAL", since),
                 "failed", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "FAILED", since),
                 "needsUser", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "NEEDS_USER", since),
+                "stopped", repository.countByUserIdAndStatusAndCreatedAtAfter(userId, "STOPPED", since),
                 "averageScore", Math.round(repository.averageScoreByUserIdAndCreatedAtAfter(userId, since) * 1000.0) / 1000.0);
     }
 
@@ -181,6 +217,7 @@ public class AgentEvaluationLedger {
                 "partial", repository.countByUserIdAndStatus(userId, "PARTIAL"),
                 "failed", repository.countByUserIdAndStatus(userId, "FAILED"),
                 "needsUser", repository.countByUserIdAndStatus(userId, "NEEDS_USER"),
+                "stopped", repository.countByUserIdAndStatus(userId, "STOPPED"),
                 "averageScore", Math.round(average * 1000.0) / 1000.0,
                 "retention", "persistent PostgreSQL history");
     }
