@@ -103,7 +103,11 @@
         (!status || t.status === status) &&
         (!query || [t.goal,t.destination,t.threadId,t.reason,t.budget,...(t.satisfiedCriteria||[]),...(t.unmetCriteria||[]),...(t.blockingIssues||[])].some(v=>String(v||'').toLowerCase().includes(query)))
       );
-      $('traceCount').textContent = filtered.length+' of '+traces.length+' records';
+      const pg = data.tracePagination || {page:0,pageSize:traces.length,totalElements:traces.length,totalPages:traces.length?1:0,hasNext:false,hasPrevious:false};
+      $('traceCount').textContent = fmt(pg.totalElements)+' evaluations';
+      $('pageInfo').textContent = 'Page '+(pg.totalPages ? pg.page+1 : 0)+' of '+pg.totalPages;
+      $('prevPage').disabled = !pg.hasPrevious;
+      $('nextPage').disabled = !pg.hasNext;
       $('traces').innerHTML = filtered.length ? filtered.map(({t,i})=>'<tr class="trace-row" tabindex="0" role="button" aria-label="View evaluation evidence" data-index="'+i+'"><td>'+esc(time(t.timestamp))+'</td><td title="'+esc(t.threadId)+'">'+esc((t.threadId||'').slice(0,12)||'untracked')+'</td><td>'+esc(t.destination || t.goal || 'Trip evaluation')+(t.goal && t.destination ? '<div class="sub">'+esc(t.goal)+'</div>':'')+(t.budget ? '<div class="sub">'+esc(t.budget)+'</div>':'')+'</td><td><span class="badge '+esc(t.status)+'">'+esc(t.status)+'</span></td><td>'+Number(t.score||0).toFixed(2)+'</td></tr>').join('') : '<tr><td colspan="5" class="empty">'+(traces.length ? 'No evaluations match these filters.' : 'No goal evaluations recorded yet. Run a trip to populate this dashboard.')+'</td></tr>';
       document.querySelectorAll('.trace-row').forEach(row => {
         row.addEventListener('click',()=>showTrace(Number(row.dataset.index)));
