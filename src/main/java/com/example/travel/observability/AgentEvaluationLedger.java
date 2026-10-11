@@ -84,7 +84,7 @@ public class AgentEvaluationLedger {
     }
 
     @Transactional(readOnly = true)
-    public Page<EvaluationRecord> search(String userId, int days, int page, int pageSize, String status, String query) {
+    public Page<EvaluationRecord> search(String userId, int days, int page, int pageSize, String status, String query, String sortBy, String direction) {
         if (userId == null || userId.isBlank()) return Page.empty();
         int safeDays = Math.max(0, Math.min(3650, days));
         int safePage = Math.max(0, page);
@@ -95,8 +95,16 @@ public class AgentEvaluationLedger {
             safeStatus = null;
         }
         String safeQuery = query == null || query.isBlank() ? null : "%" + query.trim().substring(0, Math.min(120, query.trim().length())) + "%";
+        String sortProperty = switch (sortBy == null ? "" : sortBy.trim()) {
+            case "score" -> "score";
+            case "status" -> "status";
+            case "destination" -> "destination";
+            default -> "createdAt";
+        };
+        Sort.Direction sortDirection = "ASC".equalsIgnoreCase(direction)
+                ? Sort.Direction.ASC : Sort.Direction.DESC;
         return repository.searchForUser(userId, since, safeStatus, safeQuery,
-                PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")))
+                PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortProperty)))
                 .map(this::toRecord);
     }
 
