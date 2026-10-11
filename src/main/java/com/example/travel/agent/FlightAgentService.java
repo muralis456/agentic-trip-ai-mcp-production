@@ -196,12 +196,19 @@ public class FlightAgentService {
 
     private LocalDate extractDepartureDate(FlightOption flight) {
         if (flight == null) return null;
-        try {
-            if (flight.getDepartureTime() != null && !flight.getDepartureTime().isBlank()) {
-                return OffsetDateTime.parse(flight.getDepartureTime()).toLocalDate();
+        String departure = flight.getDepartureTime();
+        if (departure != null && !departure.isBlank()) {
+            try {
+                return OffsetDateTime.parse(departure).toLocalDate();
+            } catch (Exception ignored) {
+                // Providers such as Google Flights may return "yyyy-MM-dd HH:mm"
+                // without an offset. Extract only an explicit ISO date prefix.
+                java.util.regex.Matcher prefix = java.util.regex.Pattern
+                        .compile("^(\\d{4}-\\d{2}-\\d{2})(?:[T\\s].*)?$").matcher(departure.trim());
+                if (prefix.matches()) {
+                    try { return LocalDate.parse(prefix.group(1)); } catch (Exception ignoredAgain) { }
+                }
             }
-        } catch (Exception ignored) {
-            // Fall through to provider flight_date metadata.
         }
         String notes = flight.getNotes();
         if (notes != null) {
@@ -212,13 +219,6 @@ public class FlightAgentService {
             }
         }
         return null;
-    }
-
-    private boolean isSingleLegFlightLookup(String request) {
-        String text = request == null ? "" : request.toLowerCase(java.util.Locale.ROOT);
-        boolean flightLookup = text.matches("(?s).*\\b(flight|flights|airfare|flight status)\\b.*");
-        boolean returnIntent = text.matches("(?s).*\\b(round[ -]?trip|return flight|return journey|two[ -]?way|both ways|there and back|come back|coming back|returning)\\b.*");
-        return flightLookup && !returnIntent;
     }
 
     private String mergeNote(String existing, String addition) {
