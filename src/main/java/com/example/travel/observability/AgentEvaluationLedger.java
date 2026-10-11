@@ -103,7 +103,7 @@ public class AgentEvaluationLedger {
         row.setCreatedAt(Instant.now());
         row.setSatisfiedCriteriaJson("[]");
         row.setUnmetCriteriaJson("[]");
-        row.setBlockingIssuesJson("[\\"Run stopped by user\\",\\"Checkpoint saved for possible resume\\"]");
+        row.setBlockingIssuesJson(writeJson(List.of("Run stopped by user", "Checkpoint saved for possible resume")));
         try {
             repository.save(row);
         } catch (RuntimeException ex) {
