@@ -45,6 +45,14 @@ class ModelPricingPropertiesTest {
     }
 
     @Test
+    void doesNotInventLocalComputeCostWhenNoRateIsConfigured() {
+        ModelPricingProperties pricing = new ModelPricingProperties();
+        pricing.setLocalModels(Set.of("local-model"));
+        assertNull(pricing.estimateLocalInfrastructureCostUsd("local-model", 120_000));
+        assertEquals(0.0, pricing.estimateLocalInfrastructureCostUsd("paid-model", 120_000));
+    }
+
+    @Test
     void doesNotMisreportUnconfiguredPaidModelAsFree() {
         ModelPricingProperties pricing = new ModelPricingProperties();
         assertNull(pricing.estimateProviderApiCostUsd("unknown-paid-model", 100, 100));
