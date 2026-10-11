@@ -92,7 +92,7 @@ public class EvaluationDashboardController {
                 "modelUsage", modelUsage,
                 "refreshedAt", Instant.now().toString(),
                 "modelUsageWindowDays", days,
-                "costNotice", "Model usage is durably aggregated in PostgreSQL and account-scoped for the selected window. Cost is estimated only when provider/model pricing is explicitly configured.");
+                "costNotice", "Local Ollama models are configured at $0 per token for provider/API usage. Estimates exclude hardware, electricity, hosting and external API charges. Set TRAVEL_LLM_*_USD_PER_MILLION rates when using a paid provider.");
     }
 
     private double counterSum(String name) {
