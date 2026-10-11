@@ -1,11 +1,13 @@
 package com.example.travel.controller;
 
-import com.example.travel.repository.AgentModelUsageAggregate;
 import com.example.travel.observability.AgentEvaluationLedger;
 import com.example.travel.observability.AgentModelUsageLedger;
+import com.example.travel.observability.AgentRuntimeEventLedger;
 import com.example.travel.observability.ModelPricingProperties;
-import io.micrometer.core.instrument.Meter;
+import com.example.travel.repository.AgentModelUsageAggregate;
+import com.example.travel.repository.AgentModelUsageTripAggregate;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,42 +25,44 @@ import java.util.TreeMap;
 public class EvaluationDashboardController {
     private final AgentEvaluationLedger evaluationLedger;
     private final AgentModelUsageLedger modelUsageLedger;
+    private final AgentRuntimeEventLedger runtimeEventLedger;
     private final MeterRegistry meters;
     private final ModelPricingProperties pricing;
 
     public EvaluationDashboardController(AgentEvaluationLedger evaluationLedger,
                                          AgentModelUsageLedger modelUsageLedger,
+                                         AgentRuntimeEventLedger runtimeEventLedger,
                                          MeterRegistry meters,
                                          ModelPricingProperties pricing) {
         this.evaluationLedger = evaluationLedger;
         this.modelUsageLedger = modelUsageLedger;
+        this.runtimeEventLedger = runtimeEventLedger;
         this.meters = meters;
         this.pricing = pricing;
     }
 
     @GetMapping("/evaluation")
-    public String page() {
-        return "evaluation-dashboard";
-    }
+    public String page() { return "evaluation-dashboard"; }
 
     @ResponseBody
     @GetMapping("/api/observability/dashboard")
-    public Map<String, Object> dashboard(@RequestParam(defaultValue = "50") int limit,
-                                         @RequestParam(defaultValue = "30") int windowDays,
-                                         Authentication authentication) {
+    public Map<String, Object> dashboard(
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "30") int windowDays,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int pageSize,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
+            Authentication authentication) {
         String userId = authentication == null ? "" : authentication.getName();
-        int days = Math.max(1, Math.min(365, windowDays));
-        List<AgentEvaluationLedger.EvaluationRecord> recent = evaluationLedger.recent(userId, limit);
-        Map<String, Object> summary = new LinkedHashMap<>(evaluationLedger.summary(userId));
+        int days = Math.max(0, Math.min(3650, windowDays));
+        int safePageSize = Math.max(1, Math.min(100, pageSize == 50 ? limit : pageSize));
+        int safePage = Math.max(0, page);
 
-        // Durable model usage is scoped to the authenticated account and selected time window.
+        Map<String, Object> summary = new LinkedHashMap<>(evaluationLedger.summary(userId, days));
         List<AgentModelUsageAggregate> usageAggregates = modelUsageLedger.aggregateForUser(userId, days);
         Map<String, ModelUsage> models = new TreeMap<>();
-        long inputTokens = 0;
-        long outputTokens = 0;
-        long llmCalls = 0;
-        long llmErrors = 0;
-        long durationMs = 0;
+        long inputTokens = 0, outputTokens = 0, llmCalls = 0, llmErrors = 0, durationMs = 0;
         for (AgentModelUsageAggregate aggregate : usageAggregates) {
             ModelUsage usage = new ModelUsage(aggregate);
             models.put(aggregate.getModel(), usage);
@@ -75,25 +79,28 @@ public class EvaluationDashboardController {
         summary.put("llmErrorRate", llmCalls == 0 ? 0.0 : (double) llmErrors / llmCalls);
         summary.put("averageLlmDurationMs", llmCalls == 0 ? 0L : durationMs / llmCalls);
         summary.put("modelUsageWindowDays", days);
-        summary.put("modelUsageRetention", "durable PostgreSQL events scoped to your account");
 
-        // MCP/replan/node counters currently have no user identity and remain explicitly process-wide.
-        summary.put("mcpCalls", counterSum("agent.mcp.calls"));
-        summary.put("replans", counterSum("agent.replans"));
-        summary.put("nodeExecutions", counterSum("agent.nodes"));
+        // Keep process-wide metrics explicitly separate from account-scoped persisted events.
+        Map<String, Object> processRuntime = new LinkedHashMap<>();
+        processRuntime.put("nodeExecutions", counterSum("agent.nodes"));
+        processRuntime.put("replans", counterSum("agent.replans"));
+        processRuntime.put("mcpCalls", counterSum("agent.mcp.calls"));
+        processRuntime.put("mcpRetries", counterSum("agent.mcp.retries"));
+        processRuntime.put("providerCalls", counterSum("agent.provider.calls"));
+        processRuntime.put("agentRetries", counterSum("agent.retries"));
+        processRuntime.put("averageNodeDurationMs", timerAverageMs("agent.node.duration"));
+        processRuntime.put("averageMcpDurationMs", timerAverageMs("agent.mcp.duration"));
+        processRuntime.put("averageProviderDurationMs", timerAverageMs("agent.provider.duration"));
 
         List<Map<String, Object>> modelUsage = models.values().stream()
                 .sorted(Comparator.comparingLong((ModelUsage m) -> m.inputTokens + m.outputTokens).reversed())
                 .map(m -> m.asMap(pricing)).toList();
 
-        // Database-side aggregation avoids a recent-event cap and groups all model usage
-        // belonging to the unique LangGraph run/thread, making trip totals complete for
-        // the selected account and time window.
-        Map<String, TripCost> tripCostsByThread = new TreeMap<>();
-        for (var usage : modelUsageLedger.aggregateTripsForUser(userId, days)) {
+        Map<String, TripCost> trips = new TreeMap<>();
+        for (AgentModelUsageTripAggregate usage : modelUsageLedger.aggregateTripsForUser(userId, days)) {
             String threadId = usage.getThreadId();
             if (threadId == null || threadId.isBlank() || "untracked".equals(threadId)) continue;
-            TripCost trip = tripCostsByThread.computeIfAbsent(threadId, TripCost::new);
+            TripCost trip = trips.computeIfAbsent(threadId, TripCost::new);
             long calls = usage.getCalls() == null ? 0 : usage.getCalls();
             long input = usage.getInputTokens() == null ? 0 : usage.getInputTokens();
             long output = usage.getOutputTokens() == null ? 0 : usage.getOutputTokens();
@@ -101,36 +108,51 @@ public class EvaluationDashboardController {
             trip.calls += calls;
             trip.inputTokens += input;
             trip.outputTokens += output;
-            trip.localInfrastructureCostUsd += pricing.estimateLocalInfrastructureCostUsd(usage.getModel(), duration);
-            Double providerCost = pricing.estimateProviderApiCostUsd(usage.getModel(), input, output);
-            if (providerCost == null) trip.providerApiCostKnown = false;
-            else trip.providerApiCostUsd += providerCost;
+            Double local = pricing.estimateLocalInfrastructureCostUsd(usage.getModel(), duration);
+            if (local == null) trip.localCostKnown = false; else trip.localInfrastructureCostUsd += local;
+            Double provider = pricing.estimateProviderApiCostUsd(usage.getModel(), input, output);
+            if (provider == null) trip.providerCostKnown = false; else trip.providerApiCostUsd += provider;
         }
-        List<Map<String, Object>> tripCosts = tripCostsByThread.values().stream()
+        List<Map<String, Object>> tripCosts = trips.values().stream()
                 .sorted(Comparator.comparingLong((TripCost t) -> t.calls).reversed())
                 .map(TripCost::asMap).toList();
-        double knownLocalInfrastructureCost = tripCostsByThread.values().stream()
-                .mapToDouble(t -> t.localInfrastructureCostUsd).sum();
-        double knownProviderApiCost = tripCostsByThread.values().stream()
-                .mapToDouble(t -> t.providerApiCostUsd).sum();
-        boolean allProviderCostsKnown = tripCostsByThread.values().stream().allMatch(t -> t.providerApiCostKnown);
+        boolean costsComplete = trips.values().stream().allMatch(t -> t.localCostKnown && t.providerCostKnown);
         Map<String, Object> costSummary = new LinkedHashMap<>();
-        costSummary.put("localInfrastructureCostUsd", knownLocalInfrastructureCost);
-        costSummary.put("providerApiCostUsd", knownProviderApiCost);
-        costSummary.put("providerApiCostComplete", allProviderCostsKnown);
-        costSummary.put("totalCostUsd", allProviderCostsKnown
-                ? knownLocalInfrastructureCost + knownProviderApiCost : null);
+        costSummary.put("localInfrastructureCostUsd", trips.values().stream().allMatch(t -> t.localCostKnown)
+                ? trips.values().stream().mapToDouble(t -> t.localInfrastructureCostUsd).sum() : null);
+        costSummary.put("providerApiCostUsd", trips.values().stream().allMatch(t -> t.providerCostKnown)
+                ? trips.values().stream().mapToDouble(t -> t.providerApiCostUsd).sum() : null);
+        costSummary.put("totalCostUsd", costsComplete ? trips.values().stream()
+                .mapToDouble(t -> t.localInfrastructureCostUsd + t.providerApiCostUsd).sum() : null);
+        costSummary.put("costsComplete", costsComplete);
         costSummary.put("trips", tripCosts.size());
+
+        Page<AgentEvaluationLedger.EvaluationRecord> tracePage =
+                evaluationLedger.search(userId, days, safePage, safePageSize, status, q);
+        List<Map<String, Object>> runtimeAggregate = runtimeEventLedger.aggregateForUser(userId, days);
+        List<Map<String, Object>> runtimeEvents = runtimeEventLedger.recentForUser(userId, days, 100);
+
+        Map<String, Object> tracePagination = new LinkedHashMap<>();
+        tracePagination.put("page", tracePage.getNumber());
+        tracePagination.put("pageSize", tracePage.getSize());
+        tracePagination.put("totalElements", tracePage.getTotalElements());
+        tracePagination.put("totalPages", tracePage.getTotalPages());
+        tracePagination.put("hasNext", tracePage.hasNext());
+        tracePagination.put("hasPrevious", tracePage.hasPrevious());
 
         return Map.of(
                 "summary", summary,
-                "traces", recent,
+                "traces", tracePage.getContent(),
+                "tracePagination", tracePagination,
                 "modelUsage", modelUsage,
                 "tripCosts", tripCosts,
                 "costSummary", costSummary,
+                "processRuntime", processRuntime,
+                "runtimeSummary", runtimeAggregate,
+                "runtimeEvents", runtimeEvents,
                 "refreshedAt", Instant.now().toString(),
                 "modelUsageWindowDays", days,
-                "costNotice", "Local infrastructure is an estimate from local-model execution time × TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR (default $0.10/hour). Paid model API charges are token estimates using configured model-pricing rates. Unknown rates are shown as Unpriced; these are not provider invoices and exclude separate hosting/electricity and non-model API billing.");
+                "costNotice", "Model API amounts are token-price estimates, not provider invoices. Local compute cost is unavailable unless TRAVEL_LOCAL_COMPUTE_USD_PER_HOUR is explicitly configured. Unknown costs remain unavailable, never zero-filled. Separate non-model API billing is not included.");
     }
 
     private double counterSum(String name) {
@@ -138,73 +160,68 @@ public class EvaluationDashboardController {
                 .filter(m -> name.equals(m.getId().getName()))
                 .filter(io.micrometer.core.instrument.Counter.class::isInstance)
                 .map(io.micrometer.core.instrument.Counter.class::cast)
-                .mapToDouble(io.micrometer.core.instrument.Counter::count)
-                .sum();
+                .mapToDouble(io.micrometer.core.instrument.Counter::count).sum();
+    }
+
+    private double timerAverageMs(String name) {
+        return meters.getMeters().stream()
+                .filter(m -> name.equals(m.getId().getName()))
+                .filter(io.micrometer.core.instrument.Timer.class::isInstance)
+                .map(io.micrometer.core.instrument.Timer.class::cast)
+                .mapToDouble(t -> t.count() == 0 ? 0 : t.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS) / t.count())
+                .average().orElse(0);
     }
 
     private static final class TripCost {
         private final String threadId;
-        private long calls;
-        private long inputTokens;
-        private long outputTokens;
-        private double localInfrastructureCostUsd;
-        private double providerApiCostUsd;
-        private boolean providerApiCostKnown = true;
-
+        private long calls, inputTokens, outputTokens;
+        private double localInfrastructureCostUsd, providerApiCostUsd;
+        private boolean localCostKnown = true, providerCostKnown = true;
         private TripCost(String threadId) { this.threadId = threadId; }
-
         private Map<String, Object> asMap() {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("threadId", threadId);
-            result.put("calls", calls);
-            result.put("inputTokens", inputTokens);
-            result.put("outputTokens", outputTokens);
-            result.put("localInfrastructureCostUsd", localInfrastructureCostUsd);
-            result.put("providerApiCostUsd", providerApiCostKnown ? providerApiCostUsd : null);
-            result.put("totalCostUsd", providerApiCostKnown ? localInfrastructureCostUsd + providerApiCostUsd : null);
-            result.put("providerApiCostKnown", providerApiCostKnown);
-            return result;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("threadId", threadId);
+            row.put("calls", calls);
+            row.put("inputTokens", inputTokens);
+            row.put("outputTokens", outputTokens);
+            row.put("localInfrastructureCostUsd", localCostKnown ? localInfrastructureCostUsd : null);
+            row.put("providerApiCostUsd", providerCostKnown ? providerApiCostUsd : null);
+            row.put("totalCostUsd", localCostKnown && providerCostKnown ? localInfrastructureCostUsd + providerApiCostUsd : null);
+            row.put("costKnown", localCostKnown && providerCostKnown);
+            return row;
         }
     }
 
     private static final class ModelUsage {
         private final String model;
-        private long inputTokens;
-        private long outputTokens;
-        private long calls;
-        private long errors;
-        private long durationMs;
-
-        private ModelUsage(AgentModelUsageAggregate aggregate) {
-            this.model = aggregate.getModel();
-            this.calls = aggregate.getCalls() == null ? 0 : aggregate.getCalls();
-            this.errors = aggregate.getErrors() == null ? 0 : aggregate.getErrors();
-            this.inputTokens = aggregate.getInputTokens() == null ? 0 : aggregate.getInputTokens();
-            this.outputTokens = aggregate.getOutputTokens() == null ? 0 : aggregate.getOutputTokens();
-            this.durationMs = aggregate.getDurationMs() == null ? 0 : aggregate.getDurationMs();
+        private final long inputTokens, outputTokens, calls, errors, durationMs;
+        private ModelUsage(AgentModelUsageAggregate a) {
+            model = a.getModel();
+            calls = a.getCalls() == null ? 0 : a.getCalls();
+            errors = a.getErrors() == null ? 0 : a.getErrors();
+            inputTokens = a.getInputTokens() == null ? 0 : a.getInputTokens();
+            outputTokens = a.getOutputTokens() == null ? 0 : a.getOutputTokens();
+            durationMs = a.getDurationMs() == null ? 0 : a.getDurationMs();
         }
-
         private Map<String, Object> asMap(ModelPricingProperties pricing) {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("model", model);
-            result.put("calls", calls);
-            result.put("errors", errors);
-            result.put("errorRate", calls == 0 ? 0.0 : (double) errors / calls);
-            result.put("averageDurationMs", calls == 0 ? 0L : durationMs / calls);
-            result.put("inputTokens", inputTokens);
-            result.put("outputTokens", outputTokens);
-            result.put("totalTokens", inputTokens + outputTokens);
-            Double providerCost = pricing.estimateProviderApiCostUsd(model, inputTokens, outputTokens);
-            double localCost = pricing.estimateLocalInfrastructureCostUsd(model, durationMs);
-            result.put("providerApiCostUsd", providerCost);
-            result.put("localInfrastructureCostUsd", localCost);
-            result.put("totalCostUsd", providerCost == null ? null : providerCost + localCost);
-            result.put("estimatedCostUsd", providerCost); // backward-compatible API field
-            return result;
-        }
-
-        private static String normalizeModel(String value) {
-            return value == null ? "" : value.trim().toLowerCase().replaceAll("[^a-z0-9_.-]", "_");
+            Map<String, Object> row = new LinkedHashMap<>();
+            Double api = pricing.estimateProviderApiCostUsd(model, inputTokens, outputTokens);
+            Double local = pricing.estimateLocalInfrastructureCostUsd(model, durationMs);
+            row.put("model", model);
+            row.put("calls", calls);
+            row.put("errors", errors);
+            row.put("errorRate", calls == 0 ? 0.0 : (double) errors / calls);
+            row.put("averageDurationMs", calls == 0 ? 0L : durationMs / calls);
+            row.put("inputTokens", inputTokens);
+            row.put("outputTokens", outputTokens);
+            row.put("totalTokens", inputTokens + outputTokens);
+            row.put("providerApiCostUsd", api);
+            row.put("localInfrastructureCostUsd", local);
+            row.put("totalCostUsd", api != null && local != null ? api + local : null);
+            row.put("providerApiCostKind", pricing.isLocalModel(model) ? "LOCAL_NO_PROVIDER_API_CHARGE" : api == null ? "UNPRICED" : "TOKEN_PRICE_ESTIMATE");
+            row.put("localCostConfigured", local != null && pricing.isLocalModel(model));
+            row.put("estimatedCostUsd", api);
+            return row;
         }
     }
 }
