@@ -26,13 +26,13 @@ public class FlightSearchTool {
                 departureDate == null ? null : departureDate.toString());
     }
 
-    @Tool(description = "Search live flights with AviationStack using IATA codes. "
-            + "Free plans do not support flight_date filtering; pass date only for trip context notes. "
+    @Tool(description = "Search flights through the MCP provider fallback chain. "
+            + "AviationStack is disabled; configured alternatives such as Ignav and SerpApi Google Flights are tried in order. "
             + "Pass only real IATA codes resolved from the airport database.")
     public String searchFlights(
             @ToolParam(description = "Departure IATA code, e.g. BLR") String originIata,
             @ToolParam(description = "Arrival IATA code, e.g. NRT") String destinationIata,
-            @ToolParam(description = "Trip departure date yyyy-MM-dd (context only on free plans)", required = false) String departureDate) {
+            @ToolParam(description = "Trip departure date yyyy-MM-dd", required = false) String departureDate) {
         LocalDate date = null;
         if (departureDate != null && !departureDate.isBlank()) {
             try {
