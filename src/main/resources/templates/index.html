@@ -3412,6 +3412,10 @@
 
     newChatBtn.addEventListener('click', () => {
         exitModifyMode(true);
+        // New Trip must leave My Trips/Settings and return to the chat workspace.
+        // Previously the handler cleared the chat DOM but left tripsView visible,
+        // so clicking New Trip appeared to do nothing.
+        showHomeView();
         startedFreshChat = true;
         currentChatId = null;
         currentHistoryKey = null;
