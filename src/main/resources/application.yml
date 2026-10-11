@@ -230,9 +230,10 @@ travel:
     api-url: https://api.tavily.com/search
     api-key: ${TAVILY_API_KEY:}
   aviation:
+    # Disabled for now; live flight lookup uses MCP-provider fallback instead.
     api-url: https://api.aviationstack.com/v1
     api-key: ${AVIATIONSTACK_API_KEY:}
-    # Free plans reject flight_date with 403 function_access_restricted.
+    enabled: false
     include-flight-date: false
   weather:
     provider: ${WEATHER_PROVIDER:openweather}
