@@ -108,31 +108,22 @@ class AgentEvaluationLedgerTest {
     }
 
     @Test
-    void searchWithoutTextUsesQueryThatNeverBindsNullTextPattern() {
+    void searchBuildsDynamicSpecificationsForOptionalFiltersAndText() {
         AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
         ObjectMapper mapper = mock(ObjectMapper.class);
-        when(repository.searchForUserWithoutText(eq("alice"), isNull(), isNull(), any(Pageable.class)))
+        when(repository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<AgentGoalEvaluation>>any(),
+                any(Pageable.class)))
                 .thenReturn(org.springframework.data.domain.Page.empty());
         AgentEvaluationLedger ledger = new AgentEvaluationLedger(repository, mapper);
 
         assertTrue(ledger.search("alice", 0, 0, 25, null, null, "createdAt", "DESC").isEmpty());
+        assertTrue(ledger.search("alice", 30, 0, 25, "ACHIEVED", "tokyo", "score", "ASC").isEmpty());
 
-        verify(repository).searchForUserWithoutText(eq("alice"), isNull(), isNull(), any(Pageable.class));
-        verify(repository, never()).searchForUserWithText(anyString(), any(), any(), anyString(), any(Pageable.class));
-    }
-
-    @Test
-    void searchWithTextUsesTextSearchQuery() {
-        AgentGoalEvaluationRepository repository = mock(AgentGoalEvaluationRepository.class);
-        ObjectMapper mapper = mock(ObjectMapper.class);
-        when(repository.searchForUserWithText(eq("alice"), isNull(), isNull(), eq("%tokyo%"),
-                any(Pageable.class))).thenReturn(org.springframework.data.domain.Page.empty());
-        AgentEvaluationLedger ledger = new AgentEvaluationLedger(repository, mapper);
-
-        assertTrue(ledger.search("alice", 0, 0, 25, null, "tokyo", "createdAt", "DESC").isEmpty());
-
-        verify(repository).searchForUserWithText(eq("alice"), isNull(), isNull(), eq("%tokyo%"),
+        verify(repository, times(2)).findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<AgentGoalEvaluation>>any(),
                 any(Pageable.class));
         verify(repository, never()).searchForUserWithoutText(anyString(), any(), any(), any(Pageable.class));
+        verify(repository, never()).searchForUserWithText(anyString(), any(), any(), anyString(), any(Pageable.class));
     }
 }
