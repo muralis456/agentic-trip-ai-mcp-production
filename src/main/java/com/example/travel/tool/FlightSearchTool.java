@@ -29,16 +29,11 @@ public class FlightSearchTool {
     /** Backward-compatible constructor used by direct-tool unit tests. */
     public FlightSearchTool(ExternalApiService externalApiService) {
         this.externalApiService = externalApiService;
-        this.mcpFlightSearchClient = new ObjectProvider<>() {
-            @Override public McpFlightSearchClient getObject(Object... args) { throw new IllegalStateException("MCP flight client is not available"); }
-            @Override public McpFlightSearchClient getIfAvailable() { return null; }
-            @Override public McpFlightSearchClient getIfUnique() { return null; }
-            @Override public java.util.Iterator<McpFlightSearchClient> iterator() { return java.util.Collections.emptyIterator(); }
-        };
+        this.mcpFlightSearchClient = null;
     }
 
     public List<FlightOption> search(String originIata, String destinationIata, LocalDate departureDate) {
-        McpFlightSearchClient mcp = mcpFlightSearchClient.getIfAvailable();
+        McpFlightSearchClient mcp = mcpFlightSearchClient == null ? null : mcpFlightSearchClient.getIfAvailable();
         if (mcp != null) {
             return mcp.search(originIata, destinationIata, departureDate, 1,
                     "Flight search for " + originIata + " to " + destinationIata, "");
