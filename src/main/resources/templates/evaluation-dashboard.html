@@ -87,7 +87,7 @@
       return '<tr><td>'+esc(m.model)+'</td><td>'+fmt(m.calls)+'</td><td>'+fmt(m.errors)+' ('+pct(m.errorRate)+')</td><td>'+fmt(m.averageDurationMs)+' ms</td><td>'+fmt(m.inputTokens)+'</td><td>'+fmt(m.outputTokens)+'</td><td>'+money(apiCost)+'</td><td>'+money(m.localInfrastructureCostUsd)+'</td><td>'+money(m.totalCostUsd)+'</td></tr>';
     }).join('') : '<tr><td colspan="9" class="empty">No model usage recorded for this window</td></tr>';
     const tripCosts = data.tripCosts || [];
-    $('tripCosts').innerHTML = tripCosts.length ? tripCosts.map(t => '<tr><td title="'+esc(t.threadId)+'">'+esc((t.threadId || '').slice(0,16) || 'untracked')+'</td><td>'+fmt(t.calls)+'</td><td>'+fmt(t.inputTokens)+'</td><td>'+fmt(t.outputTokens)+'</td><td>'+money(t.localInfrastructureCostUsd)+'</td><td>'+money(t.providerApiCostUsd)+'</td><td>'+money(t.totalCostUsd)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No trip cost records in this window</td></tr>';
+    $('tripCosts').innerHTML = tripCosts.length ? tripCosts.map(t => '<tr><td title="'+esc(t.threadId)+'">'+esc((t.threadId && t.threadId.length > 12 ? '…' + t.threadId.slice(-8) : (t.threadId || 'untracked')))+'</td><td>'+fmt(t.calls)+'</td><td>'+fmt(t.inputTokens)+'</td><td>'+fmt(t.outputTokens)+'</td><td>'+money(t.localInfrastructureCostUsd)+'</td><td>'+money(t.providerApiCostUsd)+'</td><td>'+money(t.totalCostUsd)+'</td></tr>').join('') : '<tr><td colspan="7" class="empty">No trip cost records in this window</td></tr>';
     $('costNotice').textContent = data.costNotice || 'Cost estimates use configured model pricing and local execution-time allocation. Unknown paid-model rates show as Unpriced.';
     const traces = data.traces || [];
     renderTraces();
