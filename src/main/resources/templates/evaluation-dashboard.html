@@ -40,6 +40,7 @@
 </div>
 <script>
 (() => {
+  /* Disable Thymeleaf JavaScript inlining for this plain client-side dashboard script. */
   const $ = id => document.getElementById(id);
   let snapshot = null;
   let refreshInFlight = false;
@@ -57,6 +58,7 @@
     $('avgScore').textContent = Number(s.evaluations || 0) ? Number(s.averageScore || 0).toFixed(3) : '—';
     $('tokens').textContent = fmt((s.inputTokens || 0) + (s.outputTokens || 0));
     $('calls').textContent = fmt(s.llmCalls)+' LLM calls · '+fmt(s.llmErrors || 0)+' errors · '+fmt(s.mcpCalls)+' process-wide MCP calls';
+    /* Keep JavaScript chart data outside Thymeleaf inline-expression parsing. */
     const outcomes = [['Achieved',s.achieved,'var(--green)'],['Partial',s.partial,'var(--blue)'],['Failed',s.failed,'var(--red)'],['Needs user',s.needsUser,'var(--purple)']];
     const max = Math.max(1,...outcomes.map(x=>Number(x[1]||0)));
     $('outcomeBars').innerHTML = outcomes.map(x=>'<div class="bar-group"><div class="bar" title="'+esc(x[0]+': '+x[1])+'" style="height:'+Math.max(2,Number(x[1]||0)/max*100)+'%;background:'+x[2]+'"></div></div>').join('');
