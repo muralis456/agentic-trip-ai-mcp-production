@@ -40,7 +40,6 @@ public class ModelPricingProperties {
     }
 
     public Double estimateProviderApiCostUsd(String model, long inputTokens, long outputTokens) {
-        if (isLocalModel(model)) return 0.0;
         ModelPrice rate = modelPricing.get(model);
         if (rate == null) {
             String normalized = normalize(model);
@@ -48,6 +47,11 @@ public class ModelPricingProperties {
                     .filter(entry -> normalize(entry.getKey()).equals(normalized))
                     .map(Map.Entry::getValue).findFirst().orElse(null);
         }
+        // Explicit non-zero rates indicate a paid route even when the model name
+        // is also commonly used locally. Local-only models remain $0 when they
+        // have no configured rates or their configured rates are both zero.
+        if (isLocalModel(model) && (rate == null
+                || (rate.getInputUsdPerMillion() == 0 && rate.getOutputUsdPerMillion() == 0))) return 0.0;
         if (rate == null) return null;
         return (Math.max(0, inputTokens) * rate.getInputUsdPerMillion()
                 + Math.max(0, outputTokens) * rate.getOutputUsdPerMillion()) / 1_000_000.0;
