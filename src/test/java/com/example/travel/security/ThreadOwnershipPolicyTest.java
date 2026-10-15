@@ -18,6 +18,12 @@ class ThreadOwnershipPolicyTest {
     }
 
     @Test
+    void acceptsCanonicalUuidCaseInsensitively() {
+        String id = "alice-" + UUID.randomUUID().toString().toUpperCase(java.util.Locale.ROOT);
+        assertEquals(id, ThreadOwnershipPolicy.requireOwnedThread("alice", id));
+    }
+
+    @Test
     void deniesAnotherUsersThread() {
         assertThrows(ThreadOwnershipPolicy.UnauthorizedThreadAccessException.class,
                 () -> ThreadOwnershipPolicy.requireOwnedThread("alice", thread("bob")));
@@ -25,7 +31,7 @@ class ThreadOwnershipPolicyTest {
 
     @Test
     void deniesOverlappingUserIdPrefixAttack() {
-        // "alice-ops-<uuid>" used to pass a naive startsWith("alice-") check.
+        // "alice-ops-<uuid>" must not pass an "alice-" prefix check.
         String opsThread = thread("alice-ops");
         assertThrows(ThreadOwnershipPolicy.UnauthorizedThreadAccessException.class,
                 () -> ThreadOwnershipPolicy.requireOwnedThread("alice", opsThread));
@@ -35,6 +41,12 @@ class ThreadOwnershipPolicyTest {
     void deniesForgedThreadSuffixInsteadOfAcceptingAnyPrefixMatch() {
         assertThrows(ThreadOwnershipPolicy.UnauthorizedThreadAccessException.class,
                 () -> ThreadOwnershipPolicy.requireOwnedThread("alice", "alice-admin-secret"));
+    }
+
+    @Test
+    void rejectsNonCanonicalUuidThatJavaParserWouldOtherwiseAccept() {
+        assertThrows(ThreadOwnershipPolicy.UnauthorizedThreadAccessException.class,
+                () -> ThreadOwnershipPolicy.requireOwnedThread("alice", "alice-1-1-1-1-1"));
     }
 
     @Test
