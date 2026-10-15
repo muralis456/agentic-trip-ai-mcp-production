@@ -33,6 +33,7 @@ import com.example.travel.service.ApiRateLimitService;
 import com.example.travel.exception.TooManyRequestsException;
 import com.example.travel.exception.GraphStopRequestedException;
 import com.example.travel.exception.ResourceNotFoundException;
+import com.example.travel.security.ThreadOwnershipPolicy;
 import tools.jackson.databind.ObjectMapper;
 
 import org.bsc.langgraph4j.CompiledGraph;
@@ -1568,18 +1569,12 @@ public class TravelPlannerAgentService {
             String userId,
             String threadId) {
 
-        String key = TravelState.firstNonBlank(
-                threadId,
-                userId);
-
-        String requester = TravelState.firstNonBlank(userId);
-        if (requester.isBlank()) {
-            throw new IllegalArgumentException("Authenticated user is required");
-        }
-
-        if (!key.equals(requester)
-                && !key.startsWith(requester + "-")) {
-
+        String key;
+        try {
+            key = ThreadOwnershipPolicy.requireOwnedThread(userId, threadId);
+        } catch (ThreadOwnershipPolicy.UnauthorizedThreadAccessException denied) {
+            // Return the same not-found response for foreign and malformed IDs
+            // so callers cannot enumerate another user's trip identifiers.
             throw new ResourceNotFoundException("Travel plan not found");
         }
 
