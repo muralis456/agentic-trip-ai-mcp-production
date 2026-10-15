@@ -10,8 +10,10 @@ This checklist complements the existing security, stop/resume, MCP governance, a
 - [x] Side-effecting actions require an authorized role and explicit approval context.
 - [x] External evidence is inspected for instruction-like text and wrapped as untrusted evidence.
 - [x] Regression tests cover prompt injection, trust-boundary tag neutralization, identity absence, tool allow-list enforcement, approval enforcement, and argument-size limits.
-- [ ] Verify in a running deployment that the authenticated principal survives every executor/async boundary and is never copied from user-controlled request fields.
-- [ ] Verify the MCP server independently rejects missing/invalid API keys and does not trust client-side approval claims.
+- [x] Caller-supplied approval booleans cannot authorize side-effecting or approval-gated MCP tools; the server fails closed until a server-owned approval verifier exists.
+- [x] Local unit tests cover idempotency key claims, concurrent duplicate requests, key reuse with a different payload, and per-user key isolation.
+- [ ] Add/verify authenticated-principal propagation across every async/executor boundary; the controller currently overwrites request userId from Authentication, but end-to-end coverage remains outstanding.
+- [ ] Run local HTTP tests proving the MCP server rejects missing/invalid API keys and production-profile startup fails closed when required config is missing.
 
 ## Stop, resume, and side-effect safety
 
@@ -32,9 +34,17 @@ Add or maintain automated cases for:
 - Missing identity, unknown tool, oversized arguments, unauthorized role, absent approval, and invalid MCP API key.
 - Cross-user attempts to read trip history, checkpoints, evaluation records, runtime events, or exported CSV data.
 - Replan after a provider timeout, stop during parallel fan-out, and resume after process restart.
+- Idempotency-key duplicate submission, key reuse with a different payload, and same key across different users (covered by IdempotencyServiceSecurityTest).
 - Malformed/low-confidence Jev output and tool descriptions containing adversarial instructions.
 
 The expected outcome for every denied case is no provider side effect, a safe user-facing error, and a structured denial event that excludes secrets and raw arguments.
+
+## Local test gate (current development focus)
+
+- Run the MCP server Maven tests after the server-side approval fail-closed change, especially McpToolGovernanceSecurityTest.
+- Run the production app Maven tests after the idempotency isolation regression tests, especially IdempotencyServiceSecurityTest.
+- Add HTTP/controller and PostgreSQL-backed tests for authenticated identity propagation, cross-user resource access, and stop/resume across process restart before treating those gaps as closed.
+- These are local/CI verification targets; production deployment and multi-replica certification are intentionally out of scope for the current local-testing phase.
 
 ## Deployment gate
 
