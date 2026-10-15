@@ -2,13 +2,16 @@ package com.example.travel.tool;
 
 import com.example.travel.exception.ToolApprovalRequiredException;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ToolGovernanceServiceSecurityTest {
     private ToolGovernanceService newGovernance() {
+        DefaultListableBeanFactory beans = new DefaultListableBeanFactory();
         return new ToolGovernanceService(true, 2048, "",
                 "search_flights:READ_ONLY,book_flight:SIDE_EFFECTING", "",
-                "USER:READ_ONLY;ADMIN:READ_ONLY,SIDE_EFFECTING", 3, 30_000L);
+                "USER:READ_ONLY;ADMIN:READ_ONLY,SIDE_EFFECTING", 3, 30_000L,
+                beans.getBeanProvider(DistributedMcpCircuitState.class));
     }
 
     @Test
