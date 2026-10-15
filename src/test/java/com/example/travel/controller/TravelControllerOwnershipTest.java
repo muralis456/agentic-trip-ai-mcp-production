@@ -1,6 +1,8 @@
 package com.example.travel.controller;
 
 import com.example.travel.agent.TravelPlannerAgentService;
+import com.example.travel.dto.TravelPlanResponse;
+import com.example.travel.dto.TravelRequest;
 import com.example.travel.exception.ResourceNotFoundException;
 import com.example.travel.idempotency.IdempotencyService;
 import com.example.travel.service.ConversationMemoryService;
@@ -13,6 +15,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class TravelControllerOwnershipTest {
@@ -80,6 +83,33 @@ class TravelControllerOwnershipTest {
 
         verify(fixture.trips).getPlan("alice", 42L);
         verify(fixture.trips, never()).getPlan(eq("bob"), anyLong());
+    }
+
+    @Test
+    void createPlanOverwritesForgedRequestIdentityWithAuthenticatedPrincipal() {
+        TravelPlannerAgentService planner = mock(TravelPlannerAgentService.class);
+        ConversationMemoryService memory = mock(ConversationMemoryService.class);
+        TripHistoryService trips = mock(TripHistoryService.class);
+        QueryNormalizationService normalization = mock(QueryNormalizationService.class);
+        TravelController controller = new TravelController(planner, memory, mock(GraphProgressHub.class),
+                trips, normalization, mock(IdempotencyService.class), mock(ObjectMapper.class));
+        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
+        TravelRequest request = new TravelRequest();
+        request.setUserId("bob");
+        request.setPrompt("Plan a trip to Tokyo");
+        TravelPlanResponse response = new TravelPlanResponse();
+        when(normalization.normalize(any())).thenAnswer(invocation -> {
+            TravelRequest normalized = invocation.getArgument(0);
+            return new QueryNormalizationService.NormalizationResult(
+                    normalized.getPrompt(), normalized.getPrompt(), java.util.List.of(), java.util.List.of());
+        });
+        when(planner.createTravelPlan(any(), any())).thenReturn(response);
+
+        controller.createPlan(alice, request);
+
+        org.mockito.ArgumentCaptor<TravelRequest> captured = org.mockito.ArgumentCaptor.forClass(TravelRequest.class);
+        verify(planner).createTravelPlan(captured.capture(), any());
+        org.junit.jupiter.api.Assertions.assertEquals("alice", captured.getValue().getUserId());
     }
 
     private static final class TravelHistoryFixture {
