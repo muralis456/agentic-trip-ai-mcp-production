@@ -17,12 +17,13 @@ import static org.mockito.Mockito.*;
 
 class TravelControllerOwnershipTest {
 
-    private TravelController controller(TravelPlannerAgentService planner, GraphProgressHub progress) {
+    private TravelController controller(TravelPlannerAgentService planner, GraphProgressHub progress,
+                                        TripHistoryService trips) {
         return new TravelController(
                 planner,
                 mock(ConversationMemoryService.class),
                 progress,
-                mock(TripHistoryService.class),
+                trips,
                 mock(QueryNormalizationService.class),
                 mock(IdempotencyService.class),
                 mock(ObjectMapper.class));
@@ -32,7 +33,7 @@ class TravelControllerOwnershipTest {
     void eventStreamChecksOwnershipBeforeSubscribing() {
         TravelPlannerAgentService planner = mock(TravelPlannerAgentService.class);
         GraphProgressHub progress = mock(GraphProgressHub.class);
-        TravelController controller = controller(planner, progress);
+        TravelController controller = controller(planner, progress, mock(TripHistoryService.class));
         Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
         String foreignThread = "bob-" + java.util.UUID.randomUUID();
         doThrow(new ResourceNotFoundException("Travel plan not found"))
@@ -49,7 +50,7 @@ class TravelControllerOwnershipTest {
     void eventStreamUsesAuthenticatedPrincipalRatherThanRequestSuppliedIdentity() {
         TravelPlannerAgentService planner = mock(TravelPlannerAgentService.class);
         GraphProgressHub progress = mock(GraphProgressHub.class);
-        TravelController controller = controller(planner, progress);
+        TravelController controller = controller(planner, progress, mock(TripHistoryService.class));
         Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
         String ownThread = "alice-" + java.util.UUID.randomUUID();
 
@@ -57,5 +58,36 @@ class TravelControllerOwnershipTest {
 
         verify(planner).assertOwnedThread("alice", ownThread);
         verify(progress).subscribe(ownThread, true);
+    }
+
+    @Test
+    void tripHistoryIsAlwaysScopedToAuthenticatedPrincipal() {
+        TravelHistoryFixture fixture = new TravelHistoryFixture();
+        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
+
+        fixture.controller.trips(alice, 25);
+
+        verify(fixture.trips).list("alice", 25);
+        verify(fixture.trips, never()).list(eq("bob"), anyInt());
+    }
+
+    @Test
+    void tripDetailLookupUsesAuthenticatedPrincipalAndCannotSelectAnotherUsersRecord() {
+        TravelHistoryFixture fixture = new TravelHistoryFixture();
+        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
+
+        fixture.controller.trip(alice, 42L);
+
+        verify(fixture.trips).getPlan("alice", 42L);
+        verify(fixture.trips, never()).getPlan(eq("bob"), anyLong());
+    }
+
+    private static final class TravelHistoryFixture {
+        final TravelPlannerAgentService planner = mock(TravelPlannerAgentService.class);
+        final GraphProgressHub progress = mock(GraphProgressHub.class);
+        final TripHistoryService trips = mock(TripHistoryService.class);
+        final TravelController controller = new TravelController(
+                planner, mock(ConversationMemoryService.class), progress, trips,
+                mock(QueryNormalizationService.class), mock(IdempotencyService.class), mock(ObjectMapper.class));
     }
 }
