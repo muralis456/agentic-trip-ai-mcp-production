@@ -112,6 +112,22 @@ class TravelControllerOwnershipTest {
         org.junit.jupiter.api.Assertions.assertEquals("alice", captured.getValue().getUserId());
     }
 
+
+    @Test
+    void checkpointRestoreAndHistoryUseAuthenticatedPrincipal() {
+        TravelHistoryFixture fixture = new TravelHistoryFixture();
+        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
+        String threadId = "alice-" + java.util.UUID.randomUUID();
+
+        fixture.controller.restorePlan(alice, threadId);
+        fixture.controller.history(alice, threadId);
+
+        verify(fixture.planner).restore("alice", threadId);
+        verify(fixture.planner).history("alice", threadId);
+        verify(fixture.planner, never()).restore(eq("bob"), anyString());
+        verify(fixture.planner, never()).history(eq("bob"), anyString());
+    }
+
     private static final class TravelHistoryFixture {
         final TravelPlannerAgentService planner = mock(TravelPlannerAgentService.class);
         final GraphProgressHub progress = mock(GraphProgressHub.class);
