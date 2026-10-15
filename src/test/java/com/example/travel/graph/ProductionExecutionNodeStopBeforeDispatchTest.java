@@ -85,8 +85,9 @@ class ProductionExecutionNodeStopBeforeDispatchTest {
             org.junit.jupiter.api.Assertions.assertEquals("alice", observed.get().userId());
             org.junit.jupiter.api.Assertions.assertEquals("USER", observed.get().role());
             org.junit.jupiter.api.Assertions.assertFalse(observed.get().approvalGranted());
-            org.junit.jupiter.api.Assertions.assertTrue(ToolInvocationContext.current().isEmpty(),
-                    "worker thread must clear identity after task completion");
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    executor.submit(() -> ToolInvocationContext.current().isEmpty()).get(),
+                    "reused worker thread must not retain the prior user's identity");
         } finally {
             executor.shutdownNow();
         }
