@@ -4,9 +4,8 @@ import java.util.UUID;
 
 /**
  * Validates ownership of server-generated LangGraph thread identifiers.
- * Thread IDs are generated as <authenticated-user-id>-<UUID>; a mere prefix
- * match is insufficient because users such as "alice" and "alice-ops" can
- * otherwise overlap.
+ * Thread IDs are generated as <authenticated-user-id>-<canonical UUID>;
+ * a mere prefix match is insufficient because user IDs can overlap.
  */
 public final class ThreadOwnershipPolicy {
     private ThreadOwnershipPolicy() {}
@@ -26,7 +25,12 @@ public final class ThreadOwnershipPolicy {
         }
         String suffix = key.substring(prefix.length());
         try {
-            UUID.fromString(suffix);
+            UUID parsed = UUID.fromString(suffix);
+            // UUID.fromString accepts some non-canonical shortened forms.
+            // Server-generated IDs always use UUID.toString()'s canonical format.
+            if (!parsed.toString().equalsIgnoreCase(suffix)) {
+                throw new UnauthorizedThreadAccessException();
+            }
         } catch (IllegalArgumentException invalidId) {
             throw new UnauthorizedThreadAccessException();
         }
