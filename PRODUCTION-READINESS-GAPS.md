@@ -12,6 +12,7 @@ This checklist complements the existing security, stop/resume, MCP governance, a
 - [x] Regression tests cover prompt injection, trust-boundary tag neutralization, identity absence, tool allow-list enforcement, approval enforcement, and argument-size limits.
 - [x] Caller-supplied approval booleans cannot authorize side-effecting or approval-gated MCP tools; the server fails closed until a server-owned approval verifier exists.
 - [x] Local unit tests cover idempotency key claims, concurrent duplicate requests, key reuse with a different payload, and per-user key isolation.
+- [x] Trip checkpoint ownership rejects overlapping user-ID prefixes and forged thread IDs; thread IDs must match the authenticated user plus a UUID.
 - [ ] Add/verify authenticated-principal propagation across every async/executor boundary; the controller currently overwrites request userId from Authentication, but end-to-end coverage remains outstanding.
 - [ ] Run local HTTP tests proving the MCP server rejects missing/invalid API keys and production-profile startup fails closed when required config is missing.
 
@@ -32,7 +33,7 @@ Add or maintain automated cases for:
 - Tool output containing "ignore previous instructions", fake system/developer tags, or requests to invoke another tool.
 - Untrusted content attempting to change destination, dates, budget, identity, permissions, or approval state.
 - Missing identity, unknown tool, oversized arguments, unauthorized role, absent approval, and invalid MCP API key.
-- Cross-user attempts to read trip history, checkpoints, evaluation records, runtime events, or exported CSV data.
+- Cross-user attempts to read trip history, checkpoints, evaluation records, runtime events, or exported CSV data (thread ownership policy unit tests added; controller-level coverage of every resource endpoint remains outstanding).
 - Replan after a provider timeout, stop during parallel fan-out, and resume after process restart.
 - Idempotency-key duplicate submission, key reuse with a different payload, and same key across different users (covered by IdempotencyServiceSecurityTest).
 - Malformed/low-confidence Jev output and tool descriptions containing adversarial instructions.
