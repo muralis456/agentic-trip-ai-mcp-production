@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -24,6 +25,9 @@ public class PromptInjectionGuard {
           + "execute\\s+(this|the)\\s+(command|tool)|call\\s+the\\s+tool|"
           + "you\\s+are\\s+now\\s+the\\s+system)");
 
+    private static final Pattern TRUST_BOUNDARY_TAG_PATTERN =
+            Pattern.compile("(?i)(</?)(system|developer|untrusted-evidence)(>)");
+
     public GuardResult inspect(String content) {
         String value = content == null ? "" : content;
         boolean suspicious = INSTRUCTION_PATTERN.matcher(value).find();
@@ -35,21 +39,20 @@ public class PromptInjectionGuard {
 
     public String wrapUntrusted(String label, String content) {
         GuardResult result = inspect(content);
-        String safeLabel = label == null || label.isBlank() ? "EXTERNAL_CONTENT" : label.trim();
-        return "<untrusted-evidence source=\"" + safeLabel + "\" suspicious=\"" + result.suspicious() + "\">\n"
-                + result.sanitized() + "\n</untrusted-evidence>";
+        String requestedLabel = label == null || label.isBlank() ? "EXTERNAL_CONTENT" : label.trim();
+        // Labels are metadata, not content: constrain them to a safe attribute alphabet.
+        String safeLabel = requestedLabel.replaceAll("[^A-Za-z0-9._:-]", "_");
+        return "<untrusted-evidence source=\"" + safeLabel + "\" suspicious=\"" + result.suspicious() + "\">\\n"
+                + result.sanitized() + "\\n</untrusted-evidence>";
     }
 
     public String sanitize(String content) {
         if (content == null) return "";
-        // Preserve evidence, but neutralize delimiter-like tags that could be
-        // mistaken for our trust-boundary markers.
-        return content.replace("<system>", "[system]")
-                .replace("</system>", "[/system]")
-                .replace("<developer>", "[developer]")
-                .replace("</developer>", "[/developer]")
-                .replace("<untrusted-evidence>", "[untrusted-evidence]")
-                .replace("</untrusted-evidence>", "[/untrusted-evidence]");
+        // Neutralize trust-boundary tags case-insensitively. Preserve the words as
+        // evidence, but do not let alternate casing recreate prompt delimiters.
+        Matcher matcher = TRUST_BOUNDARY_TAG_PATTERN.matcher(content);
+        return matcher.replaceAll(match -> (match.group(1).startsWith("</") ? "[/" : "[")
+                + match.group(2).toLowerCase(Locale.ROOT) + "]");
     }
 
     private String fingerprint(String value) {
