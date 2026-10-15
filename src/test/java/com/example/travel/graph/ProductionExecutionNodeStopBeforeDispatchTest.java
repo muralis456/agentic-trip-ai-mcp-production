@@ -55,7 +55,7 @@ class ProductionExecutionNodeStopBeforeDispatchTest {
     }
 
     @Test
-    void propagatesAuthenticatedUserIntoParallelWorkerContextAndClearsItAfterward() {
+    void propagatesAuthenticatedUserIntoParallelWorkerContextAndClearsItAfterward() throws Exception {
         String threadId = "alice-" + java.util.UUID.randomUUID();
         AgentRunControlService control = mock(AgentRunControlService.class);
         when(control.isStopRequested(threadId)).thenReturn(false);
