@@ -55,6 +55,9 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
     }
 
     @Override public Map<String,Object> apply(TravelState state) {
+        // A durable stop can race with a new graph wave (including after process
+        // restart). Check before marking tasks STARTED or submitting any provider work.
+        if (isStopRequested(state)) throw new GraphStopRequestedException();
         AgentPlan plan = state.agentPlan();
         Map<String,Object> updates = new LinkedHashMap<>();
 
