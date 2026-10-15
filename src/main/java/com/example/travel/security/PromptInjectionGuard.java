@@ -26,7 +26,7 @@ public class PromptInjectionGuard {
           + "you\\s+are\\s+now\\s+the\\s+system)");
 
     private static final Pattern TRUST_BOUNDARY_TAG_PATTERN =
-            Pattern.compile("(?i)(</?)(system|developer|untrusted-evidence)(>)");
+            Pattern.compile("(?i)(</?)(system|developer|untrusted-evidence)\\b[^<>]*>");
 
     public GuardResult inspect(String content) {
         String value = content == null ? "" : content;
