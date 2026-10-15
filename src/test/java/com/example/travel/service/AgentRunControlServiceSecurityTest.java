@@ -3,6 +3,7 @@ package com.example.travel.service;
 import com.example.travel.entity.AgentRunControl;
 import com.example.travel.repository.AgentRunControlRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.Instant;
 import java.util.List;
@@ -94,11 +95,18 @@ class AgentRunControlServiceSecurityTest {
         AgentRunControlService service = new AgentRunControlService(repository);
         AgentRunControl bobsStoppedRun = run("bob", AgentRunControlService.STOPPED);
         when(repository.findByThreadId(bobsStoppedRun.getThreadId())).thenReturn(Optional.of(bobsStoppedRun));
+        when(repository.findByUserIdAndConversationIdAndStatusOrderByUpdatedAtDesc(
+                "alice", "conversation-1", AgentRunControlService.STOPPED, PageRequest.of(0, 1)))
+                .thenReturn(List.of());
 
         assertTrue(service.findStoppedForConversation(
                 "alice", "conversation-1", bobsStoppedRun.getThreadId()).isEmpty());
-        verify(repository, never()).findByUserIdAndConversationIdAndStatusOrderByUpdatedAtDesc(
-                eq("alice"), anyString(), anyString(), any());
+
+        // A foreign preferred thread is never returned. Any fallback is explicitly scoped
+        // to Alice's own conversation and STOPPED state, so Bob's row cannot be disclosed.
+        verify(repository).findByThreadId(bobsStoppedRun.getThreadId());
+        verify(repository).findByUserIdAndConversationIdAndStatusOrderByUpdatedAtDesc(
+                "alice", "conversation-1", AgentRunControlService.STOPPED, PageRequest.of(0, 1));
     }
 
 }
