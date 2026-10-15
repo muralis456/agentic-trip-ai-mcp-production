@@ -14,11 +14,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class TravelControllerOwnershipTest {
+
+    private static Authentication authenticated(String user) {
+        return UsernamePasswordAuthenticationToken.authenticated(user, "unused", List.of());
+    }
 
     private TravelController controller(TravelPlannerAgentService planner, GraphProgressHub progress,
                                         TripHistoryService trips) {
@@ -37,7 +43,7 @@ class TravelControllerOwnershipTest {
         TravelPlannerAgentService planner = mock(TravelPlannerAgentService.class);
         GraphProgressHub progress = mock(GraphProgressHub.class);
         TravelController controller = controller(planner, progress, mock(TripHistoryService.class));
-        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
+        Authentication alice = authenticated("alice");
         String foreignThread = "bob-" + java.util.UUID.randomUUID();
         doThrow(new ResourceNotFoundException("Travel plan not found"))
                 .when(planner).assertOwnedThread("alice", foreignThread);
@@ -54,7 +60,7 @@ class TravelControllerOwnershipTest {
         TravelPlannerAgentService planner = mock(TravelPlannerAgentService.class);
         GraphProgressHub progress = mock(GraphProgressHub.class);
         TravelController controller = controller(planner, progress, mock(TripHistoryService.class));
-        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
+        Authentication alice = authenticated("alice");
         String ownThread = "alice-" + java.util.UUID.randomUUID();
 
         controller.planEvents(alice, ownThread, true, -1);
@@ -66,9 +72,8 @@ class TravelControllerOwnershipTest {
     @Test
     void tripHistoryIsAlwaysScopedToAuthenticatedPrincipal() {
         TravelHistoryFixture fixture = new TravelHistoryFixture();
-        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
 
-        fixture.controller.trips(alice, 25);
+        fixture.controller.trips(authenticated("alice"), 25);
 
         verify(fixture.trips).list("alice", 25);
         verify(fixture.trips, never()).list(eq("bob"), anyInt());
@@ -77,9 +82,8 @@ class TravelControllerOwnershipTest {
     @Test
     void tripDetailLookupUsesAuthenticatedPrincipalAndCannotSelectAnotherUsersRecord() {
         TravelHistoryFixture fixture = new TravelHistoryFixture();
-        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
 
-        fixture.controller.trip(alice, 42L);
+        fixture.controller.trip(authenticated("alice"), 42L);
 
         verify(fixture.trips).getPlan("alice", 42L);
         verify(fixture.trips, never()).getPlan(eq("bob"), anyLong());
@@ -93,7 +97,6 @@ class TravelControllerOwnershipTest {
         QueryNormalizationService normalization = mock(QueryNormalizationService.class);
         TravelController controller = new TravelController(planner, memory, mock(GraphProgressHub.class),
                 trips, normalization, mock(IdempotencyService.class), mock(ObjectMapper.class));
-        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
         TravelRequest request = new TravelRequest();
         request.setUserId("bob");
         request.setPrompt("Plan a trip to Tokyo");
@@ -101,22 +104,21 @@ class TravelControllerOwnershipTest {
         when(normalization.normalize(any())).thenAnswer(invocation -> {
             TravelRequest normalized = invocation.getArgument(0);
             return new QueryNormalizationService.NormalizationResult(
-                    normalized.getPrompt(), normalized.getPrompt(), java.util.List.of(), java.util.List.of());
+                    normalized.getPrompt(), normalized.getPrompt(), List.of(), List.of());
         });
         when(planner.createTravelPlan(any(), any())).thenReturn(response);
 
-        controller.createPlan(alice, request);
+        controller.createPlan(authenticated("alice"), request);
 
         org.mockito.ArgumentCaptor<TravelRequest> captured = org.mockito.ArgumentCaptor.forClass(TravelRequest.class);
         verify(planner).createTravelPlan(captured.capture(), any());
         org.junit.jupiter.api.Assertions.assertEquals("alice", captured.getValue().getUserId());
     }
 
-
     @Test
     void checkpointRestoreAndHistoryUseAuthenticatedPrincipal() {
         TravelHistoryFixture fixture = new TravelHistoryFixture();
-        Authentication alice = new UsernamePasswordAuthenticationToken("alice", "unused");
+        Authentication alice = authenticated("alice");
         String threadId = "alice-" + java.util.UUID.randomUUID();
 
         fixture.controller.restorePlan(alice, threadId);
