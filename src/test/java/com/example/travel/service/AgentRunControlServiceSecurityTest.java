@@ -87,4 +87,18 @@ class AgentRunControlServiceSecurityTest {
         assertEquals(AgentRunControlService.COMPLETED, completed.getStatus());
         verify(repository, times(2)).save(any(AgentRunControl.class));
     }
+
+    @Test
+    void stoppedCheckpointLookupNeverFallsBackAcrossUsers() {
+        AgentRunControlRepository repository = mock(AgentRunControlRepository.class);
+        AgentRunControlService service = new AgentRunControlService(repository);
+        AgentRunControl bobsStoppedRun = run("bob", AgentRunControlService.STOPPED);
+        when(repository.findByThreadId(bobsStoppedRun.getThreadId())).thenReturn(Optional.of(bobsStoppedRun));
+
+        assertTrue(service.findStoppedForConversation(
+                "alice", "conversation-1", bobsStoppedRun.getThreadId()).isEmpty());
+        verify(repository, never()).findByUserIdAndConversationIdAndStatusOrderByUpdatedAtDesc(
+                eq("alice"), anyString(), anyString(), any());
+    }
+
 }
