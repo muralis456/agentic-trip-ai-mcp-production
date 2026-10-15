@@ -45,7 +45,7 @@ The expected outcome for every denied case is no provider side effect, a safe us
 ## Local test gate
 
 - MCP server CI passed after the approval fail-closed change (workflow run #66).
-- Application CI is running for the recent stop/identity/ownership tests; do not mark the latest changes green until the workflow that includes all latest commits passes.
+- Application CI previously failed test compilation because the async identity test lacked the `ToolInvocationContext` import and inferred `Object` for a submitted callable. Both compilation issues are fixed on the hardening branch; do not mark the latest changes green until CI for the fix passes.
 - PostgreSQL-backed checkpoint/idempotency tests and HTTP security integration tests remain necessary before declaring the local verification set complete.
 - Production deployment and multi-replica certification are intentionally out of scope for the current local-testing phase.
 
