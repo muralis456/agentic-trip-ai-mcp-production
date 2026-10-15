@@ -52,4 +52,44 @@ class ProductionExecutionNodeStopBeforeDispatchTest {
         org.junit.jupiter.api.Assertions.assertEquals(
                 AgentTask.Status.PENDING, plan.task("flights").getStatus());
     }
+
+    @Test
+    void propagatesAuthenticatedUserIntoParallelWorkerContextAndClearsItAfterward() {
+        String threadId = "alice-" + java.util.UUID.randomUUID();
+        AgentRunControlService control = mock(AgentRunControlService.class);
+        when(control.isStopRequested(threadId)).thenReturn(false);
+        HistoryNode history = mock(HistoryNode.class);
+        java.util.concurrent.atomic.AtomicReference<ToolInvocationContext.Context> observed =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(history.apply(any())).thenAnswer(invocation -> {
+            observed.set(ToolInvocationContext.current().orElseThrow());
+            return Map.of();
+        });
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            ProductionExecutionNode node = new ProductionExecutionNode(
+                    mock(FlightAgentService.class), mock(HotelAgentService.class),
+                    mock(TravelResearchAgentService.class), mock(WeatherAgentService.class),
+                    mock(BudgetAgentService.class), mock(ItineraryAgentService.class),
+                    mock(RagNode.class), history, mock(AirportLookupTool.class),
+                    executor, mock(GraphProgressHub.class), control);
+            AgentPlan plan = new AgentPlan();
+            plan.setTasks(List.of(new AgentTask("history", "history lookup", true)));
+            TravelState state = new TravelState(Map.of(
+                    TravelState.AGENT_PLAN, plan,
+                    TravelState.GRAPH_THREAD_ID, threadId,
+                    TravelState.USER_ID, "alice"));
+
+            node.apply(state);
+
+            org.junit.jupiter.api.Assertions.assertEquals("alice", observed.get().userId());
+            org.junit.jupiter.api.Assertions.assertEquals("USER", observed.get().role());
+            org.junit.jupiter.api.Assertions.assertFalse(observed.get().approvalGranted());
+            org.junit.jupiter.api.Assertions.assertTrue(ToolInvocationContext.current().isEmpty(),
+                    "worker thread must clear identity after task completion");
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
 }
