@@ -9,6 +9,7 @@ import com.example.travel.model.AgentTask;
 import com.example.travel.service.AgentRunControlService;
 import com.example.travel.service.GraphProgressHub;
 import com.example.travel.tool.AirportLookupTool;
+import com.example.travel.tool.ToolInvocationContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -86,7 +87,8 @@ class ProductionExecutionNodeStopBeforeDispatchTest {
             org.junit.jupiter.api.Assertions.assertEquals("USER", observed.get().role());
             org.junit.jupiter.api.Assertions.assertFalse(observed.get().approvalGranted());
             org.junit.jupiter.api.Assertions.assertTrue(
-                    executor.submit(() -> ToolInvocationContext.current().isEmpty()).get(),
+                    executor.submit((java.util.concurrent.Callable<Boolean>) () ->
+                            ToolInvocationContext.current().isEmpty()).get(),
                     "reused worker thread must not retain the prior user's identity");
         } finally {
             executor.shutdownNow();
