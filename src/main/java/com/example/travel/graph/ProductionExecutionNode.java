@@ -10,6 +10,7 @@ import com.example.travel.tool.AirportLookupTool;
 import com.example.travel.graph.node.RagNode;
 import com.example.travel.graph.node.HistoryNode;
 import com.example.travel.service.AgentRunControlService;
+import com.example.travel.service.GraphRunContext;
 import com.example.travel.service.GraphProgressHub;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
@@ -41,17 +42,32 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
     private final ExecutorService executor;
     private final GraphProgressHub progressHub;
     private final AgentRunControlService runControlService;
+    private final GraphRunContext graphRunContext;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public ProductionExecutionNode(FlightAgentService flight, HotelAgentService hotel,
             TravelResearchAgentService research, WeatherAgentService weather,
             BudgetAgentService budget, ItineraryAgentService itinerary,
             RagNode ragNode, HistoryNode historyNode, AirportLookupTool airportLookupTool,
             @org.springframework.beans.factory.annotation.Qualifier("travelParallelExecutor") ExecutorService executor,
-            GraphProgressHub progressHub, AgentRunControlService runControlService) {
+            GraphProgressHub progressHub, AgentRunControlService runControlService,
+            GraphRunContext graphRunContext) {
         this.flight = flight; this.hotel = hotel; this.research = research; this.weather = weather;
         this.budget = budget; this.itinerary = itinerary; this.ragNode = ragNode; this.historyNode = historyNode;
         this.airportLookupTool = airportLookupTool; this.executor = executor; this.progressHub = progressHub;
         this.runControlService = runControlService;
+        this.graphRunContext = graphRunContext;
+    }
+
+    /** Backward-compatible constructor for infrastructure tests. */
+    public ProductionExecutionNode(FlightAgentService flight, HotelAgentService hotel,
+            TravelResearchAgentService research, WeatherAgentService weather,
+            BudgetAgentService budget, ItineraryAgentService itinerary,
+            RagNode ragNode, HistoryNode historyNode, AirportLookupTool airportLookupTool,
+            ExecutorService executor, GraphProgressHub progressHub,
+            AgentRunControlService runControlService) {
+        this(flight, hotel, research, weather, budget, itinerary, ragNode, historyNode,
+                airportLookupTool, executor, progressHub, runControlService, null);
     }
 
     @Override public Map<String,Object> apply(TravelState state) {
@@ -142,6 +158,9 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
     private boolean readyNow(AgentPlan p, AgentTask t) { return t.getDependsOn().stream().allMatch(d -> { AgentTask x=p.task(d); return x==null || x.getStatus()==AgentTask.Status.SUCCEEDED; }); }
 
     private TaskResult execute(String id, TravelState s) {
+        String threadId = s.graphThreadId();
+        boolean contextAttached = graphRunContext != null && threadId != null && !threadId.isBlank();
+        if (contextAttached) graphRunContext.attach(threadId);
         // The execution pool is shared by parallel specialist tasks, so identity
         // must be installed per task and removed in finally. The policy engine
         // reads this context immediately before every MCP invocation.
@@ -206,6 +225,8 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
                 return new TaskResult(false, failureUpdates,
                         e.getMessage() == null ? "execution failed" : e.getMessage());
             }
+        } finally {
+            if (contextAttached) graphRunContext.detach();
         }
     }
 

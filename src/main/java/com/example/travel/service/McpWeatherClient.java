@@ -34,15 +34,18 @@ public class McpWeatherClient {
                     "endDate", end == null ? "" : end.toString()));
 
             boolean success = root.path("success").asBoolean(true);
-            String providerMessage = root.path("message").asText("");
-            if (providerMessage.isBlank()) {
-                providerMessage = root.path("summary").asText("");
-            }
             if (!success) {
-                String reason = providerMessage.isBlank() ? "OpenWeather MCP returned an unsuccessful weather response." : providerMessage;
+                String providerMessage = root.path("message").asText("");
+                if (providerMessage.isBlank()) {
+                    providerMessage = root.path("summary").asText("");
+                }
+                String reason = providerMessage.isBlank()
+                        ? "OpenWeather MCP returned an unsuccessful weather response."
+                        : providerMessage;
                 log.warn("mcp.client.weather-provider-failure destination={} start={} end={} reason={}",
                         destination, start, end, reason);
-                return new WeatherForecast(destination, reason, false);
+                return new WeatherForecast(destination,
+                        "OpenWeather MCP returned an unsuccessful weather response.", false);
             }
 
             WeatherForecast result = new WeatherForecast(root.path("location").asText(destination),
@@ -113,4 +116,5 @@ public class McpWeatherClient {
     private String safeMessage(Exception exception) {
         return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
     }
+
 }

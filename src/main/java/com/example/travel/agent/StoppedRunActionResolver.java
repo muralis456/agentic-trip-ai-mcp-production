@@ -2,7 +2,6 @@ package com.example.travel.agent;
 
 import com.example.travel.config.TravelModelsProperties.AgentRole;
 import com.example.travel.graph.TravelState;
-import com.example.travel.model.AgentTask;
 import com.example.travel.model.StoppedRunActionDecision;
 import com.example.travel.service.RoutedLlm;
 import com.example.travel.support.JsonSupport;
@@ -11,8 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Resolves a user's natural-language input against a stopped checkpoint.

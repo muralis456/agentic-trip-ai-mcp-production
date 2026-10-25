@@ -43,6 +43,14 @@ public class GraphRunContext {
         ModelRoutingContext.setRunIdentity(context.userId, context.threadId);
     }
 
+    public void updatePolicy(String threadId, String policy) {
+        String normalized = ModelRoutingContext.normalize(policy);
+        if (threadId != null && !threadId.isBlank()) {
+            active.computeIfPresent(threadId, (ignored, context) -> context.withPolicy(normalized));
+        }
+        ModelRoutingContext.set(normalized);
+    }
+
     public void detach() {
         ModelRoutingContext.clear();
         executionBudget.end();
@@ -57,5 +65,8 @@ public class GraphRunContext {
 
     private record RunContext(AgentExecutionBudget.Counters budget, String policy,
                               String userId, String threadId) {
+        private RunContext withPolicy(String updatedPolicy) {
+            return new RunContext(budget, updatedPolicy, userId, threadId);
+        }
     }
 }

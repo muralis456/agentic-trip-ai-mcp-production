@@ -12,7 +12,6 @@ import com.example.travel.idempotency.IdempotencyService;
 import com.example.travel.idempotency.IdempotencyService.DuplicateRequestException;
 import com.example.travel.idempotency.IdempotencyService.KeyReuseException;
 import tools.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -90,6 +89,7 @@ public class TravelController {
                                                          @Valid @RequestBody TravelRequest request) {
         String userId = currentUser(authentication);
         request.setUserId(userId);
+        validateIdempotencyKey(idempotencyKey);
         String requestHash = requestHash(request);
         if (idempotencyKey != null) {
             try {
@@ -304,6 +304,12 @@ public class TravelController {
             for (byte b : digest) hex.append(String.format("%02x", b));
             return hex.toString();
         } catch (Exception ex) { throw new IllegalStateException("Unable to hash travel request", ex); }
+    }
+
+    private void validateIdempotencyKey(String key) {
+        if (key != null && (key.length() > 255 || key.chars().anyMatch(Character::isISOControl))) {
+            throw new IllegalArgumentException("Idempotency-Key must be at most 255 printable characters.");
+        }
     }
 
     private String responseMessage(TravelPlanResponse response, String fallback) {

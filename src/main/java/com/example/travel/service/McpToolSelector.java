@@ -12,6 +12,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.example.travel.jev.JevDecisionService;
@@ -62,7 +65,7 @@ public class McpToolSelector {
 
         // Cache only identical tasks and identical catalogs. A purpose/catalog-only
         // cache can reuse the wrong tool when the user's actual task changes.
-        String cacheKey = safe(agentPurpose) + "\n" + safe(userInput) + "\n" + tools;
+        String cacheKey = cacheKey(agentPurpose, userInput, tools);
         String cachedName = selectionCache.get(cacheKey);
         if (cachedName != null && candidates.stream().anyMatch(c ->
                 c.getToolDefinition().name().equals(cachedName))) {
@@ -157,6 +160,17 @@ public class McpToolSelector {
         // unbounded growth in a long-running service.
         if (selectionCache.size() > 256) {
             selectionCache.keySet().stream().findFirst().ifPresent(selectionCache::remove);
+        }
+    }
+
+    private String cacheKey(String agentPurpose, String userInput, String tools) {
+        String material = safe(agentPurpose) + "\n" + safe(userInput) + "\n" + tools;
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(material.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required for MCP selection cache keys", exception);
         }
     }
 

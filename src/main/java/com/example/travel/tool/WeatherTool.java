@@ -118,10 +118,20 @@ public class WeatherTool {
             String reason = "OpenWeather request failed (HTTP " + exception.getStatusCode().value() + ")"
                     + (providerMessage.isBlank() ? "" : ": " + providerMessage);
             log.warn("Weather lookup failed destination={} reason={}", destination, reason);
-            return new WeatherForecast(destination, reason, false);
+            return new WeatherForecast(destination,
+                    "OpenWeather request failed (HTTP " + exception.getStatusCode().value() + ").", false);
         } catch (Exception exception) {
             log.warn("Weather lookup failed for {}: {}", destination, exception.getMessage(), exception);
-            return new WeatherForecast(destination, "OpenWeather lookup failed: " + safeMessage(exception), false);
+            return new WeatherForecast(destination, "OpenWeather lookup failed.", false);
+        }
+    }
+
+    private String extractProviderMessage(String body) {
+        if (body == null || body.isBlank()) return "";
+        try {
+            return objectMapper.readTree(body).path("message").asText("");
+        } catch (Exception ignored) {
+            return body.trim();
         }
     }
 
@@ -276,18 +286,4 @@ public class WeatherTool {
         return node.has(field) && node.path(field).isNumber() ? node.path(field).longValue() : null;
     }
 
-    private String extractProviderMessage(String body) {
-        if (body == null || body.isBlank()) return "";
-        try {
-            return objectMapper.readTree(body).path("message").asText("");
-        } catch (Exception ignored) {
-            return body.trim();
-        }
-    }
-
-    private String safeMessage(Exception exception) {
-        return exception.getMessage() == null || exception.getMessage().isBlank()
-                ? exception.getClass().getSimpleName()
-                : exception.getMessage();
-    }
 }

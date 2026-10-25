@@ -62,6 +62,10 @@ Validated `TravelState` is rendered deterministically. The Final LLM writes **ti
 ## Guardrails
 
 `max-retries`, `max-llm-calls`, `max-tavily-calls`, `max-iterations` (graph step cap).
+Specialist work uses a bounded queue (`TRAVEL_SPECIALIST_QUEUE_CAPACITY`, default `48`); when full, caller-runs backpressure slows plan submission instead of accumulating an unbounded backlog.
+Run-level LLM/Tavily budgets and the selected model policy are attached to graph and specialist worker threads, so parallel agents share the same limits and routing choice.
+
+Conversation context is limited to 6,000 characters, treats prior turns as untrusted evidence, and projects saved trip responses to a small set of trip facts instead of injecting the full UI payload. Goal evaluation remains deterministic for required evidence; semantic scores cannot exceed the deterministic score when required outcomes are missing. Retry and replan metric reasons are normalized to bounded categories.
 
 ## Tests
 
@@ -70,13 +74,13 @@ Validated `TravelState` is rendered deterministically. The Final LLM writes **ti
 ## Run
 
 ```bash
-cd agentic-trip-ai
+cd agentic-trip-ai-mcp-production
 mvn spring-boot:run
 ```
 
 UI: http://localhost:8081
 
-**Maven coordinates:** `com.example:agentic-trip-ai`
+**Maven coordinates:** `com.example:agentic-trip-ai-mcp-production`
 
 
 ## MCP LLM Tool Selection Logging
@@ -106,7 +110,7 @@ POST /api/rag/evaluate
 POST /api/rag/groundedness
 ```
 
-`/api/rag/evaluate` runs the built-in retrieval benchmark against the current pgvector index. The benchmark now generates an evidence-only answer and uses an LLM judge for groundedness. `/api/rag/groundedness` accepts `{ "answer": "...", "context": "..." }` and returns a lexical screening score. `/api/rag/judge` accepts `{ "userRequest": "...", "answer": "...", "context": "..." }` and returns LLM-as-a-judge groundedness, coverage, unsupported-claim rate, pass/fail and reason. During the graph, `ValidatorNode` judges the generated itinerary against RAG evidence; a failed judge adds a validation error and sends the graph through the existing replan loop.
+`/api/rag/evaluate` runs the built-in retrieval benchmark against the current pgvector index. The benchmark generates an evidence-only answer and uses an LLM judge for groundedness. `/api/rag/groundedness` accepts `{ "answer": "...", "context": "..." }` and returns a lexical screening score. `/api/rag/judge` accepts `{ "userRequest": "...", "answer": "...", "context": "..." }` and returns LLM-as-a-judge groundedness, coverage, unsupported-claim rate, pass/fail and reason. The model-backed `/evaluate` and `/judge` endpoints require the `ADMIN` role; request fields are size-limited. During the graph, `ValidatorNode` judges the generated itinerary against RAG evidence; a failed judge adds a validation error and sends the graph through the existing replan loop.
 
 The groundedness score is a guardrail/smoke metric, not a substitute for an LLM-as-judge evaluation. For production evaluation, add a second judge using a stronger model and compare it with these deterministic metrics.
 
@@ -204,7 +208,7 @@ This build hardens user Stop as a control-flow operation rather than a provider/
 - The application logs explicitly record the stop request, whether an active future was interrupted, and checkpoint preservation.
 - SSE exposes `stop_requested` followed by `stopped` so the UI transitions cleanly from Working → Stopping → Stopped.
 
-Full Maven compilation was not run in this environment because Maven is not installed. The embedded JavaScript was syntax-checked with Node.js and the distribution ZIP was integrity-checked with `unzip -t`.
+Run the Maven test suite with `mvn test`; `HitlPostgresCheckpointIT` additionally requires PostgreSQL.
 
 
 ### RAG reindex authorization
@@ -318,7 +322,7 @@ The application remains authoritative for policy, authorization, tool allow-list
 
 The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider preference, and evidence routing (RAG / WEB / BOTH / NONE).
 
-Jev never executes tools. Java remains authoritative for validation, authorization, confidence thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `tev1:4b`). Low-confidence decisions are rejected by the application policy; provider failures fall through to the next configured provider and finally to deterministic Java behavior.
+Jev never executes tools. Java remains authoritative for validation, authorization, decision thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `tev1:4b`). RAG and model-routing recommendations are gated by selected probability and margin by default because local-model self-reported confidence can be poorly calibrated; provider, goal, replan, and human-review decisions retain their confidence gates. Provider failures fall through to the next configured provider and finally to deterministic Java behavior.
 
 Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP server exposes AviationStack and Ignav flight providers. A preferred provider is attempted first when enabled and healthy; normal server-side fallback remains active. Duffel is not selected until a Duffel provider is actually exposed by the MCP server.
 

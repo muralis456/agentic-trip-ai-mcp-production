@@ -154,6 +154,14 @@ public class RoutedLlm {
         }
     }
 
+    private static String sanitizeLogMessage(String message) {
+        if (message == null) {
+            return "";
+        }
+        String normalized = message.replaceAll("[\\r\\n\\t]", " ").trim();
+        return normalized.length() > 240 ? normalized.substring(0, 237) + "..." : normalized;
+    }
+
     private static boolean isInterruptedCause(Throwable error) {
         Throwable current = error;
         int depth = 0;
@@ -187,13 +195,6 @@ public class RoutedLlm {
             case ITINERARY -> "itinerary generation requires the resolved trip context and execution results";
             case FINAL -> "final response requires synthesis of completed agent results";
         };
-    }
-
-    private static String sanitizeLogMessage(String message) {
-        if (message == null || message.isBlank()) {
-            return "unknown";
-        }
-        return message.replace('\n', ' ').replace('\r', ' ').replaceAll("\\s+", " ").trim();
     }
 
     private int maxTokens(AgentRole role) {

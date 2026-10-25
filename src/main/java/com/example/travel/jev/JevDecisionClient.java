@@ -63,7 +63,6 @@ public class JevDecisionClient {
         this.fallbackModel = fallbackModel;
         this.keepAlive = keepAlive == null ? "30m" : keepAlive.trim();
         this.logPayloads = logPayloads;
-
         log.info(
                 "jev.client.effective primaryProvider={} primaryModel={} fallbackProvider={} fallbackModel={} keepAlive={} logPayloads={}",
                 this.primaryProvider, this.primaryModel, this.fallbackProvider, this.fallbackModel,
