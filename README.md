@@ -145,7 +145,7 @@ C:\softwares\mailpit-windows-amd64\mailpit.exe
 
 If Mailpit is installed somewhere else, set the environment variable `MAILPIT_EXE` to the full path of `mailpit.exe`.
 
-When the application runs with the `dev` profile, `NativeMailpitManager` automatically starts Mailpit if SMTP port `1025` is not already in use. If Mailpit is already running, it is reused. When the application starts Mailpit itself, it uses a persistent SQLite database at `data/mailpit/mailpit.db`, so the inbox survives a normal application restart.
+When the application runs with the `dev` profile, `NativeMailpitManager` automatically starts Mailpit if SMTP port `1025` is not already in use. A process started by the application binds SMTP and the UI/API to the configured local host (default `localhost`) and retains up to 500 messages. If Mailpit is already running, it is reused, so ensure manually started instances are also bound to localhost. The persistent SQLite database at `data/mailpit/mailpit.db` keeps the inbox across normal application restarts.
 
 You can also start it manually with:
 
@@ -153,7 +153,7 @@ You can also start it manually with:
 scripts\start-mailpit.bat
 ```
 
-The helper script uses the same persistent database (`data\mailpit\mailpit.db`) and `--max 0`, so messages are not removed just because Mailpit restarts. If you start `mailpit.exe` yourself, start it with the same `--database` path to preserve the same inbox.
+The helper script uses the same persistent database (`data\mailpit\mailpit.db`), a 500-message cap, and localhost-only SMTP/UI listeners. If you start `mailpit.exe` yourself, use the same `--database` path and bind options to preserve the inbox and keep the local-only exposure.
 
 Then open the inbox at `http://localhost:8025`.
 
@@ -320,11 +320,23 @@ The application remains authoritative for policy, authorization, tool allow-list
 
 ## Jev decision layer
 
-The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider preference, and evidence routing (RAG / WEB / BOTH / NONE).
+The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider recovery preference, and evidence routing (RAG / WEB / BOTH / NONE). Normal flight-provider availability and fallback are managed by the MCP server; JEV is consulted for provider preference only after a failed flight operation.
 
-Jev never executes tools. Java remains authoritative for validation, authorization, decision thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `nimble:latest`). RAG and model-routing recommendations are gated by selected probability and margin by default because local-model self-reported confidence can be poorly calibrated; provider, goal, replan, and human-review decisions retain their confidence gates. A recommendation can therefore be returned with `accepted=false` and safely fall back to deterministic Java behavior even when the model responds successfully.
+Jev never executes tools. Java remains authoritative for validation, authorization, decision thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `nimble:latest`). RAG and model-routing recommendations are gated by selected probability and margin by default because local-model self-reported confidence can be poorly calibrated; provider, goal, replan, and human-review decisions retain their confidence gates. Rejection reasons are carried through to fallback logs, so `accepted=false` distinguishes policy rejection from provider unavailability. A rejected recommendation safely falls back to deterministic Java behavior.
 
 Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP server exposes AviationStack and Ignav flight providers. A preferred provider is attempted first when enabled and healthy; normal server-side fallback remains active. Duffel is not selected until a Duffel provider is actually exposed by the MCP server.
+
+### Benchmarking local JEV decisions
+
+An opt-in labeled benchmark covers model routing, evidence routing, goal routing, replanning, and HITL. It reports exact-choice accuracy, policy acceptance, and latency per case and by decision type. The labels are an initial, editable evaluation set; review them against your product requirements before using the score to make policy changes.
+
+With Ollama running and the model available locally, run:
+
+```text
+mvn "-Djev.eval=true" "-Djev.model=nimble:latest" "-Dtest=JevDecisionBenchmarkTest" test
+```
+
+The endpoint defaults to `http://localhost:11434`; override it with `-Djev.base-url=...` if needed. This benchmark is skipped during normal test runs and does not change production thresholds. Compare models using the same cases and endpoint settings; do not treat one run's confidence values as calibrated probabilities.
 
 
 ## Goal evaluation and observability dashboard

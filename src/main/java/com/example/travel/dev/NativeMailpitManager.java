@@ -90,7 +90,9 @@ public class NativeMailpitManager {
             ProcessBuilder processBuilder = new ProcessBuilder(
                     executablePath.toString(),
                     "--database", database.toString(),
-                    "--max", Integer.toString(maxMessages));
+                    "--max", Integer.toString(maxMessages),
+                    "--smtp", host + ":" + smtpPort,
+                    "--listen", host + ":" + uiPort);
             processBuilder
                     .directory(executablePath.getParent().toFile())
                     .redirectErrorStream(true)

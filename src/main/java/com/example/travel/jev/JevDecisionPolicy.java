@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * Production policy for accepting typed JEV recommendations.
  *
- * <p>JEV/Tev1 is advisory intelligence. This policy decides whether a
+ * <p>JEV is advisory intelligence. This policy decides whether a
  * recommendation is strong enough to influence the graph. The graph's
  * deterministic rules remain authoritative.</p>
  *

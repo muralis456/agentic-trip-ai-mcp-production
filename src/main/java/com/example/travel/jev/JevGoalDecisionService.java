@@ -27,6 +27,9 @@ public class JevGoalDecisionService {
         if (evaluation == null) {
             return new Decision("HITL", 0, false, "missing evaluation");
         }
+        if (evaluation.getStatus() == null) {
+            return new Decision("HITL", 0, false, "missing goal status");
+        }
         if (evaluation.getStatus() == GoalEvaluation.Status.ACHIEVED) {
             return new Decision("ACHIEVED", 1, true, "deterministic goal contract satisfied");
         }
@@ -35,6 +38,9 @@ public class JevGoalDecisionService {
         }
 
         String fallback = evaluation.isRecoverable() ? "REPLAN" : "HITL";
+        if (state == null) {
+            return new Decision(fallback, 0, false, "missing travel state");
+        }
         try {
             var d = decisions.choose(
                     JevDecisionPolicy.DecisionKind.GOAL,
@@ -50,11 +56,12 @@ public class JevGoalDecisionService {
                             "HITL", "Automation cannot safely recover; ask the user for a decision or clarification.",
                             "ACHIEVED", "All required outcomes are already satisfied."));
 
-            String choice = d.choice().toUpperCase();
+            String choice = d.choice().toUpperCase(Locale.ROOT);
             Decision result = d.accepted()
                     && (choice.equals("REPLAN") || choice.equals("HITL"))
                     ? new Decision(choice, d.confidence(), true, "jev-policy-accepted")
-                    : new Decision(fallback, d.confidence(), false, "deterministic-goal-fallback");
+                    : new Decision(fallback, d.confidence(), false,
+                            "deterministic-goal-fallback:" + d.acceptanceReason());
 
             log.info("jev.goal.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",
                     result.route(), choice, fmt(result.confidence()), result.accepted(), result.reason(), d.model());

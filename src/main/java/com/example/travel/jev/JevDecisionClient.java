@@ -11,12 +11,11 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Typed decision client.
  *
- * <p>Primary provider can be TypeSafe JEV or local Ollama Tev1. The Java
+ * <p>Primary provider can be TypeSafe JEV or a local Ollama model. The Java
  * decision layer remains authoritative: provider failures and rejected
  * recommendations are converted into deterministic fallbacks by callers.</p>
  */
@@ -25,8 +24,6 @@ import java.util.regex.Pattern;
 public class JevDecisionClient {
 
     private static final Logger log = LoggerFactory.getLogger(JevDecisionClient.class);
-    private static final Pattern LOG_DECIMAL = Pattern.compile("(?<=[:\\[,])(-?\\d+\\.\\d{3,})(?=([,}\\]]))");
-
     private final RestClient primaryClient;
     private final RestClient fallbackClient;
     private final String primaryModel;
@@ -50,7 +47,7 @@ public class JevDecisionClient {
             @Value("${travel.jev.fallback-provider:ollama}") String fallbackProvider,
             @Value("${travel.jev.fallback-base-url:http://localhost:11434}") String fallbackBaseUrl,
             @Value("${travel.jev.fallback-api-key:ollama}") String fallbackApiKey,
-            @Value("${travel.jev.fallback-model:tev1:4b}") String fallbackModel,
+            @Value("${travel.jev.fallback-model:nimble:latest}") String fallbackModel,
             @Value("${travel.jev.keep-alive:30m}") String keepAlive,
             @Value("${travel.jev.log-payloads:false}") boolean logPayloads) {
 
@@ -308,17 +305,6 @@ public class JevDecisionClient {
         }
 
         return answer;
-    }
-
-    private String jsonForLog(Object value) {
-        String json = json(value);
-        return LOG_DECIMAL.matcher(json).replaceAll(match -> {
-            try {
-                return String.format(java.util.Locale.ROOT, "%.2f", Double.parseDouble(match.group()));
-            } catch (NumberFormatException ignored) {
-                return match.group();
-            }
-        });
     }
 
     private String json(Object value) {

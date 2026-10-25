@@ -68,7 +68,8 @@ public class JevModelRoutingService {
                     c,
                     fmt(d.confidence()),
                     d.accepted(),
-                    d.accepted() ? "jev-policy-accepted" : "deterministic-model-policy-fallback",
+                    d.accepted() ? "jev-policy-accepted"
+                            : "deterministic-model-policy-fallback:" + d.acceptanceReason(),
                     d.model());
             return result;
         } catch (Exception ex) {

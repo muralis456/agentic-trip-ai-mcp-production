@@ -2,7 +2,6 @@ package com.example.travel.jev;
 
 import com.example.travel.graph.TravelState;
 import com.example.travel.model.GoalEvaluation;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
@@ -75,6 +74,23 @@ class JevSafeFallbackTest {
 
         assertEquals("HITL", result.route());
         assertFalse(result.accepted());
+    }
+
+    @Test
+    void goalDecisionFallsBackWhenTravelStateIsMissing() {
+        JevDecisionService decisions = mock(JevDecisionService.class);
+        JevGoalDecisionService service = new JevGoalDecisionService(decisions);
+        GoalEvaluation evaluation = new GoalEvaluation();
+        evaluation.setStatus(GoalEvaluation.Status.PARTIAL);
+        evaluation.setRecoverable(false);
+
+        JevGoalDecisionService.Decision result =
+                service.decide(null, evaluation);
+
+        assertEquals("HITL", result.route());
+        assertFalse(result.accepted());
+        assertEquals("missing travel state", result.reason());
+        verifyNoInteractions(decisions);
     }
 
     @Test
