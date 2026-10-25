@@ -291,6 +291,14 @@ public class McpToolClient {
     }
 
     private boolean isRetryable(Exception exception) {
+        // A timeout is ambiguous: the remote tool may have completed its side effect
+        // even though the response did not arrive before the deadline. Do not retry
+        // automatically, because doing so can create duplicate bookings or mutations.
+        if (exception instanceof java.util.concurrent.TimeoutException
+                || exceptionChainContains(exception, java.util.concurrent.TimeoutException.class)) {
+            return false;
+        }
+
         // A malformed JSON-RPC frame is a protocol/payload failure, not a transient
         // tool failure. Retrying the same malformed response only adds latency and
         // duplicates noisy stack traces; the domain client can move to its fallback.
@@ -358,6 +366,18 @@ public class McpToolClient {
                 || value.contains("http 422")
                 || value.contains("provider_http_404")
                 || value.contains("http 404");
+    }
+
+    private boolean exceptionChainContains(Throwable exception, Class<? extends Throwable> type) {
+        Throwable current = exception;
+        int depth = 0;
+        while (current != null && depth++ < 8) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private String exceptionChainMessage(Throwable exception) {
