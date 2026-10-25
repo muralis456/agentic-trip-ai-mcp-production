@@ -20,6 +20,30 @@ import static org.mockito.Mockito.*;
 
 class McpToolClientCancellationTest {
     @Test
+    void timeoutDoesNotRetryBecauseRemoteSideEffectMayHaveCompleted() throws Exception {
+        CountDownLatch callbackStarted = new CountDownLatch(1);
+        ToolCallback callback = mock(ToolCallback.class);
+        ToolDefinition definition = mock(ToolDefinition.class);
+        when(definition.name()).thenReturn("create_booking");
+        when(callback.getToolDefinition()).thenReturn(definition);
+        when(callback.call(anyString())).thenAnswer(invocation -> {
+            callbackStarted.countDown();
+            new CountDownLatch(1).await();
+            return "{}";
+        });
+        ToolCallbackProvider provider = mock(ToolCallbackProvider.class);
+        when(provider.getToolCallbacks()).thenReturn(new ToolCallback[] { callback });
+        McpToolClient client = new McpToolClient(provider, new ObjectMapper(),
+                mock(McpToolSelector.class), "", 2, 1000,
+                mock(PromptInjectionGuard.class), mock(ToolGovernanceService.class));
+
+        assertThrows(java.util.concurrent.TimeoutException.class,
+                () -> client.call("create_booking", Map.of("destination", "Tokyo")));
+        assertTrue(callbackStarted.await(1, TimeUnit.SECONDS));
+        verify(callback, times(1)).call(anyString());
+    }
+
+    @Test
     void interruptionCancelsInvocationWithoutRetryingMcpCall() throws Exception {
         CountDownLatch callbackStarted = new CountDownLatch(1);
         ToolCallback callback = mock(ToolCallback.class);
