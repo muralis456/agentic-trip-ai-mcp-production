@@ -35,11 +35,12 @@ public class JevProviderDecisionService {
                             "IGNAV", "Use Ignav when available for structured live flight offers.",
                             "AVIATIONSTACK", "Use AviationStack as the configured flight provider."));
 
-            String c = d.choice().toUpperCase();
+            String c = d.choice().toUpperCase(Locale.ROOT);
             boolean valid = Map.of("IGNAV", 1, "AVIATIONSTACK", 1).containsKey(c);
             Decision result = d.accepted() && valid
                     ? new Decision(c, d.confidence(), true, "jev-policy-accepted")
-                    : new Decision("", d.confidence(), false, "deterministic-provider-policy-fallback");
+                    : new Decision("", d.confidence(), false,
+                            "deterministic-provider-policy-fallback:" + d.acceptanceReason());
 
             log.info(
                     "jev.provider.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",

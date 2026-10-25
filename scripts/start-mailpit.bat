@@ -9,7 +9,7 @@ if not exist "%MAILPIT_EXE%" (
 )
 set "MAILPIT_DATABASE=%~dp0..\data\mailpit\mailpit.db"
 if not exist "%~dp0..\data\mailpit" mkdir "%~dp0..\data\mailpit"
-start "Mailpit" "%MAILPIT_EXE%" --database "%MAILPIT_DATABASE%" --max 0
+start "Mailpit" "%MAILPIT_EXE%" --database "%MAILPIT_DATABASE%" --max 500 --smtp localhost:1025 --listen localhost:8025
 echo Mailpit started with persistent database: %MAILPIT_DATABASE%
 echo SMTP: localhost:1025  UI: http://localhost:8025
 endlocal

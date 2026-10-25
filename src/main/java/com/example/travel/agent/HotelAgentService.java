@@ -111,7 +111,7 @@ public class HotelAgentService {
                         destination, directHotels.size());
                 return new HotelSearchResult(new ArrayList<>(directHotels), List.of(), false);
             }
-            log.warn("Hotel provider returned no verified structured hotels destination={} — switching to independent travel-research fallback",
+            log.warn("Hotel provider returned no verified structured hotels destination={} â€” switching to independent travel-research fallback",
                     destination);
         }
 

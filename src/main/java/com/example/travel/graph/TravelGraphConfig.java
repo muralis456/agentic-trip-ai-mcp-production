@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import com.example.travel.service.GraphProgressHub;
 import com.example.travel.service.AgentRunControlService;
 import com.example.travel.jev.JevModelRoutingService;
-import com.example.travel.service.ModelRoutingContext;
 import com.example.travel.exception.GraphStopRequestedException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,7 +26,6 @@ import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -47,14 +45,29 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 public class TravelGraphConfig {
     @Bean(destroyMethod = "shutdown")
     public ExecutorService travelParallelExecutor(
-            @Value("${travel.runtime.max-concurrent-specialists:12}") int maxSpecialists) {
+            @Value("${travel.runtime.max-concurrent-specialists:12}") int maxSpecialists,
+            @Value("${travel.runtime.specialist-queue-capacity:48}") int queueCapacity) {
         AtomicInteger n = new AtomicInteger();
-        return Executors.newFixedThreadPool(Math.max(2, maxSpecialists), r -> {
-            Thread t = new Thread(r);
-            t.setName("travel-agent-" + n.incrementAndGet());
-            t.setDaemon(true);
-            return t;
-        });
+        int maximum = Math.max(2, maxSpecialists);
+        return new ThreadPoolExecutor(
+                maximum,
+                maximum,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(Math.max(1, queueCapacity)),
+                r -> {
+                    Thread t = new Thread(r);
+                    t.setName("travel-agent-" + n.incrementAndGet());
+                    t.setDaemon(true);
+                    return t;
+                },
+                (task, pool) -> {
+                    if (pool.isShutdown()) {
+                        throw new java.util.concurrent.RejectedExecutionException(
+                                "Specialist executor is shut down");
+                    }
+                    task.run();
+                });
     }
 
     @Bean(destroyMethod = "shutdown")
@@ -97,18 +110,19 @@ public class TravelGraphConfig {
             ObjectStreamStateSerializer<TravelState> serializer,
             GraphProgressHub graphProgressHub,
             AgentRunControlService runControlService,
-            java.util.Optional<JevModelRoutingService> jevModelRouting) throws GraphStateException {
+            java.util.Optional<JevModelRoutingService> jevModelRouting,
+            com.example.travel.service.GraphRunContext graphRunContext) throws GraphStateException {
 
         return new StateGraph<>(TravelState.SCHEMA,serializer)
-                .addNode("intent", async("intent",intentNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("plan", async("plan",planNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("execute", async("execute",executeNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("evaluate", async("evaluate",evaluateNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("replan", async("replan",replanNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("final", async("final",finalNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("hitl", async("hitl",hitlNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("complete", async("complete",completeNode, graphProgressHub, runControlService, jevModelRouting))
-                .addNode("cancel", async("cancel",cancelNode, graphProgressHub, runControlService, jevModelRouting))
+                .addNode("intent", async("intent",intentNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("plan", async("plan",planNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("execute", async("execute",executeNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("evaluate", async("evaluate",evaluateNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("replan", async("replan",replanNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("final", async("final",finalNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("hitl", async("hitl",hitlNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("complete", async("complete",completeNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
+                .addNode("cancel", async("cancel",cancelNode, graphProgressHub, runControlService, jevModelRouting, graphRunContext))
                 .addEdge(START,"intent")
                 .addEdge("intent","plan")
                 .addEdge("plan","execute")
@@ -172,10 +186,15 @@ public class TravelGraphConfig {
 
     @Bean public RunnableConfig travelRunnableConfig(){return RunnableConfig.builder().build();}
 
-    private AsyncNodeAction<TravelState> async(String name, NodeAction<TravelState> node, GraphProgressHub progressHub, AgentRunControlService runControlService, java.util.Optional<JevModelRoutingService> jevModelRouting){
+    private AsyncNodeAction<TravelState> async(String name, NodeAction<TravelState> node,
+            GraphProgressHub progressHub, AgentRunControlService runControlService,
+            java.util.Optional<JevModelRoutingService> jevModelRouting,
+            com.example.travel.service.GraphRunContext graphRunContext) {
         return node_async(state->{
             long start=System.nanoTime();
             String threadId = state.graphThreadId();
+            boolean contextAttached = threadId != null && !threadId.isBlank();
+            if (contextAttached) graphRunContext.attach(threadId);
             if (threadId != null && !threadId.isBlank()) {
                 progressHub.emit(threadId, "node_start", Map.of(
                         "node", name,
@@ -188,7 +207,7 @@ public class TravelGraphConfig {
                 }
                 if (jevModelRouting.isPresent() && "plan".equals(name)) {
                     String selected = jevModelRouting.get().choose(state);
-                    ModelRoutingContext.set(selected);
+                    graphRunContext.updatePolicy(threadId, selected);
                     GraphExecutionLogger.stageState(name, state, "jev-model=" + selected);
                 }
                 Map<String,Object> result = node.apply(state);
@@ -232,6 +251,7 @@ public class TravelGraphConfig {
                 }
                 throw new RuntimeException("Node "+name+" failed",e);
             } finally {
+                if (contextAttached) graphRunContext.detach();
                 GraphExecutionLogger.nodeComplete(name,state,(System.nanoTime()-start)/1_000_000L);
             }
         });

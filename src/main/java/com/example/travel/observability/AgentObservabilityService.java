@@ -7,7 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Central metrics facade for agent execution.
@@ -19,6 +20,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class AgentObservabilityService {
 
+    private static final Set<String> REPLAN_REASONS = Set.of(
+            "max_retries_exhausted", "user_modification", "goal_not_achieved",
+            "goal_validation_failed");
+    private static final Set<String> RETRY_REASONS = Set.of(
+            "timeout", "connect", "io", "http", "interrupted", "other");
+    private static final Set<String> RETRY_CATEGORIES = Set.of("mcp", "llm", "provider", "graph");
     private final MeterRegistry registry;
     private final AgentRuntimeEventLedger runtimeEvents;
 
@@ -119,20 +126,23 @@ public class AgentObservabilityService {
     }
 
     public void recordRetry(String category, String reason) {
-        runtime("RETRY", category + ":" + reason, true, 0, 2);
+        String safeCategory = boundedCategory(category);
+        String safeReason = retryReason(reason);
+        runtime("RETRY", safeCategory + ":" + safeReason, true, 0, 2);
         Counter.builder("agent.retries")
                 .description("Agent and provider retry attempts")
-                .tag("category", normalize(category))
-                .tag("reason", normalize(reason))
+                .tag("category", safeCategory)
+                .tag("reason", safeReason)
                 .register(registry)
                 .increment();
     }
 
     public void recordReplan(String reason) {
-        runtime("REPLAN", reason, true, 0, 1);
+        String safeReason = boundedReplanReason(reason);
+        runtime("REPLAN", safeReason, true, 0, 1);
         Counter.builder("agent.replans")
                 .description("Agent replans")
-                .tag("reason", normalize(reason))
+                .tag("reason", safeReason)
                 .register(registry)
                 .increment();
     }
@@ -204,7 +214,29 @@ public class AgentObservabilityService {
 
     private static String normalize(String value) {
         if (value == null || value.isBlank()) return "unknown";
-        return value.trim().toLowerCase()
+        return value.trim().toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9_.-]", "_");
+    }
+
+    private static String boundedCategory(String value) {
+        String normalized = normalize(value);
+        return RETRY_CATEGORIES.contains(normalized)
+                ? normalized : "other";
+    }
+
+    private static String retryReason(String value) {
+        if (value == null || value.isBlank()) return "other";
+        String simple = value.trim().toLowerCase(Locale.ROOT);
+        if (simple.contains("timeout")) return "timeout";
+        if (simple.contains("connect")) return "connect";
+        if (simple.contains("interrupt")) return "interrupted";
+        if (simple.contains("http") || simple.contains("status")) return "http";
+        if (simple.contains("socket") || simple.endsWith("ioexception")) return "io";
+        return RETRY_REASONS.contains(simple) ? simple : "other";
+    }
+
+    private static String boundedReplanReason(String value) {
+        String normalized = normalize(value);
+        return REPLAN_REASONS.contains(normalized) ? normalized : "other";
     }
 }

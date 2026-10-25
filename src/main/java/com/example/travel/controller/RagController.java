@@ -13,6 +13,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/rag")
 public class RagController {
+    private static final int MAX_ANSWER_CHARS = 12_000;
+    private static final int MAX_CONTEXT_CHARS = 32_000;
+    private static final int MAX_REQUEST_CHARS = 4_000;
 
     private final RagEvaluationRunner evaluationRunner;
     private final RagEvaluationService evaluationService;
@@ -30,6 +33,7 @@ public class RagController {
 
     /** Runs the deterministic retrieval benchmark against the current vector index. */
     @PostMapping("/evaluate")
+    @PreAuthorize("hasRole('ADMIN')")
     public Object evaluate() {
         return evaluationRunner.run(RagEvaluationCatalog.defaultCases());
     }
@@ -37,19 +41,31 @@ public class RagController {
     /** Scores an already generated answer against retrieved RAG context. */
     @PostMapping("/groundedness")
     public Map<String, Object> groundedness(@org.springframework.web.bind.annotation.RequestBody Map<String, String> body) {
-        String answer = body.getOrDefault("answer", "");
-        String context = body.getOrDefault("context", "");
+        String answer = boundedText(body, "answer", MAX_ANSWER_CHARS);
+        String context = boundedText(body, "context", MAX_CONTEXT_CHARS);
         double score = evaluationService.groundedness(answer, context);
         return Map.of("groundedness", score, "answerChars", answer.length(), "contextChars", context.length());
     }
 
     /** LLM-as-a-judge groundedness evaluation for CI/manual testing. */
     @PostMapping("/judge")
+    @PreAuthorize("hasRole('ADMIN')")
     public Object judge(@org.springframework.web.bind.annotation.RequestBody Map<String, String> body) {
-        String answer = body.getOrDefault("answer", "");
-        String context = body.getOrDefault("context", "");
-        String request = body.getOrDefault("userRequest", "");
+        String answer = boundedText(body, "answer", MAX_ANSWER_CHARS);
+        String context = boundedText(body, "context", MAX_CONTEXT_CHARS);
+        String request = boundedText(body, "userRequest", MAX_REQUEST_CHARS);
         return ragLlmJudgeService.judge(answer, context, request);
+    }
+
+    private String boundedText(Map<String, String> body, String field, int maxChars) {
+        String value = body == null ? null : body.get(field);
+        if (value == null) {
+            return "";
+        }
+        if (value.length() > maxChars) {
+            throw new IllegalArgumentException(field + " must be at most " + maxChars + " characters.");
+        }
+        return value;
     }
 
     /** Rebuilds bundled knowledge and regenerates database-backed city/airport knowledge. */

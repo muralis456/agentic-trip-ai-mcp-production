@@ -105,7 +105,8 @@ public class IntentAgentService {
                 ? runMemoryIntentPass(request, state.historyContext())
                 : new MemoryIntentDecision(false, false, 0.0);
         log.info("Intent memory semantic result request={} history={} historyOnly={} selection={} confidence={}",
-                request, memoryIntent.isNeedsHistory(), memoryIntent.isHistoryOnly(), memoryIntent.getSelection(), memoryIntent.getConfidence());
+                request, memoryIntent.isNeedsHistory(), memoryIntent.isHistoryOnly(),
+                memoryIntent.getSelection(), memoryIntent.getConfidence());
 
         // If the dedicated LLM memory pass is weak or conflicts with an itinerary
         // interpretation, obtain an independent semantic signal from the embedding

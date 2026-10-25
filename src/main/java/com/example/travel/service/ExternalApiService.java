@@ -96,7 +96,7 @@ public class ExternalApiService {
             });
         } catch (Exception exception) {
             log.warn("Tavily search failed for query={}", cleanQuery, exception);
-            return "Tavily search failed: " + exception.getMessage();
+            return "Travel research provider is unavailable.";
         }
     }
 

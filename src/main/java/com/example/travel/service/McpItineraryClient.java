@@ -65,8 +65,14 @@ public class McpItineraryClient {
         } catch (Exception exception) {
             log.warn("mcp.itinerary.provider-failure destination={} errorType={} reason={}",
                     destination, exception.getClass().getSimpleName(), abbreviate(exception.getMessage()));
-            throw new IllegalStateException("Jettova itinerary unavailable: " + abbreviate(exception.getMessage()), exception);
+            throw new IllegalStateException("Jettova itinerary unavailable.", exception);
         }
+    }
+
+    private String abbreviate(String value) {
+        if (value == null || value.isBlank()) return "unknown";
+        String normalized = value.replace('\n', ' ').trim();
+        return normalized.length() <= 180 ? normalized : normalized.substring(0, 180) + "...";
     }
 
     private Itinerary map(JsonNode root) {
@@ -113,9 +119,4 @@ public class McpItineraryClient {
         return itinerary;
     }
 
-    private String abbreviate(String value) {
-        if (value == null || value.isBlank()) return "unknown";
-        String normalized = value.replace('\n', ' ').trim();
-        return normalized.length() <= 180 ? normalized : normalized.substring(0, 180) + "...";
-    }
 }

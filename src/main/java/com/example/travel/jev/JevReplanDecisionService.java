@@ -44,10 +44,11 @@ public class JevReplanDecisionService {
                     "Choose the single highest-value replan lever. Select only a capability that can address the unmet outcome. Do not choose ASK_USER unless automation cannot safely recover; choose NONE only when no replan is needed.",
                     criteria);
 
-            String choice = d.choice().toUpperCase();
+            String choice = d.choice().toUpperCase(Locale.ROOT);
             Decision result = d.accepted() && allowed.contains(choice)
                     ? new Decision(choice, d.confidence(), true, "jev-policy-accepted")
-                    : new Decision(fallback, d.confidence(), false, "deterministic-replan-fallback");
+                    : new Decision(fallback, d.confidence(), false,
+                            "deterministic-replan-fallback:" + d.acceptanceReason());
 
             log.info("jev.replan.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",
                     result.action(), choice, result.confidence(), result.accepted(), result.reason(), d.model());

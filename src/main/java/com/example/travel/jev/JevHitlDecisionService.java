@@ -47,11 +47,12 @@ public class JevHitlDecisionService {
                             "AUTO_COMPLETE", "All deterministic checks pass and the result can be returned without user confirmation.",
                             "ASK_USER", "User review is required or material ambiguity remains."));
 
-            String choice = d.choice().toUpperCase();
+            String choice = d.choice().toUpperCase(Locale.ROOT);
             boolean valid = choice.equals("AUTO_COMPLETE") || choice.equals("ASK_USER");
             Decision result = d.accepted() && valid
                     ? new Decision(choice, d.confidence(), true, "jev-policy-accepted")
-                    : new Decision("ASK_USER", d.confidence(), false, "deterministic-hitl-fallback");
+                    : new Decision("ASK_USER", d.confidence(), false,
+                            "deterministic-hitl-fallback:" + d.acceptanceReason());
 
             log.info("jev.hitl.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",
                     result.route(), choice, fmt(result.confidence()), result.accepted(), result.reason(), d.model());

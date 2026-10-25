@@ -48,7 +48,9 @@ public class JevRagDecisionService {
                             fallback,
                             d.confidence(),
                             false,
-                            d.accepted() ? "invalid-jev-choice" : "deterministic-rag-fallback");
+                            d.accepted()
+                                    ? "invalid-jev-choice"
+                                    : "deterministic-rag-fallback:" + d.acceptanceReason());
 
             log.info(
                     "jev.rag.decision outcome={} recommendation={} confidence={} accepted={} reason={} model={}",

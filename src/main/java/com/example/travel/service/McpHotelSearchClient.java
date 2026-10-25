@@ -53,7 +53,8 @@ public class McpHotelSearchClient {
                     + ", cheaper=" + cheaper + budgetText
                     + ". Return hotel properties only; do not return article titles, listicles, guides or generic research headings.";
             JsonNode root = client.invokePreferred("search_hotels", "Find accommodation/hotels", userInput, arguments);
-            log.debug("mcp.hotel.raw-response destination={} payload={}", destination, abbreviate(root == null ? "" : root.toString()));
+            log.debug("mcp.hotel.raw-response destination={} payload={}",
+                    destination, abbreviate(root == null ? "" : root.toString()));
             List<HotelOption> hotels = new ArrayList<>();
             List<JsonNode> records = hotelRecords(root);
             if (records.isEmpty()) {
@@ -85,8 +86,8 @@ public class McpHotelSearchClient {
             }
             return hotels;
         } catch (Exception exception) {
-            String message = safeMessage(exception);
             boolean protocolFailure = isProtocolFailure(exception);
+            String message = abbreviate(exception.getMessage());
             if (protocolFailure) {
                 // The MCP server has returned a malformed/truncated JSON-RPC frame.
                 // Do not leak the giant provider payload into the application log and
@@ -116,6 +117,11 @@ public class McpHotelSearchClient {
         return result;
     }
 
+    private String abbreviate(String value) {
+        if (value == null) return "";
+        String normalized = value.replace("\n", " ").trim();
+        return normalized.length() <= 120 ? normalized : normalized.substring(0, 120) + "...";
+    }
 
     private boolean isProtocolFailure(Throwable exception) {
         Throwable current = exception;
@@ -134,13 +140,4 @@ public class McpHotelSearchClient {
         return false;
     }
 
-    private String abbreviate(String value) {
-        if (value == null) return "";
-        String normalized = value.replace("\n", " ").trim();
-        return normalized.length() <= 120 ? normalized : normalized.substring(0, 120) + "...";
-    }
-
-    private String safeMessage(Exception exception) {
-        return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
-    }
 }

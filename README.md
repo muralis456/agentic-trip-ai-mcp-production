@@ -62,6 +62,10 @@ Validated `TravelState` is rendered deterministically. The Final LLM writes **ti
 ## Guardrails
 
 `max-retries`, `max-llm-calls`, `max-tavily-calls`, `max-iterations` (graph step cap).
+Specialist work uses a bounded queue (`TRAVEL_SPECIALIST_QUEUE_CAPACITY`, default `48`); when full, caller-runs backpressure slows plan submission instead of accumulating an unbounded backlog.
+Run-level LLM/Tavily budgets and the selected model policy are attached to graph and specialist worker threads, so parallel agents share the same limits and routing choice.
+
+Conversation context is limited to 6,000 characters, treats prior turns as untrusted evidence, and projects saved trip responses to a small set of trip facts instead of injecting the full UI payload. Goal evaluation remains deterministic for required evidence; semantic scores cannot exceed the deterministic score when required outcomes are missing. Retry and replan metric reasons are normalized to bounded categories.
 
 ## Tests
 
@@ -70,13 +74,13 @@ Validated `TravelState` is rendered deterministically. The Final LLM writes **ti
 ## Run
 
 ```bash
-cd agentic-trip-ai
+cd agentic-trip-ai-mcp-production
 mvn spring-boot:run
 ```
 
 UI: http://localhost:8081
 
-**Maven coordinates:** `com.example:agentic-trip-ai`
+**Maven coordinates:** `com.example:agentic-trip-ai-mcp-production`
 
 
 ## MCP LLM Tool Selection Logging
@@ -106,7 +110,7 @@ POST /api/rag/evaluate
 POST /api/rag/groundedness
 ```
 
-`/api/rag/evaluate` runs the built-in retrieval benchmark against the current pgvector index. The benchmark now generates an evidence-only answer and uses an LLM judge for groundedness. `/api/rag/groundedness` accepts `{ "answer": "...", "context": "..." }` and returns a lexical screening score. `/api/rag/judge` accepts `{ "userRequest": "...", "answer": "...", "context": "..." }` and returns LLM-as-a-judge groundedness, coverage, unsupported-claim rate, pass/fail and reason. During the graph, `ValidatorNode` judges the generated itinerary against RAG evidence; a failed judge adds a validation error and sends the graph through the existing replan loop.
+`/api/rag/evaluate` runs the built-in retrieval benchmark against the current pgvector index. The benchmark generates an evidence-only answer and uses an LLM judge for groundedness. `/api/rag/groundedness` accepts `{ "answer": "...", "context": "..." }` and returns a lexical screening score. `/api/rag/judge` accepts `{ "userRequest": "...", "answer": "...", "context": "..." }` and returns LLM-as-a-judge groundedness, coverage, unsupported-claim rate, pass/fail and reason. The model-backed `/evaluate` and `/judge` endpoints require the `ADMIN` role; request fields are size-limited. During the graph, `ValidatorNode` judges the generated itinerary against RAG evidence; a failed judge adds a validation error and sends the graph through the existing replan loop.
 
 The groundedness score is a guardrail/smoke metric, not a substitute for an LLM-as-judge evaluation. For production evaluation, add a second judge using a stronger model and compare it with these deterministic metrics.
 
@@ -141,7 +145,7 @@ C:\softwares\mailpit-windows-amd64\mailpit.exe
 
 If Mailpit is installed somewhere else, set the environment variable `MAILPIT_EXE` to the full path of `mailpit.exe`.
 
-When the application runs with the `dev` profile, `NativeMailpitManager` automatically starts Mailpit if SMTP port `1025` is not already in use. If Mailpit is already running, it is reused. When the application starts Mailpit itself, it uses a persistent SQLite database at `data/mailpit/mailpit.db`, so the inbox survives a normal application restart.
+When the application runs with the `dev` profile, `NativeMailpitManager` automatically starts Mailpit if SMTP port `1025` is not already in use. A process started by the application binds SMTP and the UI/API to the configured local host (default `localhost`) and retains up to 500 messages. If Mailpit is already running, it is reused, so ensure manually started instances are also bound to localhost. The persistent SQLite database at `data/mailpit/mailpit.db` keeps the inbox across normal application restarts.
 
 You can also start it manually with:
 
@@ -149,7 +153,7 @@ You can also start it manually with:
 scripts\start-mailpit.bat
 ```
 
-The helper script uses the same persistent database (`data\mailpit\mailpit.db`) and `--max 0`, so messages are not removed just because Mailpit restarts. If you start `mailpit.exe` yourself, start it with the same `--database` path to preserve the same inbox.
+The helper script uses the same persistent database (`data\mailpit\mailpit.db`), a 500-message cap, and localhost-only SMTP/UI listeners. If you start `mailpit.exe` yourself, use the same `--database` path and bind options to preserve the inbox and keep the local-only exposure.
 
 Then open the inbox at `http://localhost:8025`.
 
@@ -204,7 +208,7 @@ This build hardens user Stop as a control-flow operation rather than a provider/
 - The application logs explicitly record the stop request, whether an active future was interrupted, and checkpoint preservation.
 - SSE exposes `stop_requested` followed by `stopped` so the UI transitions cleanly from Working → Stopping → Stopped.
 
-Full Maven compilation was not run in this environment because Maven is not installed. The embedded JavaScript was syntax-checked with Node.js and the distribution ZIP was integrity-checked with `unzip -t`.
+Run the Maven test suite with `mvn test`; `HitlPostgresCheckpointIT` additionally requires PostgreSQL.
 
 
 ### RAG reindex authorization
@@ -278,11 +282,11 @@ low confidence / Jev unavailable
 existing LLM selector fallback
 ```
 
-Jev is disabled by default. For local development with the Ollama Tev1 model you downloaded:
+Jev is enabled by default in the local configuration. For local development with the Ollama Nimble model:
 
 ```bash
 ollama list
-ollama run tev1:4b
+ollama run nimble:latest
 ```
 
 Then configure:
@@ -292,7 +296,7 @@ TRAVEL_JEV_ENABLED=true
 TRAVEL_JEV_PROVIDER=ollama
 TRAVEL_JEV_BASE_URL=http://localhost:11434
 TRAVEL_JEV_API_KEY=ollama
-TRAVEL_JEV_MODEL=tev1:4b
+TRAVEL_JEV_MODEL=nimble:latest
 TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
 ```
 
@@ -306,21 +310,33 @@ TRAVEL_JEV_MODEL=jev-latest
 TRAVEL_JEV_FALLBACK_PROVIDER=ollama
 TRAVEL_JEV_FALLBACK_BASE_URL=http://localhost:11434
 TRAVEL_JEV_FALLBACK_API_KEY=ollama
-TRAVEL_JEV_FALLBACK_MODEL=tev1:4b
+TRAVEL_JEV_FALLBACK_MODEL=nimble:latest
 TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
 ```
 
 **Safe fallback:** TypeSafe failure, missing credits, timeout, or HTTP/API error automatically tries the local Ollama decision model. If both typed-decision providers are unavailable, each decision service applies its deterministic Java fallback. This keeps the core workflow usable even when typed decision AI is unavailable.
 
-The application remains authoritative for policy, authorization, tool allow-lists, confidence thresholds, retries, and execution. Jev only supplies a typed decision. The next planned integrations are goal evaluation, replan-action selection, model routing, and human-review decisions.
+The application remains authoritative for policy, authorization, tool allow-lists, decision thresholds, retries, and execution. Jev only supplies a typed decision.
 
 ## Jev decision layer
 
-The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider preference, and evidence routing (RAG / WEB / BOTH / NONE).
+The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider recovery preference, and evidence routing (RAG / WEB / BOTH / NONE). Normal flight-provider availability and fallback are managed by the MCP server; JEV is consulted for provider preference only after a failed flight operation.
 
-Jev never executes tools. Java remains authoritative for validation, authorization, confidence thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `tev1:4b`). Low-confidence decisions are rejected by the application policy; provider failures fall through to the next configured provider and finally to deterministic Java behavior.
+Jev never executes tools. Java remains authoritative for validation, authorization, decision thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `nimble:latest`). RAG and model-routing recommendations are gated by selected probability and margin by default because local-model self-reported confidence can be poorly calibrated; provider, goal, replan, and human-review decisions retain their confidence gates. Rejection reasons are carried through to fallback logs, so `accepted=false` distinguishes policy rejection from provider unavailability. A rejected recommendation safely falls back to deterministic Java behavior.
 
 Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP server exposes AviationStack and Ignav flight providers. A preferred provider is attempted first when enabled and healthy; normal server-side fallback remains active. Duffel is not selected until a Duffel provider is actually exposed by the MCP server.
+
+### Benchmarking local JEV decisions
+
+An opt-in labeled benchmark covers model routing, evidence routing, goal routing, replanning, and HITL. It reports exact-choice accuracy, policy acceptance, and latency per case and by decision type. The labels are an initial, editable evaluation set; review them against your product requirements before using the score to make policy changes.
+
+With Ollama running and the model available locally, run:
+
+```text
+mvn "-Djev.eval=true" "-Djev.model=nimble:latest" "-Dtest=JevDecisionBenchmarkTest" test
+```
+
+The endpoint defaults to `http://localhost:11434`; override it with `-Djev.base-url=...` if needed. This benchmark is skipped during normal test runs and does not change production thresholds. Compare models using the same cases and endpoint settings; do not treat one run's confidence values as calibrated probabilities.
 
 
 ## Goal evaluation and observability dashboard

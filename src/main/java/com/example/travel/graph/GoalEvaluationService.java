@@ -6,13 +6,16 @@ import com.example.travel.model.GoalEvaluation;
 import com.example.travel.service.RoutedLlm;
 import com.example.travel.support.JsonSupport;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class GoalEvaluationService {
+    private static final Logger log = LoggerFactory.getLogger(GoalEvaluationService.class);
+
     private final RoutedLlm llm;
     private final JsonSupport json;
 
@@ -67,6 +70,9 @@ public class GoalEvaluationService {
             if (!hard.getUnmetCriteria().isEmpty()) {
                 // A hard missing outcome always dominates an LLM "achieved" claim.
                 llmEvaluation.setStatus(hard.getStatus());
+                double semanticScore = llmEvaluation.getScore();
+                llmEvaluation.setScore(Double.isFinite(semanticScore)
+                        ? Math.min(semanticScore, hard.getScore()) : hard.getScore());
                 boolean terminalProviderFailure = state.nodeFailure() != null
                         && !TravelState.isBlank(state.nodeFailure().getLastFailedNode())
                         && !state.nodeFailure().isRetryable();
@@ -87,7 +93,9 @@ public class GoalEvaluationService {
                 llmEvaluation.setReason(hard.getReason());
             }
             return llmEvaluation;
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            log.warn("Semantic goal evaluation failed; using deterministic result errorType={}",
+                    exception.getClass().getSimpleName());
             return hard;
         }
     }
