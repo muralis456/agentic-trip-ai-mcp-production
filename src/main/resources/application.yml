@@ -113,17 +113,17 @@ travel:
         input-usd-per-million: ${TRAVEL_LLM_TEV1_INPUT_USD_PER_MILLION:0}
         output-usd-per-million: ${TRAVEL_LLM_TEV1_OUTPUT_USD_PER_MILLION:0}
   jev:
-    # Local development defaults to Ollama Tev1. Production can override these
+    # Local development defaults to Ollama Nimble. Production can override these
     # with TRAVEL_JEV_* environment variables.
     enabled: ${TRAVEL_JEV_ENABLED:true}
     provider: ${TRAVEL_JEV_PROVIDER:ollama}
     base-url: ${TRAVEL_JEV_BASE_URL:http://localhost:11434}
     api-key: ${TRAVEL_JEV_API_KEY:ollama}
-    model: ${TRAVEL_JEV_MODEL:tev1:4b}
+    model: ${TRAVEL_JEV_MODEL:nimble:latest}
     fallback-provider: ${TRAVEL_JEV_FALLBACK_PROVIDER:none}
     fallback-base-url: ${TRAVEL_JEV_FALLBACK_BASE_URL:http://localhost:11434}
     fallback-api-key: ${TRAVEL_JEV_FALLBACK_API_KEY:ollama}
-    fallback-model: ${TRAVEL_JEV_FALLBACK_MODEL:tev1:4b}
+    fallback-model: ${TRAVEL_JEV_FALLBACK_MODEL:nimble:latest}
     minimum-confidence: ${TRAVEL_JEV_MINIMUM_CONFIDENCE:0.75}
     # Acceptance is risk-aware: routing decisions use probability + margin;
     # higher-risk decisions retain a confidence gate.

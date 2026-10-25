@@ -282,11 +282,11 @@ low confidence / Jev unavailable
 existing LLM selector fallback
 ```
 
-Jev is disabled by default. For local development with the Ollama Tev1 model you downloaded:
+Jev is enabled by default in the local configuration. For local development with the Ollama Nimble model:
 
 ```bash
 ollama list
-ollama run tev1:4b
+ollama run nimble:latest
 ```
 
 Then configure:
@@ -296,7 +296,7 @@ TRAVEL_JEV_ENABLED=true
 TRAVEL_JEV_PROVIDER=ollama
 TRAVEL_JEV_BASE_URL=http://localhost:11434
 TRAVEL_JEV_API_KEY=ollama
-TRAVEL_JEV_MODEL=tev1:4b
+TRAVEL_JEV_MODEL=nimble:latest
 TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
 ```
 
@@ -310,19 +310,19 @@ TRAVEL_JEV_MODEL=jev-latest
 TRAVEL_JEV_FALLBACK_PROVIDER=ollama
 TRAVEL_JEV_FALLBACK_BASE_URL=http://localhost:11434
 TRAVEL_JEV_FALLBACK_API_KEY=ollama
-TRAVEL_JEV_FALLBACK_MODEL=tev1:4b
+TRAVEL_JEV_FALLBACK_MODEL=nimble:latest
 TRAVEL_JEV_MINIMUM_CONFIDENCE=0.75
 ```
 
 **Safe fallback:** TypeSafe failure, missing credits, timeout, or HTTP/API error automatically tries the local Ollama decision model. If both typed-decision providers are unavailable, each decision service applies its deterministic Java fallback. This keeps the core workflow usable even when typed decision AI is unavailable.
 
-The application remains authoritative for policy, authorization, tool allow-lists, confidence thresholds, retries, and execution. Jev only supplies a typed decision. The next planned integrations are goal evaluation, replan-action selection, model routing, and human-review decisions.
+The application remains authoritative for policy, authorization, tool allow-lists, decision thresholds, retries, and execution. Jev only supplies a typed decision.
 
 ## Jev decision layer
 
 The optional TypeSafe Jev layer adds bounded typed decisions at seven control points: MCP tool selection, goal routing (ACHIEVED / REPLAN / HITL), replan action selection, model policy (FAST / BALANCED / REASONING), HITL (AUTO_COMPLETE / ASK_USER), flight-provider preference, and evidence routing (RAG / WEB / BOTH / NONE).
 
-Jev never executes tools. Java remains authoritative for validation, authorization, decision thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `tev1:4b`). RAG and model-routing recommendations are gated by selected probability and margin by default because local-model self-reported confidence can be poorly calibrated; provider, goal, replan, and human-review decisions retain their confidence gates. Provider failures fall through to the next configured provider and finally to deterministic Java behavior.
+Jev never executes tools. Java remains authoritative for validation, authorization, decision thresholds, retry/circuit policy, and execution. The client supports TypeSafe JEV and Ollama's local `/v1/systemone` endpoint (for example `nimble:latest`). RAG and model-routing recommendations are gated by selected probability and margin by default because local-model self-reported confidence can be poorly calibrated; provider, goal, replan, and human-review decisions retain their confidence gates. A recommendation can therefore be returned with `accepted=false` and safely fall back to deterministic Java behavior even when the model responds successfully.
 
 Enable with TRAVEL_JEV_ENABLED=true and TRAVEL_JEV_API_KEY. The current MCP server exposes AviationStack and Ignav flight providers. A preferred provider is attempted first when enabled and healthy; normal server-side fallback remains active. Duffel is not selected until a Duffel provider is actually exposed by the MCP server.
 
