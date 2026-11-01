@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ConversationSessionRepository extends JpaRepository<ConversationSession, Long> {
     Optional<ConversationSession> findByUserIdAndConversationId(String userId, String conversationId);
+    long deleteByUserIdAndConversationId(String userId, String conversationId);
 }
