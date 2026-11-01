@@ -190,7 +190,6 @@ class ConversationMemoryContextTest {
         memory.setCreatedAt(createdAt);
         return memory;
     }
-
     private TravelPlanResponse completedTrip(String destination, String origin) {
         TravelPlanResponse response = new TravelPlanResponse();
         response.setTripPlanning(true);
