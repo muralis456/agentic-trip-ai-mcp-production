@@ -388,7 +388,11 @@ public class ConversationMemoryService {
         if (userId == null || userId.isBlank() || conversationId == null || conversationId.isBlank()) {
             return 0;
         }
-        return repository.deleteByUserIdAndConversationId(userId, conversationId);
+        long deleted = repository.deleteByUserIdAndConversationId(userId, conversationId);
+        if (sessionRepository != null) {
+            sessionRepository.deleteByUserIdAndConversationId(userId, conversationId);
+        }
+        return deleted;
     }
 
     @Transactional(readOnly = true)
