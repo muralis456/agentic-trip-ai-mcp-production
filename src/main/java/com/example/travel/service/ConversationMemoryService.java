@@ -295,7 +295,10 @@ public class ConversationMemoryService {
 
     @Transactional(readOnly = true)
     public String buildConversationHistoryContext(String userId, String conversationId) {
-        List<ConversationMemory> history = loadRecentConversationHistory(userId, conversationId);
+        List<ConversationMemory> history = repository.findByUserIdAndConversationIdOrderByCreatedAtDesc(
+                userId, conversationId, PageRequest.of(0, MAX_RECENT_CONTEXT_MESSAGES)).stream()
+                .sorted((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
+                .collect(Collectors.toList());
         String summary = findSession(userId, conversationId)
                 .map(ConversationSession::getCompactedSummary).orElse("");
         if (history.isEmpty() && (summary == null || summary.isBlank())) return "";
@@ -435,6 +438,7 @@ public class ConversationMemoryService {
         session.setLastRole(role);
         session.setLastActivityAt(Instant.now());
         session.setMessageCount((session.getMessageCount() == null ? 0L : session.getMessageCount()) + 1L);
+        compactOlderMessages(session);
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("lastGraphThreadId", graphThreadId);
         metadata.put("lastRole", role);
@@ -447,7 +451,6 @@ public class ConversationMemoryService {
             log.warn("Could not serialize conversation session metadata conversationId={} errorType={}",
                     conversationId, ex.getClass().getSimpleName());
         }
-        compactOlderMessages(session);
         session.setUpdatedAt(Instant.now());
         sessionRepository.saveAndFlush(session);
     }
