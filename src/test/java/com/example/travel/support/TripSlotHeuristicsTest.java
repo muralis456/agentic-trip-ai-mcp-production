@@ -19,4 +19,12 @@ class TripSlotHeuristicsTest {
         LocalDate start = LocalDate.of(2026, 9, 1);
         assertEquals(LocalDate.of(2026, 9, 7), TripSlotHeuristics.inferReturnDate(prompt, start, start.plusDays(5)));
     }
+
+    @Test
+    void weatherPromptInBangaloreResolvesCurrentTurnLocation() {
+        assertEquals("Bengaluru",
+                TripSlotHeuristics.extractDestinationHint("what is weather in bangalore today?"));
+        assertEquals("Bengaluru",
+                TripSlotHeuristics.extractDestinationHint("weather in Bangalore for next week"));
+    }
 }

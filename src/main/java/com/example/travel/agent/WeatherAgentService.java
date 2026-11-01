@@ -32,6 +32,13 @@ public class WeatherAgentService {
             return new WeatherForecast("", "Weather location is required.", false);
         }
 
+        WeatherForecast cachedWeather = state.weather();
+        if (state.shouldReuseFromMemory("weather") && cachedWeather != null && cachedWeather.hasWeatherData()
+                && TripSlotHeuristics.normalizePlace(cachedWeather.getLocation())
+                        .equalsIgnoreCase(TripSlotHeuristics.normalizePlace(destination))) {
+            return cachedWeather;
+        }
+
         return weatherTool.forecast(destination, state.departureDate(), state.returnDate(), state.userRequest());
     }
 }

@@ -74,6 +74,8 @@ public final class TravelStateKeys {
         public static final String RESEARCH = "research";
         public static final String ITINERARY = "itinerary";
         public static final String WEATHER = "weather";
+        public static final String MEMORY_PLAN = "memoryPlan";
+        public static final String REUSE_CAPABILITIES_FROM_MEMORY = "reuseCapabilitiesFromMemory";
         public static final String FINAL_TIPS = "finalTips";
         /** @deprecated Use {@link #FINAL_TIPS}; kept for checkpoint migration. */
         @Deprecated

@@ -24,7 +24,6 @@ public class FlightAgentService {
     private final AirportLookupTool airportLookupTool;
     private final ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public FlightAgentService(FlightSearchTool flightSearchTool,
                               AirportLookupTool airportLookupTool,
                               ObjectProvider<McpFlightSearchClient> mcpFlightSearchClient) {

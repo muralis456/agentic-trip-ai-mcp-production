@@ -10,7 +10,7 @@ public class TravelRequest {
     @JsonIgnore
     private String userId;
     /** Stable browser/application conversation id. Unlike threadId, this survives follow-up turns. */
-    @Size(max = 160, message = "Conversation id must be at most 160 characters.")
+    @Size(max = 120, message = "Conversation id must be at most 120 characters.")
     private String conversationId;
     /** Last graph thread attached to the active browser conversation, when available. */
     @Size(max = 160, message = "Continuation thread id must be at most 160 characters.")
@@ -43,6 +43,8 @@ public class TravelRequest {
     /** Internal copy of the user's raw prompt before query normalization. */
     @JsonIgnore
     private String originalPrompt;
+    @JsonIgnore
+    private TripPlanResult memoryPlan;
 
     public String getConversationId() {
         return conversationId;
@@ -162,5 +164,15 @@ public class TravelRequest {
 
     public void setOriginalPrompt(String originalPrompt) {
         this.originalPrompt = originalPrompt;
+    }
+
+    @JsonIgnore
+    public TripPlanResult getMemoryPlan() {
+        return memoryPlan;
+    }
+
+    @JsonIgnore
+    public void setMemoryPlan(TripPlanResult memoryPlan) {
+        this.memoryPlan = memoryPlan;
     }
 }

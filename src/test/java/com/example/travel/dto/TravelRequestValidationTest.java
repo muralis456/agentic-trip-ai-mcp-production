@@ -14,12 +14,14 @@ class TravelRequestValidationTest {
     void rejectsOversizedPromptAndUnsupportedPassengerCounts() {
         TravelRequest request = new TravelRequest();
         request.setPrompt("x".repeat(8_001));
+        request.setConversationId("c".repeat(121));
         request.setAdults(10);
         request.setChildren(-1);
 
         var violations = validator.validate(request);
 
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("prompt")));
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("conversationId")));
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("adults")));
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("children")));
     }

@@ -95,6 +95,11 @@ public class TripPlanAssembler {
             result.setHotels(new ArrayList<>(state.hotels()));
         }
 
+        if (fullTripReport || state.runResearch()) {
+            result.setResearch(state.research());
+            result.setAttractions(state.attractions());
+        }
+
         if ((fullTripReport ? state.includeItineraryInReport() : state.runItinerary())
                 && state.itinerary() != null) {
 
@@ -438,5 +443,3 @@ public class TripPlanAssembler {
     }
 
 }
-
-

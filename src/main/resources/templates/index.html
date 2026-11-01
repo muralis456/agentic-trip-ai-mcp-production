@@ -2766,6 +2766,8 @@
     const storageKey = () => 'agentic-trip-ai-chats:' + (currentUserId || userIdField.value.trim() || 'authenticated-user');
     let currentChatId = null;
     let startedFreshChat = false;
+    let chatOpenGeneration = 0;
+    const liveResponsesByChat = new Map();
 
     const syncUserIdField = () => {
         form.querySelector('input[name="userId"]').value = currentUserId || userIdField.value.trim() || '';
@@ -2850,6 +2852,7 @@
         let chat = store.chats.find(c => c.id === currentChatId);
         if (!chat) {
             currentChatId = 'chat-' + Date.now();
+            currentHistoryKey = 'chat:' + currentChatId;
             chat = {
                 id: currentChatId,
                 conversationId: currentChatId,
@@ -2868,13 +2871,17 @@
         return chat;
     };
 
-    const persistMessage = (role, text, planData) => {
+    const persistMessage = (role, text, planData, targetChatId = currentChatId) => {
         try {
             const store = loadStore();
-            let chat = store.chats.find(c => c.id === currentChatId);
+            let chat = store.chats.find(c => c.id === targetChatId);
             if (!chat) {
+                if (targetChatId && targetChatId !== currentChatId) {
+                    console.warn('Could not persist message because its chat no longer exists', targetChatId);
+                    return;
+                }
                 ensureCurrentChat(text);
-                return persistMessage(role, text, planData);
+                return persistMessage(role, text, planData, currentChatId);
             }
             chat.messages.push({ role, text, planData: planData || null });
             if (planData?.threadId) {
@@ -2907,18 +2914,22 @@
             items.forEach(item => {
                 const sessionId = String(item.sessionId || '').trim();
                 if (!sessionId) return;
-                if (!grouped.has(sessionId)) {
-                    grouped.set(sessionId, {
-                        id: serverPrefix + sessionId,
+                const conversationId = String(item.conversationId || sessionId).trim();
+                if (!grouped.has(conversationId)) {
+                    grouped.set(conversationId, {
+                        id: serverPrefix + conversationId,
+                        conversationId,
                         threadId: sessionId,
                         title: 'Previous conversation',
                         updatedAt: 0,
                         messages: []
                     });
                 }
-                const chat = grouped.get(sessionId);
-                const createdAt = item.createdAt ? new Date(item.createdAt).getTime() : Date.now();
-                chat.updatedAt = Math.max(chat.updatedAt, Number.isFinite(createdAt) ? createdAt : Date.now());
+                const chat = grouped.get(conversationId);
+                const parsedCreatedAt = item.createdAt ? new Date(item.createdAt).getTime() : Date.now();
+                const createdAt = Number.isFinite(parsedCreatedAt) ? parsedCreatedAt : Date.now();
+                if (createdAt >= chat.updatedAt) chat.threadId = sessionId;
+                chat.updatedAt = Math.max(chat.updatedAt, createdAt);
                 if (item.role === 'user') {
                     const text = String(item.content || '').trim();
                     if (!chat.messages.some(m => m.role === 'user') && text) {
@@ -2939,25 +2950,34 @@
             });
 
             // Merge server data into an existing local chat when both refer to
-            // the same thread. Server structuredData is the durable source of
+            // the same conversation. Server structuredData is the durable source of
             // truth and fixes older local entries that only contain plain text.
             const serverChats = Array.from(grouped.values());
             const mergedLocal = existingLocal.map(chat => {
                 const threadId = chatThreadIdForDelete(chat);
-                if (!threadId) return chat;
-                const server = grouped.get(threadId);
+                const conversationId = String(chat.conversationId || chat.id || '').trim();
+                const server = grouped.get(conversationId) || grouped.get(threadId);
                 if (!server) return chat;
                 const serverHasStructured = server.messages.some(m => m.role === 'assistant' && m.planData);
+                const messages = serverHasStructured ? server.messages.slice() : (chat.messages || []);
+                const localLatest = (chat.messages || [])[(chat.messages || []).length - 1];
+                if (serverHasStructured && localLatest?.role === 'user'
+                        && !server.messages.some(m => m.role === 'user' && m.text === localLatest.text)) {
+                    messages.push(localLatest);
+                }
                 return {
                     ...chat,
-                    threadId,
+                    conversationId: server.conversationId,
+                    threadId: server.threadId || threadId,
                     title: server.title || chat.title,
                     updatedAt: Math.max(chat.updatedAt || 0, server.updatedAt || 0),
-                    messages: serverHasStructured ? server.messages : (chat.messages || [])
+                    messages
                 };
             });
 
             const localThreadIds = new Set(mergedLocal.map(chat => chatThreadIdForDelete(chat)).filter(Boolean));
+            const localConversationIds = new Set(mergedLocal
+                .map(chat => String(chat.conversationId || '').trim()).filter(Boolean));
             const authoritativeThreads = new Set(dbTrips.map(t => String(t.threadId || '')).filter(Boolean));
             mergedLocal.forEach(chat => {
                 const threadId = chatThreadIdForDelete(chat);
@@ -2966,6 +2986,7 @@
 
             const unmergedServerChats = serverChats.filter(chat =>
                 !localThreadIds.has(String(chat.threadId || ''))
+                && !localConversationIds.has(String(chat.conversationId || ''))
                 && !authoritativeThreads.has(String(chat.threadId || ''))
             );
 
@@ -3048,6 +3069,7 @@
 
     const openSavedTrip = async (id) => {
         try {
+            const openGeneration = ++chatOpenGeneration;
             currentHistoryKey = 'db:' + String(id);
             renderHistoryList();
             const trip = dbTrips.find(t => String(t.id) === String(id));
@@ -3059,11 +3081,13 @@
                 const sourceMessageId = Math.abs(Number(id));
                 const messageRes = await apiFetch('/api/chat/message/' + encodeURIComponent(sourceMessageId)
                     + '?userId=' + encodeURIComponent(userId));
+                if (openGeneration !== chatOpenGeneration) return;
                 const sourceMessage = await messageRes.json().catch(() => ({}));
                 if (!messageRes.ok || !sourceMessage.sessionId) throw new Error(safeUiErrorMessage());
 
                 const res = await apiFetch('/api/chat/session/' + encodeURIComponent(sourceMessage.sessionId)
                     + '?userId=' + encodeURIComponent(userId) + '&limit=100');
+                if (openGeneration !== chatOpenGeneration) return;
                 const messages = await res.json().catch(() => []);
                 if (!res.ok || !Array.isArray(messages)) throw new Error(safeUiErrorMessage());
                 let lastUser = '';
@@ -3080,6 +3104,7 @@
             }
 
             const res = await apiFetch('/api/trips/' + encodeURIComponent(id) + '?userId=' + encodeURIComponent(userId));
+            if (openGeneration !== chatOpenGeneration) return;
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || safeUiErrorMessage());
             appendAssistantMessage(data, false);
@@ -3307,6 +3332,7 @@
 
     const clearThreadDom = () => {
         chatThread.querySelectorAll('.chat-msg').forEach(node => node.remove());
+        chatThread.querySelectorAll('.live-response').forEach(node => node.remove());
         layout.classList.remove('has-chat');
         if (!chatThread.querySelector('.chat-empty')) {
             const empty = document.createElement('div');
@@ -3323,6 +3349,7 @@
         const chat = store.chats.find(c => c.id === chatId);
         if (!chat) return;
 
+        const openGeneration = ++chatOpenGeneration;
         currentChatId = chatId;
         currentHistoryKey = 'chat:' + String(chatId);
         renderHistoryList();
@@ -3337,17 +3364,22 @@
         // render stale/local planData and lose structured Weather/Hotel/RAG/etc.
         // when the user switches chats and comes back.
         const sessionId = chatThreadIdForDelete(chat);
-        const isServerChat = String(chatId).startsWith('server-') || !!sessionId;
+        const conversationId = String(chat.conversationId || '').trim();
+        const isServerChat = String(chatId).startsWith('server-') || !!sessionId || !!conversationId;
 
         // Always refresh a server conversation before rendering it. This makes
         // Recent History independent of stale localStorage and restores the
         // exact structured result saved by the backend.
         let messages = chat.messages || [];
-        if (isServerChat && sessionId) {
+        if (isServerChat && (conversationId || sessionId)) {
             try {
                 const userId = currentUserId || userIdField.value.trim() || '';
-                const res = await apiFetch('/api/chat/session/' + encodeURIComponent(sessionId)
-                    + '?userId=' + encodeURIComponent(userId) + '&limit=100');
+                const endpoint = conversationId
+                    ? '/api/chat/conversation/' + encodeURIComponent(conversationId)
+                    : '/api/chat/session/' + encodeURIComponent(sessionId);
+                const res = await apiFetch(endpoint
+                    + '?userId=' + encodeURIComponent(userId) + '&limit=200');
+                if (openGeneration !== chatOpenGeneration || currentChatId !== chatId) return;
                 if (res.ok) {
                     const serverMessages = await res.json();
                     if (Array.isArray(serverMessages) && serverMessages.length) {
@@ -3357,11 +3389,20 @@
                                 try { planData = JSON.parse(msg.structuredData); } catch (ignored) {}
                             }
                             return {
+                                id: msg.id,
+                                sessionId: msg.sessionId,
                                 role: msg.role,
                                 text: msg.content || '',
                                 planData
                             };
                         });
+                        const localMessages = chat.messages || [];
+                        const localLatest = localMessages[localMessages.length - 1];
+                        const serverLatest = messages[messages.length - 1];
+                        if (localLatest?.role === 'user'
+                                && !(serverLatest?.role === 'user' && serverLatest.text === localLatest.text)) {
+                            messages.push(localLatest);
+                        }
                     }
                 }
             } catch (e) {
@@ -3372,13 +3413,16 @@
         // Old V13/V14 server rows may have no structuredData. Recover the
         // latest response directly from the LangGraph checkpoint instead of
         // falling back to the generic "Travel information" text card.
-        const needsRestore = isServerChat && sessionId
-            && messages.some(m => m.role === 'assistant' && !m.planData);
+        const lastAssistantIndex = messages.reduce(
+            (last, message, index) => message.role === 'assistant' ? index : last, -1);
+        const needsRestore = isServerChat && sessionId && lastAssistantIndex >= 0
+            && !messages[lastAssistantIndex].planData;
         if (needsRestore) {
             try {
                 const userId = currentUserId || userIdField.value.trim() || '';
                 const restoreRes = await apiFetch('/api/plan/' + encodeURIComponent(sessionId)
                     + '/restore?userId=' + encodeURIComponent(userId));
+                if (openGeneration !== chatOpenGeneration || currentChatId !== chatId) return;
                 if (restoreRes.ok) {
                     fallbackRestore = await restoreRes.json();
                 }
@@ -3387,14 +3431,15 @@
             }
         }
 
+        if (openGeneration !== chatOpenGeneration || currentChatId !== chatId) return;
         let restoredApplied = false;
-        messages.forEach(msg => {
+        messages.forEach((msg, index) => {
             if (msg.role === 'user') {
                 lastUser = msg.text || '';
                 renderUserMessage(lastUser, false);
             } else {
                 let planData = msg.planData;
-                if (!planData && fallbackRestore && !restoredApplied) {
+                if (!planData && fallbackRestore && !restoredApplied && index === lastAssistantIndex) {
                     planData = fallbackRestore;
                     restoredApplied = true;
                 }
@@ -3406,6 +3451,11 @@
                 }, false, lastUser);
             }
         });
+        const activeRun = liveResponsesByChat.get(chatId);
+        if (activeRun?.row && !activeRun.finished) {
+            chatThread.appendChild(activeRun.row);
+            markChatActive();
+        }
         renderHistoryList();
         scrollChat();
     };
@@ -3875,13 +3925,19 @@
         return html + '</div>';
     };
 
+    const hasUsableWeatherData = (weather) => {
+        if (!weather) return false;
+        const current = weather.current || {};
+        const days = Array.isArray(weather.days) ? weather.days : [];
+        return current.temperature != null
+            || days.some(day => day && (day.high != null || day.low != null || !!String(day.condition || '').trim()));
+    };
+
     const buildWeatherSection = (weather, options = {}) => {
         if (!weather) return '';
         const current = weather.current || {};
         const days = Array.isArray(weather.days) ? weather.days.filter(Boolean).slice(0, 7) : [];
-        const hasCurrent = current.temperature != null;
-        const hasForecast = days.some(day => day && (day.high != null || day.low != null || day.condition));
-        const hasWeatherData = hasCurrent || hasForecast;
+        const hasWeatherData = hasUsableWeatherData(weather);
         const focused = !!options.focused;
         if (!hasWeatherData) {
             const location = weather.location || 'the requested destination';
@@ -4191,7 +4247,9 @@
         const budget = plan.budget;
         const exec = data.execution || {};
         const answer = String(exec.ragAnswer || data.ragAnswer || plan.tips || data.finalPlan || '').trim();
-        const hasWeather = !!(weather && (weather.summary || weather.location || (Array.isArray(weather.days) && weather.days.length) || weather.current));
+        const hasWeather = hasUsableWeatherData(weather)
+            || !!String(weather?.summary || '').trim()
+            || !!String(weather?.location || '').trim();
         const hasBudget = !!(budget && Array.isArray(budget.lineItems) && budget.lineItems.length);
         const hasAnswer = !!answer;
         const clarification = String(data.clarificationRequired || data.plan?.clarificationRequired || '').trim();
@@ -4506,7 +4564,12 @@
         });
     };
 
-    const renderAssistantMessage = (data, persist, userRequestHint) => {
+    const renderAssistantMessage = (data, persist, userRequestHint, targetChatId = currentChatId) => {
+        if (persist && targetChatId
+                && (targetChatId !== currentChatId || currentHistoryKey !== 'chat:' + String(targetChatId))) {
+            persistMessage('assistant', formatPlanSummary(data), data, targetChatId);
+            return null;
+        }
         markChatActive();
         const row = document.createElement('div');
         row.className = 'chat-msg assistant';
@@ -4523,8 +4586,8 @@
         chatThread.appendChild(row);
         scrollChat();
         if (persist) {
-            ensureCurrentChat(data.destination || data.routeSummary || 'Trip plan');
-            persistMessage('assistant', formatPlanSummary(data), data);
+            const chat = ensureCurrentChat(data.destination || data.routeSummary || 'Trip plan');
+            persistMessage('assistant', formatPlanSummary(data), data, targetChatId || chat.id);
         }
         return row;
     };
@@ -4562,7 +4625,8 @@
     };
 
     const appendUserMessage = (text) => renderUserMessage(text, true);
-    const appendAssistantMessage = (data) => renderAssistantMessage(data, true);
+    const appendAssistantMessage = (data, persist = true, targetChatId = currentChatId) =>
+        renderAssistantMessage(data, persist, undefined, targetChatId);
 
     const normalizeSteps = (steps) => (steps || []).filter(step => step && step.node);
 
@@ -4631,9 +4695,10 @@
         knowledge:'Travel knowledge', history:'Travel history', budget:'Budget', itinerary:'Itinerary'
     }[String(id || '').toLowerCase()] || String(id || '').replace(/[-_]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
 
-    const createLiveResponse = () => {
+    const createLiveResponse = (chatId = currentChatId) => {
         const row = document.createElement('div');
         row.className = 'live-response';
+        if (chatId) row.dataset.chatId = String(chatId);
         const phases = LIVE_PHASES.map(p =>
             '<div class="live-phase" data-phase="' + p.id + '">' +
               '<div class="live-phase-label"><i class="live-phase-dot"></i><span>' + p.label + '</span></div>' +
@@ -4648,7 +4713,7 @@
             + '</div>';
         chatThread.appendChild(row);
         scrollChat();
-        return {
+        const liveResponse = {
             row,
             state: row.querySelector('.live-state'),
             stopButton: row.querySelector('[data-stop-run]'),
@@ -4657,8 +4722,11 @@
             tasks: row.querySelector('.live-tasks'),
             taskList: row.querySelector('.live-task-list'),
             taskCount: row.querySelector('.live-task-count'),
-            taskMap: new Map()
+            taskMap: new Map(),
+            finished: false
         };
+        if (chatId) liveResponsesByChat.set(chatId, liveResponse);
+        return liveResponse;
     };
 
     const setLivePhase = (live, id, status, detail) => {
@@ -4777,7 +4845,13 @@
     };
 
     const removeLiveResponse = (live) => {
-        if (live && live.row && live.row.isConnected) live.row.remove();
+        if (!live) return;
+        live.finished = true;
+        const chatId = live.row?.dataset.chatId;
+        if (chatId && liveResponsesByChat.get(chatId) === live) {
+            liveResponsesByChat.delete(chatId);
+        }
+        if (live.row?.isConnected) live.row.remove();
     };
 
     // Automatic reconnect recovery must reuse the original live card and thread.
@@ -4809,6 +4883,7 @@
         const formData = new FormData(form);
         const payload = Object.fromEntries(formData.entries());
         const activeChat = ensureCurrentChat(text);
+        const submittedChatId = activeChat.id;
         payload.conversationId = activeChat.conversationId || activeChat.id;
         payload.continuationThreadId = recoveryContext?.threadId || chatThreadIdForDelete(activeChat);
         const explicitContinue = /^(?:please\s+)?(?:continue|resume|go ahead|proceed|keep going|do it|yes|okay|ok)(?:\s+please)?[.!?]*$/i.test(String(text || '').trim());
@@ -4838,7 +4913,7 @@
         promptInput.value = '';
         submitButton.disabled = true;
         loadingState.classList.add('visible');
-        const liveResponse = recoveryContext?.liveResponse || createLiveResponse();
+        const liveResponse = recoveryContext?.liveResponse || createLiveResponse(submittedChatId);
 
         try {
             const idempotencyKey = (window.crypto && crypto.randomUUID)
@@ -4859,7 +4934,7 @@
             const started = JSON.parse(startedBody);
             const threadId = started.threadId;
             const activeChatStore = loadStore();
-            const activeChatRecord = activeChatStore.chats.find(chat => chat.id === currentChatId);
+            const activeChatRecord = activeChatStore.chats.find(chat => chat.id === submittedChatId);
             if (activeChatRecord) {
                 activeChatRecord.threadId = String(threadId);
                 saveStore(activeChatStore);
@@ -5073,6 +5148,10 @@
                 es.addEventListener('complete', async (evt) => {
                     if (isResumedRun && !resumeRunStarted) return;
                     finished = true;
+                    liveResponse.finished = true;
+                    if (liveResponsesByChat.get(submittedChatId) === liveResponse) {
+                        liveResponsesByChat.delete(submittedChatId);
+                    }
                     es.close();
                     liveResponse.state.textContent = 'Plan ready';
                     if (liveResponse.stopButton) { liveResponse.stopButton.disabled = true; liveResponse.stopButton.textContent = 'Done'; }
@@ -5102,7 +5181,7 @@
                         } catch (ignored) {}
                         liveResponse.row.classList.add('live-complete');
                         setTimeout(() => removeLiveResponse(liveResponse), 260);
-                        appendAssistantMessage(data);
+                        appendAssistantMessage(data, true, submittedChatId);
                         loadDbTrips(false);
                         resolve();
                     } catch (error) {
@@ -5112,6 +5191,10 @@
                 es.addEventListener('failed', (evt) => {
                     if (isResumedRun && !resumeRunStarted) return;
                     finished = true;
+                    liveResponse.finished = true;
+                    if (liveResponsesByChat.get(submittedChatId) === liveResponse) {
+                        liveResponsesByChat.delete(submittedChatId);
+                    }
                     es.close();
                     liveResponse.state.textContent = 'Plan failed';
                     if (liveResponse.stopButton) { liveResponse.stopButton.disabled = true; liveResponse.stopButton.textContent = 'Done'; }
@@ -5188,7 +5271,11 @@
                                         liveResponse.stopButton.disabled = true;
                                         liveResponse.stopButton.textContent = 'Done';
                                     }
-                                    appendAssistantMessage(restoredPlan);
+                                    liveResponse.finished = true;
+                                    if (liveResponsesByChat.get(submittedChatId) === liveResponse) {
+                                        liveResponsesByChat.delete(submittedChatId);
+                                    }
+                                    appendAssistantMessage(restoredPlan, true, submittedChatId);
                                     loadDbTrips(false);
                                     setTimeout(() => removeLiveResponse(liveResponse), 260);
                                     return;
@@ -5225,13 +5312,17 @@
                 };
             });
         } catch (error) {
+            liveResponse.finished = true;
+            if (liveResponsesByChat.get(submittedChatId) === liveResponse) {
+                liveResponsesByChat.delete(submittedChatId);
+            }
             removeLiveResponse(liveResponse);
             appendAssistantMessage({
                 status: 'ERROR',
                 finalPlan: safeUiErrorMessage(),
                 awaitingApproval: false,
                 pipeline: []
-            });
+            }, true, submittedChatId);
         } finally {
             submitButton.disabled = false;
             loadingState.classList.remove('visible');

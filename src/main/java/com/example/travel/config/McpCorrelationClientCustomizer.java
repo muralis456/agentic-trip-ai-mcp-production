@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class McpCorrelationClientCustomizer
         implements McpClientCustomizer<HttpClientStreamableHttpTransport.Builder> {
 
+    @SuppressWarnings("deprecation")
     @Override
     public void customize(String name, HttpClientStreamableHttpTransport.Builder builder) {
         builder.httpRequestCustomizer((request, method, endpoint, body, context) -> {

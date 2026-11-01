@@ -1,6 +1,9 @@
 package com.example.travel.graph;
 
 import com.example.travel.tool.ToolInvocationContext;
+
+import lombok.extern.slf4j.Slf4j;
+
 import com.example.travel.support.ToolFailureClassifier;
 import com.example.travel.service.McpFlightSearchClient;
 import com.example.travel.agent.*;
@@ -29,6 +32,7 @@ import java.util.concurrent.TimeUnit;
  * come from the plan, successful work is retained, and only ready work is executed.
  */
 @Component
+@Slf4j
 public class ProductionExecutionNode implements NodeAction<TravelState> {
     private final FlightAgentService flight;
     private final HotelAgentService hotel;
@@ -38,7 +42,6 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
     private final ItineraryAgentService itinerary;
     private final RagNode ragNode;
     private final HistoryNode historyNode;
-    private final AirportLookupTool airportLookupTool;
     private final ExecutorService executor;
     private final GraphProgressHub progressHub;
     private final AgentRunControlService runControlService;
@@ -54,7 +57,7 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
             GraphRunContext graphRunContext) {
         this.flight = flight; this.hotel = hotel; this.research = research; this.weather = weather;
         this.budget = budget; this.itinerary = itinerary; this.ragNode = ragNode; this.historyNode = historyNode;
-        this.airportLookupTool = airportLookupTool; this.executor = executor; this.progressHub = progressHub;
+        this.executor = executor; this.progressHub = progressHub;
         this.runControlService = runControlService;
         this.graphRunContext = graphRunContext;
     }
@@ -155,8 +158,6 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
         return updates;
     }
 
-    private boolean readyNow(AgentPlan p, AgentTask t) { return t.getDependsOn().stream().allMatch(d -> { AgentTask x=p.task(d); return x==null || x.getStatus()==AgentTask.Status.SUCCEEDED; }); }
-
     private TaskResult execute(String id, TravelState s) {
         String threadId = s.graphThreadId();
         boolean contextAttached = graphRunContext != null && threadId != null && !threadId.isBlank();
@@ -169,6 +170,8 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
                              s.userId(), roleForUser(s.userId()))) {
             try {
                 Map<String,Object> u = new LinkedHashMap<>();
+            TaskResult cached = reuseMemoryResult(id, s);
+            if (cached != null) return cached;
             switch(id) {
                 case "flights" -> { var r=flight.search(s); u.put(TravelState.FLIGHTS,r.flights()); u.put(TravelState.ORIGIN_IATA,r.originIata()); u.put(TravelState.DESTINATION_IATA,r.destinationIata()); if(r.flights().isEmpty()) return new TaskResult(false,u,"No usable flight options found"); }
                 case "hotels" -> { var r=hotel.search(s); u.put(TravelState.HOTELS,r.hotels()); u.put(TravelState.HOTEL_FALLBACK_EXHAUSTED,r.fallbackExhausted()); if(r.hotels().isEmpty()) return new TaskResult(false,u,"No usable hotel options found"); }
@@ -230,6 +233,42 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
         }
     }
 
+    private TaskResult reuseMemoryResult(String id, TravelState state) {
+        if (!state.shouldReuseFromMemory(id)) return null;
+
+        com.example.travel.dto.TripPlanResult memory = state.memoryPlan();
+        Map<String, Object> updates = new LinkedHashMap<>();
+        switch (id) {
+            case "flights" -> updates.put(TravelState.FLIGHTS, memory.getFlights());
+            case "hotels" -> {
+                updates.put(TravelState.HOTELS, memory.getHotels());
+                updates.put(TravelState.HOTEL_FALLBACK_EXHAUSTED, Boolean.FALSE);
+            }
+            case "research" -> {
+                updates.put(TravelState.RESEARCH, memory.getResearch());
+                updates.put(TravelState.ATTRACTIONS, memory.getAttractions());
+            }
+            case "weather" -> updates.put(TravelState.WEATHER, memory.getWeather());
+            case "budget" -> updates.put(TravelState.BUDGET_SUMMARY, memory.getBudget());
+            case "itinerary" -> updates.put(TravelState.ITINERARY, memory.getItinerary());
+            case "knowledge" -> {
+                var knowledge = memory.getKnowledge();
+                updates.put(TravelState.RAG_ANSWER, knowledge.getAnswer());
+                updates.put(TravelState.RAG_CONTEXT, knowledge.getAnswer());
+                updates.put(TravelState.RAG_QUERY, knowledge.getQuery());
+                updates.put(TravelState.RAG_DESTINATION, knowledge.getDestination());
+                updates.put(TravelState.RAG_COUNTRY, knowledge.getCountry());
+                updates.put(TravelState.RAG_TOPICS, knowledge.getTopics());
+                updates.put(TravelState.RAG_SOURCES, knowledge.getSources());
+                updates.put(TravelState.RAG_EVIDENCE_SCORE, knowledge.getEvidenceScore());
+                updates.put(TravelState.RAG_SUFFICIENT, Boolean.TRUE);
+                updates.put(TravelState.RAG_DECISION, "reuse_memory");
+            }
+            default -> { return null; }
+        }
+        return new TaskResult(true, updates, "");
+    }
+
     private String roleForUser(String userId) {
         if (userId == null || userId.isBlank()) {
             // Unit tests and internal graph invocations may not carry an HTTP
@@ -289,12 +328,6 @@ public class ProductionExecutionNode implements NodeAction<TravelState> {
         };
     }
 
-    private TravelState stateWith(Map<String,Object> updates, TravelState state) {
-        Map<String,Object> snapshot = new LinkedHashMap<>();
-        // StateGraph does not expose a public immutable-copy constructor; downstream
-        // services only need the already persisted state for normal graph execution.
-        return state;
-    }
     private void merge(Map<String,Object> target, Map<String,Object> source) { if(source!=null) target.putAll(source); }
     private void mark(AgentPlan p, AgentTask t, boolean ok, String error) {
         // Attempts are counted exactly once by AgentPlan.markStarted().

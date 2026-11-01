@@ -26,13 +26,16 @@ public class TripHistoryService {
 
     private final TripHistoryRepository repository;
     private final ConversationMemoryRepository conversationRepository;
+    private final ConversationMemoryService conversationMemoryService;
     private final ObjectMapper objectMapper;
 
     public TripHistoryService(TripHistoryRepository repository,
                               ConversationMemoryRepository conversationRepository,
+                              ConversationMemoryService conversationMemoryService,
                               ObjectMapper objectMapper) {
         this.repository = repository;
         this.conversationRepository = conversationRepository;
+        this.conversationMemoryService = conversationMemoryService;
         this.objectMapper = objectMapper;
     }
 
@@ -169,7 +172,7 @@ public class TripHistoryService {
         String threadId = entity.getThreadId();
         repository.delete(entity);
         if (threadId != null && !threadId.isBlank()) {
-            conversationRepository.deleteByUserIdAndSessionId(userId, threadId);
+            conversationMemoryService.deleteSession(userId, threadId);
         }
         return true;
     }
@@ -314,7 +317,6 @@ public class TripHistoryService {
     private boolean isLegacyTripRequest(String text) {
         if (text == null || text.isBlank()) return false;
         String lower = text.toLowerCase();
-        String origin = TripSlotHeuristics.extractOriginHint(text);
         String destination = TripSlotHeuristics.extractDestinationHint(text);
         boolean tripWords = lower.contains("trip") || lower.contains("travel") || lower.contains("holiday")
                 || lower.contains("vacation") || lower.contains("journey") || lower.contains("itinerary");

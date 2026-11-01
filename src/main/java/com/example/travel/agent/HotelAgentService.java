@@ -344,10 +344,6 @@ public class HotelAgentService {
                 || !TravelState.isBlank(hotel.getSuitableFor());
     }
 
-    private boolean hasHotelName(HotelOption hotel) {
-        return hotel != null && !TravelState.isBlank(hotel.getName());
-    }
-
     private boolean isRelevantToDestination(HotelOption hotel, String destination) {
         String target = normalize(destination);
         if (target.isBlank()) {

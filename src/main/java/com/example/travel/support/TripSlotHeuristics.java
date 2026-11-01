@@ -18,6 +18,8 @@ public final class TripSlotHeuristics {
             "(?i)\\bfrom\\s+(.+?)(?=\\s+(?:for|on|today|tomorrow|within|under|below)\\b|[.!?]|$)");
     private static final Pattern TO_ONLY = Pattern.compile(
             "(?i)\\bto\\s+(.+?)(?=\\s+(?:for|on|today|tomorrow|within|under|below)\\b|[.!?]|$)");
+    private static final Pattern WEATHER_LOCATION = Pattern.compile(
+            "(?i)\\b(?:weather|forecast|temperature|conditions|rain|climate)\\b.*?\\bin\\s+([A-Za-z][A-Za-z .'-]*?)(?=\\s+(?:today|tomorrow|now|currently|this week|next week|for|on)\\b|[,.!?;:]|$)");
     private static final Pattern BUDGET = Pattern.compile(
             "(?i)(?:under|below|within|budget(?:\\s+of)?)\\s*(₹\\s*)?([\\d,.]+\\s*(?:lakh|lac|l)\\b|[\\d,.]+)");
     private static final Pattern BUDGET_INLINE = Pattern.compile("(?i)(₹\\s*[\\d,.]+\\s*(?:lakh|lac|l)?|[\\d,.]+\\s*(?:lakh|lac|l)\\b)");
@@ -41,6 +43,7 @@ public final class TripSlotHeuristics {
             case "france" -> "Paris";
             case "italy" -> "Rome";
             case "uk", "united kingdom" -> "London";
+            case "bangalore", "blr" -> "Bengaluru";
             default -> normalized;
         };
     }
@@ -71,6 +74,10 @@ public final class TripSlotHeuristics {
         Matcher toOnly = TO_ONLY.matcher(request);
         if (toOnly.find()) {
             return normalizePlace(cleanDestination(toOnly.group(1)));
+        }
+        Matcher weatherLocation = WEATHER_LOCATION.matcher(request);
+        if (weatherLocation.find()) {
+            return normalizePlace(weatherLocation.group(1).trim());
         }
         return findKnownPlace(request, true);
     }
