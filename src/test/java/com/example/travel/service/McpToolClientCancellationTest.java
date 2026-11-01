@@ -43,6 +43,27 @@ class McpToolClientCancellationTest {
         verify(callback, times(1)).call(anyString());
     }
 
+
+    @Test
+    void wrappedTimeoutDoesNotRetryMcpInvocation() throws Exception {
+        ToolCallback callback = mock(ToolCallback.class);
+        ToolDefinition definition = mock(ToolDefinition.class);
+        when(definition.name()).thenReturn("create_booking");
+        when(callback.getToolDefinition()).thenReturn(definition);
+        when(callback.call(anyString())).thenThrow(
+                new java.util.concurrent.CompletionException(
+                        new java.util.concurrent.TimeoutException("provider response timed out")));
+        ToolCallbackProvider provider = mock(ToolCallbackProvider.class);
+        when(provider.getToolCallbacks()).thenReturn(new ToolCallback[] { callback });
+        McpToolClient client = new McpToolClient(provider, new ObjectMapper(),
+                mock(McpToolSelector.class), "", 3, 1000,
+                mock(PromptInjectionGuard.class), mock(ToolGovernanceService.class));
+
+        assertThrows(Exception.class,
+                () -> client.call("create_booking", Map.of("destination", "Tokyo")));
+        verify(callback, times(1)).call(anyString());
+    }
+
     @Test
     void interruptionCancelsInvocationWithoutRetryingMcpCall() throws Exception {
         CountDownLatch callbackStarted = new CountDownLatch(1);
