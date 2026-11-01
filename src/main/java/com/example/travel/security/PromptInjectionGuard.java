@@ -19,7 +19,8 @@ public class PromptInjectionGuard {
     private static final Logger log = LoggerFactory.getLogger(PromptInjectionGuard.class);
 
     private static final Pattern INSTRUCTION_PATTERN = Pattern.compile(
-            "(?i)(ignore\\s+(all\\s+)?(previous|prior|above)\\s+instructions|"
+                        "(?i)(ignore\\s+(all\\s+)?(previous|prior|above)\\s+instructions|"
+                    + "ignore\\s+(all\\s+)?(rules|policies|instructions)|"
           + "system\\s+message|developer\\s+message|reveal\\s+(the\\s+)?(system|developer)?\\s*prompt|"
           + "override\\s+(the\\s+)?(system|security|policy)|disable\\s+(security|safety)|"
           + "execute\\s+(this|the)\\s+(command|tool)|call\\s+the\\s+tool|"

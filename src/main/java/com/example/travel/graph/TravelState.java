@@ -4,13 +4,13 @@ import com.example.travel.service.ModelRoutingContext;
 import com.example.travel.model.IntentPlan;
 import com.example.travel.model.GoalEvaluation;
 import com.example.travel.dto.TravelRequest;
+import com.example.travel.dto.TripPlanResult;
 import com.example.travel.model.AgentDecision;
 import com.example.travel.model.AgentPlan;
 import com.example.travel.model.AgentStep;
 import com.example.travel.model.BudgetSummary;
 import com.example.travel.model.FlightOption;
 import com.example.travel.model.HotelOption;
-import com.example.travel.model.IntentPlan;
 import com.example.travel.model.Itinerary;
 import com.example.travel.model.ModificationRequest;
 import com.example.travel.model.NodeFailureInfo;
@@ -79,6 +79,9 @@ public class TravelState extends AgentState {
     public static final String REPLAN_NOTES = TravelStateKeys.Planning.REPLAN_NOTES;
     public static final String COST_FACTOR = TravelStateKeys.Budget.COST_FACTOR;
     public static final String WEATHER = TravelStateKeys.Results.WEATHER;
+    public static final String MEMORY_PLAN = TravelStateKeys.Results.MEMORY_PLAN;
+    public static final String REUSE_CAPABILITIES_FROM_MEMORY =
+            TravelStateKeys.Results.REUSE_CAPABILITIES_FROM_MEMORY;
     public static final String PIPELINE = TravelStateKeys.Control.PIPELINE;
     public static final String AWAITING_APPROVAL = TravelStateKeys.Hitl.AWAITING_APPROVAL;
     public static final String HITL_DECISION = TravelStateKeys.Hitl.HITL_DECISION;
@@ -261,7 +264,12 @@ public class TravelState extends AgentState {
         input.put(CURRENCY, "INR");
         input.put(ITINERARY, new Itinerary());
         input.put(BUDGET_SUMMARY, new BudgetSummary());
-        input.put(WEATHER, new WeatherForecast("", "", false));
+        TripPlanResult memoryPlan = request.getMemoryPlan();
+        input.put(MEMORY_PLAN, memoryPlan == null ? new TripPlanResult() : memoryPlan);
+        input.put(REUSE_CAPABILITIES_FROM_MEMORY, new ArrayList<String>());
+        input.put(WEATHER, memoryPlan == null
+                ? new WeatherForecast("", "", false)
+                : memoryPlan.getWeather());
         input.put(RAG_ENABLED, Boolean.TRUE);
         input.put(RAG_DECISION, "skip");
         input.put(RAG_QUERY, "");
@@ -513,6 +521,70 @@ public class TravelState extends AgentState {
                 : value;
     }
 
+    public TripPlanResult memoryPlan() {
+        return this.<TripPlanResult>value(MEMORY_PLAN).orElseGet(TripPlanResult::new);
+    }
+
+    public boolean shouldReuseFromMemory(String capability) {
+        if (capability == null || !this.<List<String>>value(REUSE_CAPABILITIES_FROM_MEMORY)
+                .orElseGet(List::of).contains(capability)) {
+            return false;
+        }
+        return hasCachedCapability(capability);
+    }
+
+    public boolean hasCachedCapability(String capability) {
+        if (capability == null) return false;
+        TripPlanResult plan = memoryPlan();
+        if (!sameMemoryDestination(plan)) return false;
+
+        return switch (capability) {
+            case "flights" -> sameMemoryRoute(plan)
+                    && plan.getFlights() != null && !plan.getFlights().isEmpty();
+            case "hotels" -> sameMemoryDates(plan)
+                    && plan.getHotels() != null && !plan.getHotels().isEmpty();
+            case "research" -> (plan.getResearch() != null && !plan.getResearch().isEmpty())
+                    || (plan.getAttractions() != null && !plan.getAttractions().isEmpty());
+            case "weather" -> plan.getWeather() != null && plan.getWeather().hasWeatherData()
+                    && TripSlotHeuristics.normalizePlace(plan.getWeather().getLocation())
+                            .equalsIgnoreCase(TripSlotHeuristics.normalizePlace(destination()));
+            case "budget" -> sameMemoryDates(plan)
+                    && plan.getBudget() != null && plan.getBudget().getEstimatedCost() != null
+                    && plan.getBudget().getEstimatedCost().signum() > 0;
+            case "itinerary" -> sameMemoryRoute(plan)
+                    && plan.getItinerary() != null && !plan.getItinerary().isEmpty();
+            case "knowledge" -> plan.getKnowledge() != null && plan.getKnowledge().isAvailable()
+                    && !isBlank(plan.getKnowledge().getAnswer())
+                    && !isBlank(plan.getKnowledge().getDestination())
+                    && TripSlotHeuristics.normalizePlace(plan.getKnowledge().getDestination())
+                            .equalsIgnoreCase(TripSlotHeuristics.normalizePlace(destination()));
+            default -> false;
+        };
+    }
+
+    private boolean sameMemoryDestination(TripPlanResult plan) {
+        return plan != null && plan.getTrip() != null
+                && !isBlank(plan.getTrip().getDestination())
+                && TripSlotHeuristics.normalizePlace(plan.getTrip().getDestination())
+                        .equalsIgnoreCase(TripSlotHeuristics.normalizePlace(destination()));
+    }
+
+    private boolean sameMemoryRoute(TripPlanResult plan) {
+        return sameMemoryDestination(plan)
+                && !isBlank(plan.getTrip().getOrigin())
+                && TripSlotHeuristics.normalizePlace(plan.getTrip().getOrigin())
+                        .equalsIgnoreCase(TripSlotHeuristics.normalizePlace(origin()))
+                && sameMemoryDates(plan);
+    }
+
+    private boolean sameMemoryDates(TripPlanResult plan) {
+        return plan != null && plan.getTrip() != null
+                && (isBlank(plan.getTrip().getDepartureDate())
+                        || plan.getTrip().getDepartureDate().equals(departureDate().toString()))
+                && (isBlank(plan.getTrip().getReturnDate())
+                        || plan.getTrip().getReturnDate().equals(returnDate().toString()));
+    }
+
     public List<AgentStep> pipeline() {
         return this.<List<AgentStep>>value(PIPELINE).orElseGet(List::of);
     }
@@ -658,6 +730,7 @@ public class TravelState extends AgentState {
         boolean needsWeather = IntentPlan.TRIP_PLANNING.equalsIgnoreCase(intent.getRequestType())
                 || intent.isNeedsWeather();
         updates.put(NEEDS_WEATHER, needsWeather);
+        updates.put(REUSE_CAPABILITIES_FROM_MEMORY, intent.getReuseCapabilitiesFromMemory());
         updates.put(NEEDS_BUDGET, intent.isNeedsBudget());
         updates.put(NEEDS_ITINERARY, intent.isNeedsItinerary());
         updates.put(NEEDS_KNOWLEDGE, intent.isNeedsKnowledge());

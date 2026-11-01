@@ -2,6 +2,8 @@ package com.example.travel.model;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Intent / requirements plan produced before the Planner extracts trip slots.
@@ -22,6 +24,7 @@ public class IntentPlan implements Serializable {
     private boolean needsHotels = false;
     private boolean needsResearch = false;
     private boolean needsWeather = false;
+    private List<String> reuseCapabilitiesFromMemory = new ArrayList<>();
     private boolean needsBudget = false;
     /** Semantic scope of a monetary constraint: NONE, TRIP, HOTEL, FLIGHT, ACTIVITY, OTHER. */
     private String budgetScope = "NONE";
@@ -153,6 +156,16 @@ public class IntentPlan implements Serializable {
 
     public void setNeedsWeather(boolean needsWeather) {
         this.needsWeather = needsWeather;
+    }
+
+    public List<String> getReuseCapabilitiesFromMemory() {
+        return reuseCapabilitiesFromMemory;
+    }
+
+    public void setReuseCapabilitiesFromMemory(List<String> reuseCapabilitiesFromMemory) {
+        this.reuseCapabilitiesFromMemory = reuseCapabilitiesFromMemory == null
+                ? new ArrayList<>()
+                : new ArrayList<>(reuseCapabilitiesFromMemory);
     }
 
     public boolean isNeedsBudget() {

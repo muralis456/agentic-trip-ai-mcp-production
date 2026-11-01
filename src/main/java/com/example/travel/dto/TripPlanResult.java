@@ -4,6 +4,8 @@ import com.example.travel.model.BudgetSummary;
 import com.example.travel.model.FlightOption;
 import com.example.travel.model.HotelOption;
 import com.example.travel.model.Itinerary;
+import com.example.travel.model.TravelAttraction;
+import com.example.travel.model.TravelResearch;
 import com.example.travel.model.WeatherForecast;
 
 import java.io.Serial;
@@ -25,6 +27,8 @@ public class TripPlanResult implements Serializable {
     private Itinerary itinerary = new Itinerary();
     private BudgetSummary budget = new BudgetSummary();
     private WeatherForecast weather = new WeatherForecast("", "", false);
+    private List<TravelResearch> research = new ArrayList<>();
+    private List<TravelAttraction> attractions = new ArrayList<>();
     private PlanValidationView validation = new PlanValidationView();
     private String tips = "";
     private KnowledgeGuidance knowledge = new KnowledgeGuidance();
@@ -75,6 +79,22 @@ public class TripPlanResult implements Serializable {
 
     public void setWeather(WeatherForecast weather) {
         this.weather = weather == null ? new WeatherForecast("", "", false) : weather;
+    }
+
+    public List<TravelResearch> getResearch() {
+        return research;
+    }
+
+    public void setResearch(List<TravelResearch> research) {
+        this.research = research == null ? new ArrayList<>() : new ArrayList<>(research);
+    }
+
+    public List<TravelAttraction> getAttractions() {
+        return attractions;
+    }
+
+    public void setAttractions(List<TravelAttraction> attractions) {
+        this.attractions = attractions == null ? new ArrayList<>() : new ArrayList<>(attractions);
     }
 
     public PlanValidationView getValidation() {

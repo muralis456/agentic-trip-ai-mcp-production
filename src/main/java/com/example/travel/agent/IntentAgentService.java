@@ -114,11 +114,18 @@ public class IntentAgentService {
         if (memoryCheckNeeded && (!memoryIntent.isNeedsHistory() || memoryIntent.getConfidence() < 0.70d
                 || (memoryIntent.isNeedsHistory() && !memoryIntent.isHistoryOnly() && primary.isNeedsItinerary()))) {
             MemoryIntentDecision semanticRecovery = semanticMemoryArbiter.recover(request);
-            if (semanticRecovery.getConfidence() > memoryIntent.getConfidence()) {
+            if (semanticRecovery != null && semanticRecovery.getConfidence() > memoryIntent.getConfidence()) {
                 memoryIntent = semanticRecovery;
                 log.info("Intent memory semantic recovery selected history={} historyOnly={} confidence={}",
                         memoryIntent.isNeedsHistory(), memoryIntent.isHistoryOnly(), memoryIntent.getConfidence());
             }
+        }
+
+        boolean memoryClassifierRejectedHistory = memoryCheckNeeded
+                && memoryIntent.getConfidence() >= 0.70d
+                && !memoryIntent.isNeedsHistory();
+        if (memoryClassifierRejectedHistory) {
+            primary.setNeedsHistory(false);
         }
 
         if (memoryIntent.isNeedsHistory() && memoryIntent.getConfidence() >= 0.70d) {
@@ -153,6 +160,9 @@ public class IntentAgentService {
         // natural language that was never anticipated by Java code.
         IntentPlan adjudicated = runSemanticIntentPass(request, true, state.historyContext());
         adjudicated = sanitizeSemanticPlan(adjudicated);
+        if (memoryClassifierRejectedHistory) {
+            adjudicated.setNeedsHistory(false);
+        }
 
         log.info("Intent secondary semantic result request={} type={} confidence={} capabilities={}",
                 request, adjudicated.getRequestType(), adjudicated.getConfidence(), capabilitySummary(adjudicated));
@@ -183,8 +193,16 @@ public class IntentAgentService {
                 misspelled, conversational, or grammatically incomplete.
 
                 Identify every capability the user is actually requesting NOW.
-                Do not infer a capability merely because it would be useful.
-                Do not use previous conversation state.
+                Do not infer a capability merely because it would be useful. For explicit
+                additive follow-ups, conversation context may identify capabilities whose
+                successful matching results should be reused. Include those ids in
+                reuseCapabilitiesFromMemory and preserve their requested capability flags;
+                never call providers again for reused results. Do not copy unrelated context.
+                Persistent saved-trip facts from other conversations are historical evidence only:
+                use them only when the user refers to a previous trip or asks for remembered
+                preferences. Do not infer a preference from one trip or silently carry forward
+                its destination, dates, budget, or traveler count. Never reuse provider results
+                from another conversation.
 
                 Capability meanings:
                 flights = airline/airfare/flight search or flight details.
@@ -236,6 +254,7 @@ public class IntentAgentService {
                   "needsHotels":false,
                   "needsResearch":false,
                   "needsWeather":false,
+                  "reuseCapabilitiesFromMemory":[],
                   "needsBudget":false,
                   "budgetScope":"NONE",
                   "needsItinerary":false,
@@ -311,6 +330,11 @@ public class IntentAgentService {
                   capability's input constraint, not a separate budget-agent request.
                   Example: "best hotels under 50k" => hotels=true, budget=false, budgetScope=HOTEL.
                 - Multiple requested outcomes must remain multiple capabilities.
+                - For explicit additive follow-ups, reuse prior successful results only when
+                  they match the current destination and any relevant route/date constraints.
+                  Keep the corresponding capability enabled and list its id in
+                  reuseCapabilitiesFromMemory; the execution layer will include that result
+                  without repeating its provider call. New capabilities are still executed.
                 - Do not add flights, hotels, weather, research or budget simply because a trip exists.
                 - A monetary limit attached to another capability is an input constraint, not a
                   request for the Budget Agent. For example, "best hotels in Bengaluru under 50k"
@@ -327,6 +351,7 @@ public class IntentAgentService {
                   "needsHotels":false,
                   "needsResearch":false,
                   "needsWeather":false,
+                  "reuseCapabilitiesFromMemory":[],
                   "needsBudget":false,
                   "budgetScope":"NONE",
                   "needsItinerary":false,
@@ -339,11 +364,44 @@ public class IntentAgentService {
                 }
                 """;
 
+        system += """
+
+                CURRENT-TURN AUTHORITY AND CONTEXT DISAMBIGUATION:
+                Classify the current user request as the requested objective. Conversation
+                context may resolve omitted details when the current request is genuinely
+                incomplete. It must not replace a clear objective or carry over a previous
+                trip's destination when the user gives a different place now.
+                ADDITIVE FOLLOW-UPS are an explicit exception to current-turn-only routing:
+                when the user semantically asks for something "as well", "also", or "too",
+                combine the new request with the immediately preceding meaningful user goal
+                that the wording refers to. Preserve only that goal's relevant capabilities;
+                do not revive unrelated older trip capabilities. This is a new combined
+                request, not a history retrieval. When a requested capability already has
+                a successful result for the same trip in conversation memory, add its
+                capability id to reuseCapabilitiesFromMemory and include that result
+                without calling its provider again. Use only matching, relevant prior
+                results; new capabilities must still execute normally.
+                Examples:
+                - Prior request: "show my recent trip" (Tokyo); current request:
+                  "what is the weather in Bangalore?" => weather=true, history=false;
+                  the requested location is Bangalore, not Tokyo.
+                - Prior request: "what is the weather in Tokyo?"; current request:
+                  "what is the weather there?" => weather=true; resolve "there" as Tokyo.
+                - Prior request: "what is the weather in Bangalore"; current request:
+                  "give me the best hotels as well" => weather=true and hotels=true;
+                  use Bangalore for hotels and set reuseCapabilitiesFromMemory=["weather"].
+                - Current request: "show details of my recent trip" => history=true;
+                  do not infer weather or another live capability from prior turns.
+                A complete current request takes precedence over conversation context even
+                when both concern travel. Do not treat every new turn as a follow-up unless
+                its meaning explicitly signals continuation or addition.
+                """;
+
         try {
             String content = routedLlm.complete(
                     AgentRole.EXTRACT,
                     system,
-                    "USER REQUEST:\n" + request + "\n\nCONVERSATION CONTEXT (use only to resolve conversational follow-ups; do not invent new objectives):\n" + boundedHistoryContext(historyContext) + "\n\nReturn the semantic capability plan now.");
+                    "USER REQUEST:\n" + request + "\n\nCONVERSATION AND USER MEMORY CONTEXT (current conversation may resolve follow-ups; persistent travel memory is historical and should be used only for explicit references to past trips or preferences. The current request is authoritative):\n" + boundedHistoryContext(historyContext) + "\n\nReturn the semantic capability plan now.");
             return jsonSupport.read(content, IntentPlan.class).orElseGet(this::emptyPlan);
         } catch (Exception ex) {
             if (ex instanceof com.example.travel.exception.GraphStopRequestedException stop) throw stop;
@@ -382,6 +440,18 @@ public class IntentAgentService {
                 and the current request asks to continue/proceed, classify the continuation as
                 the same history retrieval objective. Do not treat the assistant's prior failure
                 message as a new user objective.
+                Do not carry that history objective into a complete, independent current request.
+                However, when the current request explicitly adds a capability (for example
+                "give me the best hotels as well" after a weather lookup), interpret the
+                additive wording against the immediately preceding meaningful user request.
+                The combined goal includes the new capability and relevant prior successful
+                results, not history. Set reuseCapabilitiesFromMemory to the ids of those
+                results only when the matching structured data is present; otherwise leave
+                the list empty. Never repeat a provider call for a result selected for reuse.
+                For example, after "show my recent trip", "what is the weather in Bangalore?"
+                is a new weather request, not history retrieval; the prior trip's destination
+                must not replace Bangalore. Only use context to resolve an omitted referent such
+                as "what is the weather there?".
 
                 Set needsHistory=true when the user wants to recall, reopen,
                 inspect, summarize, compare, or otherwise obtain a previously
@@ -420,6 +490,21 @@ public class IntentAgentService {
                 - a request to reopen an earlier Paris itinerary -> true/true
                 - a request to build a new itinerary based on the last trip -> true/false
                 - a request for a completely new destination plan -> false/false
+
+                CURRENT-TURN AUTHORITY:
+                Decide whether the CURRENT USER REQUEST asks to retrieve prior data. Prior
+                context may resolve a missing referent but does not itself make this turn a
+                history request. A complete new request with its own objective or location
+                is not history retrieval, even if the previous turn was about a saved trip.
+                Examples:
+                - Prior: "show my recent trip" (Tokyo); current: "what is the weather in
+                  Bangalore?" => needsHistory=false, historyOnly=false.
+                - Prior: "show my recent trip"; current: "what is the weather there?" =>
+                  needsHistory=false, historyOnly=false; the referent is contextual, but
+                  the objective is a new weather lookup.
+                - Current: "show me that recent trip" => needsHistory=true, historyOnly=true.
+                - Current: "make a new trip like that one" => needsHistory=true,
+                  historyOnly=false.
 
                 Return JSON only:
                 {
@@ -1010,6 +1095,7 @@ public class IntentAgentService {
         if (plan == null) {
             plan = emptyPlan();
         }
+        applyReusableCapabilities(state, plan);
 
         // Intent is a CURRENT-TURN decision. Never OR it with checkpoint history.
         // Historical trip data remains in the state/result collections, while these
@@ -1019,6 +1105,8 @@ public class IntentAgentService {
         // Single orchestration boundary: semantic intent becomes a canonical AgentPlan.
         // All legacy NEEDS_/RUN_ fields are projected from that plan for compatibility.
         TravelState.applyIntentAndRun(updates, plan);
+        updates.put(TravelState.REUSE_CAPABILITIES_FROM_MEMORY,
+                plan.getReuseCapabilitiesFromMemory());
         updates.put(TravelState.REQUEST_TYPE, plan.getRequestType());
         updates.put(TravelState.HISTORY_SELECTION, normalizeHistorySelection(plan.getHistorySelection()));
         updates.put(TravelState.PLAN_STRATEGY, plan.getStrategy());
@@ -1061,6 +1149,71 @@ public class IntentAgentService {
                             plan.getConfidence()));
         }
         return updates;
+    }
+
+    private void applyReusableCapabilities(TravelState state, IntentPlan plan) {
+        java.util.Set<String> allowed = java.util.Set.of(
+                "flights", "hotels", "research", "weather", "budget", "itinerary", "knowledge");
+        if (state != null && plan.getReuseCapabilitiesFromMemory().isEmpty()
+                && !plan.isNeedsHistory()
+                && !IntentPlan.TRIP_PLANNING.equalsIgnoreCase(plan.getRequestType())
+                && isAdditiveFollowUp(state.userRequest())) {
+            plan.setReuseCapabilitiesFromMemory(allowed.stream()
+                    .filter(capability -> state.hasCachedCapability(capability))
+                    .filter(capability -> !isRequested(plan, capability))
+                    .toList());
+        }
+        java.util.List<String> reusable = plan.getReuseCapabilitiesFromMemory().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(capability -> capability.trim().toLowerCase(java.util.Locale.ROOT))
+                .filter(allowed::contains)
+                .filter(capability -> state != null && state.hasCachedCapability(capability))
+                .distinct()
+                .toList();
+        plan.setReuseCapabilitiesFromMemory(reusable);
+        for (String capability : reusable) {
+            switch (capability) {
+                case "flights" -> plan.setNeedsFlights(true);
+                case "hotels" -> plan.setNeedsHotels(true);
+                case "research" -> plan.setNeedsResearch(true);
+                case "weather" -> plan.setNeedsWeather(true);
+                case "budget" -> plan.setNeedsBudget(true);
+                case "itinerary" -> plan.setNeedsItinerary(true);
+                case "knowledge" -> plan.setNeedsKnowledge(true);
+                default -> { }
+            }
+        }
+
+        if (reusable.isEmpty() || IntentPlan.TRIP_PLANNING.equalsIgnoreCase(plan.getRequestType())) return;
+        int capabilityCount = (plan.isNeedsFlights() ? 1 : 0)
+                + (plan.isNeedsHotels() ? 1 : 0)
+                + (plan.isNeedsResearch() ? 1 : 0)
+                + (plan.isNeedsWeather() ? 1 : 0)
+                + (plan.isNeedsBudget() ? 1 : 0)
+                + (plan.isNeedsItinerary() ? 1 : 0)
+                + (plan.isNeedsKnowledge() ? 1 : 0);
+        if (capabilityCount > 1) {
+            plan.setRequestType("MULTI_CAPABILITY");
+            plan.setStrategy("multi_capability");
+        }
+    }
+
+    private boolean isAdditiveFollowUp(String request) {
+        return request != null && request.toLowerCase(java.util.Locale.ROOT)
+                .matches("(?s).*\\b(?:also|too|as\\s+well|in\\s+addition|additionally)\\b.*");
+    }
+
+    private boolean isRequested(IntentPlan plan, String capability) {
+        return switch (capability) {
+            case "flights" -> plan.isNeedsFlights();
+            case "hotels" -> plan.isNeedsHotels();
+            case "research" -> plan.isNeedsResearch();
+            case "weather" -> plan.isNeedsWeather();
+            case "budget" -> plan.isNeedsBudget();
+            case "itinerary" -> plan.isNeedsItinerary();
+            case "knowledge" -> plan.isNeedsKnowledge();
+            default -> true;
+        };
     }
 
     /**

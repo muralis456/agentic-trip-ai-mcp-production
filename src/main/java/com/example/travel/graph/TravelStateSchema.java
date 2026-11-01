@@ -80,6 +80,8 @@ public final class TravelStateSchema {
         schema.put(Planning.REPLAN_NOTES, Channels.base(() -> ""));
         schema.put(Budget.COST_FACTOR, Channels.base(() -> BigDecimal.ONE));
         schema.put(Results.WEATHER, Channels.base(() -> new WeatherForecast("", "", false)));
+        schema.put(Results.MEMORY_PLAN, Channels.base(com.example.travel.dto.TripPlanResult::new));
+        schema.put(Results.REUSE_CAPABILITIES_FROM_MEMORY, Channels.base(() -> new ArrayList<String>()));
         schema.put(Control.PIPELINE, Channels.appender(() -> new ArrayList<AgentStep>()));
         schema.put(Hitl.AWAITING_APPROVAL, Channels.base(() -> Boolean.FALSE));
         schema.put(Hitl.HITL_DECISION, Channels.base(() -> ""));

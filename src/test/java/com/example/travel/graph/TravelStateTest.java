@@ -48,6 +48,18 @@ class TravelStateTest {
         assertEquals(new BigDecimal("200000"), TravelState.parseBudget("₹2L"));
         assertTrue(state.historyContext().contains("previous"));
     }
+
+    @Test
+    void currentWeatherLocationOverridesStaleDestinationFromPreviousTrip() {
+        TravelRequest request = new TravelRequest();
+        request.setDestination("Tokyo");
+        request.setPrompt("what is weather in bangalore");
+
+        TravelState state = new TravelState(TravelState.fromRequest(request, "previous trip: Tokyo"));
+
+        assertEquals("Bengaluru", state.destination());
+    }
+
     @Test
     void composedMultiCapabilityTripRequiresHumanApprovalBoundary() {
         TravelState state = new TravelState(TravelState.fromRequest(new TravelRequest(), ""));
