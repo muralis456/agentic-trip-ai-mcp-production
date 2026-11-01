@@ -416,12 +416,18 @@ public class ConversationMemoryService {
                 remaining -= block.length();
             }
         }
+        List<String> recentTurns = new java.util.ArrayList<>();
         for (int i = history.size() - 1; i >= 0; i--) {
             String block = contextBlock(history.get(i));
             if (block.length() > remaining) break;
-            selected.add(block);
+            recentTurns.add(block);
             remaining -= block.length();
         }
+        // The scan runs newest-to-oldest to prioritize recent turns. Restore
+        // chronological order before composing the prompt, while keeping the
+        // compacted summary ahead of the verbatim recent turns.
+        java.util.Collections.reverse(recentTurns);
+        selected.addAll(recentTurns);
         return selected.isEmpty() ? "" : header + String.join("", selected);
     }
 
