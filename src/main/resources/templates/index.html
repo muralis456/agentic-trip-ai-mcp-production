@@ -3936,6 +3936,7 @@
     const buildWeatherSection = (weather, options = {}) => {
         if (!weather) return '';
         const current = weather.current || {};
+        const hasCurrent = current.temperature != null;
         const days = Array.isArray(weather.days) ? weather.days.filter(Boolean).slice(0, 7) : [];
         const hasWeatherData = hasUsableWeatherData(weather);
         const focused = !!options.focused;
