@@ -1,9 +1,9 @@
 package com.example.travel.graph.node;
 
 import com.example.travel.agent.FinalPlannerAgentService;
-import com.example.travel.jev.JevHitlDecisionService;
 import com.example.travel.graph.TravelGraphNodes;
 import com.example.travel.graph.TravelState;
+import com.example.travel.jev.JevHitlDecisionService;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
@@ -29,7 +29,7 @@ public class FinalizationNode implements NodeAction<TravelState> {
         this.jevHitlDecision = jevHitlDecision;
     }
 
-    /** Backward-compatible constructor for existing tests. */
+    /** Backward-compatible constructor for callers without JEV decision support. */
     public FinalizationNode(FinalPlannerAgentService finalPlannerAgentService) {
         this(finalPlannerAgentService, java.util.Optional.empty());
     }
@@ -48,11 +48,12 @@ public class FinalizationNode implements NodeAction<TravelState> {
         // In that case the UI must still ask the human to approve/modify/reject
         // the generated plan instead of silently treating it as confirmed.
         boolean clarificationRequired = state != null && state.userInputRequired();
-        boolean requiresApproval = clarificationRequired || (tripPlanning && !clarificationRequired);
-        if (jevHitlDecision.isPresent() && !clarificationRequired) {
-            var d = jevHitlDecision.get().decide(state);
-            requiresApproval = "ASK_USER".equals(d.route());
-            log.info("[HITL] Jev route={} confidence={} accepted={} reason={}", d.route(), d.confidence(), d.accepted(), d.reason());
+        boolean requiresApproval = clarificationRequired || tripPlanning;
+        if (jevHitlDecision.isPresent() && !clarificationRequired && !tripPlanning) {
+            var decision = jevHitlDecision.get().decide(state);
+            requiresApproval = "ASK_USER".equals(decision.route());
+            log.info("[HITL] Jev route={} confidence={} accepted={} reason={}",
+                    decision.route(), decision.confidence(), decision.accepted(), decision.reason());
         }
 
         log.info(
