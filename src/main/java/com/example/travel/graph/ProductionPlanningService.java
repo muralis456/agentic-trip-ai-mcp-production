@@ -107,6 +107,11 @@ public class ProductionPlanningService {
         }
 
         boolean completeTrip = "TRIP_PLANNING".equalsIgnoreCase(state.requestType());
+        if (completeTrip) {
+            AgentTask knowledge = tasks.computeIfAbsent(
+                    "knowledge", id -> new AgentTask(id, "rag", false));
+            knowledge.setRequired(false);
+        }
 
         // The planner may choose supporting tasks only from the semantic capability
         // contract of this user turn. This prevents an LLM hallucination from turning

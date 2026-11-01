@@ -11,6 +11,8 @@ import com.example.travel.tool.TavilySearchTool;
 import com.example.travel.model.SearchHit;
 import com.example.travel.rag.RagAnswerService;
 import org.bsc.langgraph4j.action.NodeAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -19,6 +21,8 @@ import java.util.List;
 
 @Component
 public class RagNode implements NodeAction<TravelState> {
+
+    private static final Logger log = LoggerFactory.getLogger(RagNode.class);
 
     private final AgenticRagService agenticRagService;
     private final RagAnswerService ragAnswerService;
@@ -50,6 +54,13 @@ public class RagNode implements NodeAction<TravelState> {
                 routeName = jevRagDecision.get().decide(state).route();
                 if (!List.of("RAG", "WEB", "BOTH", "NONE").contains(routeName)) {
                     routeName = state.needsKnowledge() ? "RAG" : "NONE";
+                }
+                if (state.needsKnowledge() && "NONE".equals(routeName)) {
+                    log.warn("Ignoring JEV NONE route because the current intent requires durable travel knowledge");
+                    routeName = "RAG";
+                } else if (state.needsKnowledge() && "WEB".equals(routeName)) {
+                    log.info("Adding RAG to JEV WEB route because the current intent requires durable travel knowledge");
+                    routeName = "BOTH";
                 }
                 if ("NONE".equals(routeName)) {
                     Map<String,Object> skipped = new LinkedHashMap<>();
